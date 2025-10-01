@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mcp-refactor": {
+      "command": "mcp-hot-reload",
+      "cwd": "/Users/stefan/Projects/mcp-servers/mcp-refactor"
+    }
+  }
+}

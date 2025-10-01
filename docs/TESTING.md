@@ -103,6 +103,188 @@ it('should return list of available simulators', () => {
 
 This ensures tests remain stable when refactoring internal implementation.
 
+### Understanding Different Types of Behavior
+
+**Key Insight: ALL tests should validate behavior, but behavior exists at different levels:**
+
+#### Business Behavior
+Tests the actual business logic and user-facing functionality.
+
+```typescript
+// Testing: "Premium users get 20% discount"
+it('applies discount for premium users', () => {
+  const discount = calculateDiscount(premiumUser, items);
+  expect(discount).toBe(0.20);
+});
+```
+
+#### Integration Behavior
+Tests that components work together correctly.
+
+```typescript
+// Testing: "Order processing calculates total correctly"
+it('processes order with correct total', () => {
+  const result = processOrder(order);
+  expect(result.total).toBe(80); // After 20% discount
+});
+```
+
+#### Contract Behavior
+Tests that we correctly integrate with external systems. This looks like implementation testing but is actually testing the behavior of "correct integration".
+
+```typescript
+// Testing: "We honor database transaction requirements"
+it('maintains data integrity with transactions', async () => {
+  await saveOrder(order);
+
+  // This LOOKS like implementation testing:
+  expect(db.beginTransaction).toHaveBeenCalled();
+  expect(db.commit).toHaveBeenCalled();
+
+  // But it's ACTUALLY testing the behavior:
+  // "We prevent data corruption by using transactions"
+});
+
+// Testing: "We follow Apple's thread-safety requirements"
+it('follows AVCaptureDevice API contract', () => {
+  flashlight.toggle();
+
+  // Not testing "we called lock()", but rather:
+  // "We follow Apple's required thread-safety protocol"
+  expect(device.wasLockedBeforeModification).toBe(true);
+});
+```
+
+### The Key Question: "What Behavior Am I Testing?"
+
+Before writing any test, ask yourself:
+
+1. **What user-facing behavior does this test validate?**
+   - "Users see an error when no camera is available"
+   - "Premium users receive their discount"
+   - "Tasks appear completed when marked done"
+
+2. **What system behavior does this test validate?**
+   - "We maintain data consistency"
+   - "We follow API contracts correctly"
+   - "We handle errors gracefully"
+
+3. **Would this test break if I refactored MY CODE but kept the same behavior?**
+   - If YES → You're testing implementation (bad)
+   - If NO → You're testing behavior (good)
+
+   **Important:** This question is about refactoring YOUR code, not changing frameworks!
+   - Refactoring your algorithm = Test should NOT break
+   - Switching frameworks/libraries = Test MAY break (and that's OK!)
+
+   Contract tests SHOULD break when you change dependencies - that's their job!
+
+### The Testing Pyramid with Behavior Context
+
+```
+E2E Tests:         Testing "User can complete full workflow" behavior
+                   (Real browser, real backend, real database)
+
+Integration Tests: Testing "Components work together" behavior
+                   (Multiple units, mocked boundaries)
+
+Contract Tests:    Testing "We integrate correctly" behavior
+                   (Framework boundaries, API contracts)
+
+Unit Tests:        Testing "Business logic is correct" behavior
+                   (Pure functions, isolated components)
+```
+
+### When Contract Testing Is Actually Behavior Testing
+
+Contract tests that appear to test implementation are actually testing critical behaviors:
+
+```typescript
+// This test prevents production breakage:
+it('uses Prisma ORM correctly', async () => {
+  await userRepository.create(userData);
+
+  // Looks like implementation testing:
+  expect(prisma.user.create).toHaveBeenCalledWith({
+    data: userData
+  });
+
+  // But actually validates the behavior:
+  // "We maintain compatibility with our ORM"
+  // Without this, someone might bypass Prisma and break production!
+});
+```
+
+**Contract tests serve as safety rails:** They warn you when you're about to break a critical integration, which IS a behavior - the behavior of maintaining system compatibility.
+
+### What Can and Cannot Be Unit Tested
+
+#### ✅ CAN Be Unit Tested (with proper mocking)
+- **Business Logic**: Calculations, validations, transformations
+- **Time-based Logic**: Using Vitest's `vi.useFakeTimers()`
+- **API Calls**: Mock the fetch/axios calls
+- **Browser Storage**: Mock localStorage/sessionStorage
+- **DOM Events**: Using Testing Library's fireEvent
+
+```typescript
+// Time-based code IS testable with Vitest!
+describe('Debounced search', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('delays search by 300ms', async () => {
+    const searchFn = vi.fn();
+    const debouncedSearch = debounce(searchFn, 300);
+
+    debouncedSearch('query');
+    expect(searchFn).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(299);
+    expect(searchFn).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(searchFn).toHaveBeenCalledWith('query');
+  });
+});
+```
+
+#### ⚠️ Requires Contract Testing
+- **Database Operations**: Test correct use of transactions
+- **External API Integration**: Test we follow their contract
+- **Framework Conventions**: Test we follow required patterns
+
+#### ❌ TRULY Cannot Be Unit Tested
+- **Hardware Behavior**: LED actually turning on, sound playing
+- **Network Layer**: Packets actually transmitted
+- **Browser Rendering**: Actual pixels drawn on screen
+- **User Perception**: What humans actually see/hear
+- **Third-party Services**: External API actually working
+
+```typescript
+// Example: Notification system
+class NotificationService {
+  // ✅ CAN test: Our logic around timing
+  scheduleNotification(delay: number) {
+    setTimeout(() => this.show(), delay);
+  }
+
+  // ✅ CAN test: We call the API correctly (contract)
+  show() {
+    if ('Notification' in window) {
+      new Notification('Hello'); // Can test we call this
+    }
+  }
+
+  // ❌ CANNOT test: User actually sees the OS notification
+  // This requires manual or E2E testing
+}
+```
+
 ### 1. Protocol Compliance Testing
 
 MCP servers must strictly adhere to the JSON-RPC protocol. Test for:
@@ -552,16 +734,96 @@ describe('Security', () => {
 
 **MANDATORY: All test files must follow this strict naming convention:**
 
-- `*.unit.test.ts` - Unit tests (isolated, fast, no I/O, mock all dependencies)
-- `*.integration.test.ts` - Integration tests (test component interactions, mock only external boundaries like network/filesystem)
-- `*.e2e.test.ts` - End-to-end tests (full MCP protocol flow, no mocks, real system interaction)
+- `*.unit.test.ts` - Unit tests (pure business logic, mock ALL dependencies, NO implementation testing)
+- `*.contract.test.ts` - Contract tests (verify correct API/framework usage, test integration boundaries)
+- `*.integration.test.ts` - Integration tests (test multiple components together, mock only external systems)
+- `*.e2e.test.ts` - End-to-end tests (full application flow, no mocks, real system interaction)
 
 ```
 src/
-├── simulator.ts
-├── simulator.unit.test.ts        # Unit tests
-├── simulator.integration.test.ts # Integration tests
-└── simulator.e2e.test.ts         # E2E tests
+├── task-repository.ts
+├── task-repository.unit.test.ts        # Business logic only
+├── task-repository.contract.test.ts    # localStorage API usage
+├── task-repository.integration.test.ts # With other components
+└── task-repository.e2e.test.ts         # Full persistence flow
+```
+
+#### What Goes in Each Test Type
+
+**Unit Tests - Business Logic ONLY**
+```typescript
+// task-service.unit.test.ts
+describe('TaskService', () => {
+  it('calculates task completion percentage', () => {
+    // Pure business logic - no dependencies
+    const task = { completed: 3, total: 10 };
+    expect(calculateProgress(task)).toBe(30);
+  });
+
+  it('validates task title length', () => {
+    // Business rule - no external dependencies
+    expect(isValidTitle('x'.repeat(101))).toBe(false);
+  });
+});
+```
+
+**Contract Tests - Framework/API Integration**
+```typescript
+// task-repository.contract.test.ts
+describe('TaskRepository localStorage contract', () => {
+  it('correctly serializes tasks to localStorage', () => {
+    // Testing we use localStorage API correctly
+    repository.save(task);
+    expect(localStorage.setItem).toHaveBeenCalledWith(
+      'tasks',
+      JSON.stringify([task])
+    );
+  });
+
+  it('handles localStorage quota exceeded', () => {
+    // Testing we handle browser API errors correctly
+    localStorage.setItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+    expect(() => repository.save(hugeTask)).toThrow('Storage full');
+  });
+});
+```
+
+**Integration Tests - Component Interactions**
+```typescript
+// task-workflow.integration.test.ts
+describe('Task completion workflow', () => {
+  it('updates parent progress when child completes', async () => {
+    // Testing multiple components work together
+    const parent = await taskService.create({ title: 'Parent' });
+    const child = await taskService.addChild(parent.id, { title: 'Child' });
+
+    await taskService.complete(child.id);
+
+    const updatedParent = await taskService.get(parent.id);
+    expect(updatedParent.progress).toBe(50); // 1 of 2 children done
+  });
+});
+```
+
+**E2E Tests - Full User Flows**
+```typescript
+// task-management.e2e.test.ts
+describe('Complete task management flow', () => {
+  it('user can create, edit, complete, and delete tasks', async () => {
+    // Real browser, real backend, real database
+    await page.goto('/tasks');
+    await page.click('[data-testid="new-task"]');
+    await page.fill('input[name="title"]', 'My Task');
+    await page.click('button[type="submit"]');
+
+    await expect(page.locator('text=My Task')).toBeVisible();
+
+    await page.click('[data-testid="complete-task"]');
+    await expect(page.locator('.completed')).toHaveText('My Task');
+  });
+});
 ```
 
 ### Recommended Test Structure
@@ -618,6 +880,7 @@ jobs:
           npx @modelcontextprotocol/inspector node dist/index.js --test-mode
 ```
 
+
 ## Vitest TypeScript Mocking Best Practices
 
 ### 1. Modern vi.fn() Type Signatures
@@ -640,6 +903,46 @@ const mockCallback = vi.fn<(error: Error | null, data?: string) => void>();
 // Using MockedFunction type for better inference
 let mockExecutor: MockedFunction<(cmd: string) => Promise<string>>;
 mockExecutor = vi.fn();
+
+// ✅ BEST - Use interface method types directly
+interface MyService {
+  execute(cmd: string): Promise<void>;
+}
+const mockExecute = vi.fn<MyService['execute']>();
+```
+
+### 1.1 Solving "Cannot access before initialization" with vi.hoisted()
+
+When mocking modules that use variables from the test scope, use `vi.hoisted()`:
+
+```typescript
+// ❌ BAD - Causes "Cannot access before initialization" error
+const mockExecAsync = vi.fn();
+vi.mock('util', () => ({
+  promisify: () => mockExecAsync // Error: mockExecAsync not available yet
+}));
+
+// ✅ GOOD - Using vi.hoisted() to define variables
+const { mockExecAsync } = vi.hoisted(() => ({
+  mockExecAsync: vi.fn<(cmd: string) => Promise<{ stdout: string; stderr: string }>>()
+}));
+
+vi.mock('util', () => ({
+  promisify: () => mockExecAsync // Now mockExecAsync is available
+}));
+
+// ✅ ALTERNATIVE - Use "mock" prefix (Vitest doesn't hoist these)
+const mockExecAsync = vi.fn(); // Note: "mock" prefix
+vi.mock('util', () => ({
+  promisify: () => mockExecAsync
+}));
+
+// ✅ ALTERNATIVE - Use vi.doMock() for non-hoisted mocking
+const mockExecAsync = vi.fn();
+vi.doMock('util', () => ({
+  promisify: () => mockExecAsync
+}));
+// Note: Must import the module AFTER vi.doMock()
 ```
 
 ### 2. Mocking ESM Modules with vi.mock()
@@ -688,11 +991,43 @@ mockAsync
   .mockResolvedValue('default');
 ```
 
-### 4. Factory Pattern with Vitest
+### 4. Factory Pattern with Vitest (Recommended for Type Safety)
 
 ```typescript
 import { vi } from 'vitest';
 
+// ✅ BEST - Type-safe factory patterns without type assertions
+function createMockService(): MyService {
+  return {
+    execute: vi.fn<MyService['execute']>(),
+    query: vi.fn<MyService['query']>(),
+    status: 'ready' // Non-function properties
+  };
+}
+
+// With partial mocking using satisfies
+function createPartialMock() {
+  return {
+    execute: vi.fn(),
+    query: vi.fn()
+  } satisfies Partial<MyService>;
+}
+
+// Factory with overrides pattern
+function createMockChildProcess(overrides: Partial<ChildProcess> = {}): ChildProcess {
+  const emitter = new EventEmitter();
+
+  return Object.assign(emitter, {
+    stdin: new PassThrough(),
+    stdout: new PassThrough(),
+    stderr: null,
+    pid: 123,
+    kill: vi.fn().mockReturnValue(true),
+    ...overrides
+  }) as ChildProcess;
+}
+
+// Context-based testing pattern
 function createTestContext() {
   const mockExecute = vi.fn<(cmd: string) => Promise<{ stdout: string }>>();
   const mockLogger = {
@@ -849,6 +1184,61 @@ if (import.meta.vitest) {
 }
 ```
 
+## Avoiding Type Assertions in Tests
+
+### ❌ AVOID: Type Assertions with "as unknown as"
+
+```typescript
+// BAD - Loses type safety and hides potential issues
+const mockService = {
+  execute: vi.fn()
+} as unknown as MyService;
+
+// BAD - Multiple assertions are a code smell
+const mock = someObject as unknown as SomeType as AnotherType;
+```
+
+### ✅ PREFER: Type-Safe Alternatives
+
+```typescript
+// GOOD - Use factory functions
+function createMockService(): MyService {
+  return {
+    execute: vi.fn<MyService['execute']>(),
+    query: vi.fn<MyService['query']>(),
+    // ... implement all required properties
+  };
+}
+
+// GOOD - Use satisfies for partial mocks
+const partialMock = {
+  execute: vi.fn(),
+  query: vi.fn()
+} satisfies Partial<MyService>;
+
+// GOOD - Use vi.mocked() for module mocks
+import { service } from './service';
+vi.mock('./service');
+const mockedService = vi.mocked(service);
+```
+
+### When Type Assertions Are Acceptable
+
+```typescript
+// ACCEPTABLE - For complex EventEmitter merging patterns
+function createMockProcess(): ChildProcess {
+  const emitter = new EventEmitter();
+  // Complex object merging that TypeScript can't infer
+  return Object.assign(emitter, {
+    stdin: new PassThrough(),
+    // ... other properties
+  }) as ChildProcess;  // Single assertion at the end
+}
+
+// ACCEPTABLE - When testing error cases
+const invalidInput = { foo: 'bar' } as ValidInput; // Testing schema validation
+```
+
 ## Best Practices Summary
 
 1. **Always test stderr vs stdout compliance** - Critical for STDIO transport
@@ -861,6 +1251,8 @@ if (import.meta.vitest) {
 8. **Use describe.concurrent for parallel tests** - Faster test execution
 9. **Create test context factories** - Better than scattered setup code
 10. **Use vi.spyOn for partial mocking** - Maintains original functionality
+11. **Avoid type assertions** - Use factory patterns and satisfies operator instead
+12. **Use interface index types** - `vi.fn<Interface['method']>()` for perfect type matching
 
 ## Troubleshooting Test Failures
 
