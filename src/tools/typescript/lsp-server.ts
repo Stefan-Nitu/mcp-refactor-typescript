@@ -425,4 +425,42 @@ export class TypeScriptLanguageServer {
       filesChanged: [filePath]
     };
   }
+
+  async moveFile(sourcePath: string, destinationPath: string): Promise<RefactorResult> {
+    if (!this.initialized) await this.initialize();
+
+    if (!this.projectLoaded) {
+      return {
+        success: false,
+        message: 'TypeScript is still indexing the project. Please wait a moment and try again.'
+      };
+    }
+
+    const sourceUri = pathToFileURL(sourcePath).toString();
+    const destUri = pathToFileURL(destinationPath).toString();
+
+    const workspaceEdit: WorkspaceEdit | null = await this.connection!.sendRequest('workspace/willRenameFiles', {
+      files: [{
+        oldUri: sourceUri,
+        newUri: destUri
+      }]
+    });
+
+    if (workspaceEdit) {
+      const filesChanged = await this.editHandler.applyWorkspaceEdit(workspaceEdit);
+      const editDetails = this.editHandler.getEditDetails();
+
+      return {
+        success: true,
+        message: `Moved file to ${destinationPath}`,
+        filesChanged,
+        editDetails
+      };
+    }
+
+    return {
+      success: true,
+      message: `Moved file to ${destinationPath} (no import updates needed)`
+    };
+  }
 }

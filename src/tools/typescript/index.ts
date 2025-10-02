@@ -3,6 +3,7 @@ import { z } from 'zod';
 // Define available actions
 const TYPESCRIPT_ACTIONS = [
   'rename',
+  'move_file',
   'extract_function',
   'extract_variable',
   'organize_imports',
@@ -33,7 +34,10 @@ export const typescriptInputSchema = {
 
   // Optional names for extracted items
   functionName: z.string().optional().describe('Name for extracted function'),
-  variableName: z.string().optional().describe('Name for extracted variable')
+  variableName: z.string().optional().describe('Name for extracted variable'),
+
+  // Move file parameters
+  destinationPath: z.string().optional().describe('Destination path for move_file action')
 };
 
 // Router that delegates to appropriate action handlers
@@ -65,6 +69,19 @@ export async function handleTypeScript(args: any) {
       }
       const { rename } = await import('./rename.js');
       return await rename(args.filePath, args.line, args.column, args.newName);
+    }
+
+    case 'move_file': {
+      if (!args.destinationPath) {
+        return {
+          content: [{
+            type: 'text' as const,
+            text: 'Error: move_file requires destinationPath parameter'
+          }]
+        };
+      }
+      const { moveFile } = await import('./move-file.js');
+      return await moveFile(args.filePath, args.destinationPath);
     }
 
     case 'extract_function': {

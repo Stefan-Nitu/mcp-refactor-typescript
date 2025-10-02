@@ -8,6 +8,10 @@ A Model Context Protocol (MCP) server that provides TypeScript/JavaScript refact
 - **Rename Symbol** - Rename variables, functions, methods, and classes across multiple files
   - Tracks all changes with file paths and line numbers
   - Shows detailed change summary
+- **Move File** - Move TypeScript/JavaScript files and automatically update all imports
+  - Uses LSP workspace/willRenameFiles to detect import changes
+  - Updates relative import paths in all affected files
+  - Creates destination directories if needed
 
 ### 🚧 In Progress
 - **Organize Imports** - Remove unused imports and sort them
@@ -62,7 +66,7 @@ npx @modelcontextprotocol/inspector node dist/index.js
 Performs TypeScript/JavaScript refactoring operations.
 
 **Parameters:**
-- `action` (required): One of `rename`, `extract_function`, `extract_variable`, `organize_imports`, `fix_all`, `remove_unused`
+- `action` (required): One of `rename`, `move_file`, `extract_function`, `extract_variable`, `organize_imports`, `fix_all`, `remove_unused`
 - `filePath` (required): Absolute path to the TypeScript/JavaScript file
 
 **Action-specific parameters:**
@@ -71,6 +75,11 @@ Performs TypeScript/JavaScript refactoring operations.
 - `line`: Line number (1-based) of the symbol
 - `column`: Column number (1-based) - position within the identifier
 - `newName`: New name for the symbol
+
+##### Move File
+- `destinationPath`: Absolute path where the file should be moved
+  - Automatically updates imports in all files that reference it
+  - Creates destination directories if they don't exist
 
 ##### Extract Function/Variable
 - `startLine`: Start line of selection (1-based)
@@ -82,7 +91,7 @@ Performs TypeScript/JavaScript refactoring operations.
 
 ## Examples
 
-### Rename a Method
+### Rename a Symbol
 
 ```json
 {
@@ -93,6 +102,19 @@ Performs TypeScript/JavaScript refactoring operations.
     "line": 10,
     "column": 5,
     "newName": "getUserDisplayName"
+  }
+}
+```
+
+### Move a File
+
+```json
+{
+  "tool": "typescript",
+  "arguments": {
+    "action": "move_file",
+    "filePath": "/project/src/utils.ts",
+    "destinationPath": "/project/src/helpers/utils.ts"
   }
 }
 ```
