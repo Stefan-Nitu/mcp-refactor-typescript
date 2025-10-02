@@ -305,13 +305,15 @@ export class TypeScriptLanguageServer {
 
     const actions = await this.connection!.sendRequest('textDocument/codeAction', params) as CodeAction[];
 
+    console.error('[LSP] Available extract actions:', actions?.map(a => a.title));
+
     const extractAction = actions?.find(a =>
       a.title.toLowerCase().includes('function') ||
       a.title.toLowerCase().includes('method')
     );
 
     if (!extractAction) {
-      return { success: false, message: 'No extract function action available' };
+      return { success: false, message: `No extract function action available. Available actions: ${actions?.map(a => a.title).join(', ') || 'none'}` };
     }
 
     if (extractAction.edit) {
@@ -484,6 +486,52 @@ export class TypeScriptLanguageServer {
     return {
       success: true,
       message: `Moved file to ${destinationPath} (no import updates needed)`
+    };
+  }
+
+  async removeUnused(filePath: string): Promise<RefactorResult> {
+    if (!this.initialized) await this.initialize();
+
+    const loadingCheck = await this.checkProjectLoaded();
+    if (loadingCheck) return loadingCheck;
+
+    const uri = await this.ensureDocumentOpen(filePath);
+    const content = await readFile(filePath, 'utf-8');
+    const lines = content.split('\n');
+
+    const params: CodeActionParams = {
+      textDocument: { uri },
+      range: {
+        start: { line: 0, character: 0 },
+        end: { line: lines.length - 1, character: lines[lines.length - 1].length }
+      },
+      context: {
+        diagnostics: [],
+        only: ['source.removeUnused.ts']
+      }
+    };
+
+    const actions = await this.connection!.sendRequest('textDocument/codeAction', params) as CodeAction[];
+
+    if (!actions || actions.length === 0) {
+      return { success: true, message: 'No unused code to remove' };
+    }
+
+    for (const action of actions) {
+      if (action.edit) {
+        await this.editHandler.applyWorkspaceEdit(action.edit);
+      } else if (action.command) {
+        await this.connection!.sendRequest('workspace/executeCommand', {
+          command: action.command.command,
+          arguments: action.command.arguments
+        });
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Removed unused code',
+      filesChanged: [filePath]
     };
   }
 }
