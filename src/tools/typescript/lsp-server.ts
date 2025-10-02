@@ -345,7 +345,7 @@ export class TypeScriptLanguageServer {
 
     const params: ExecuteCommandParams = {
       command: '_typescript.organizeImports',
-      arguments: [{ sourceUri: uri }]
+      arguments: [uri]
     };
 
     await this.connection!.sendRequest('workspace/executeCommand', params);
