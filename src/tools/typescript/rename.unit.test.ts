@@ -47,6 +47,20 @@ describe('rename', () => {
     // Now initialize the language server with the test directory as root
     testLanguageServer = new TypeScriptLanguageServer(testDir);
     await testLanguageServer.initialize();
+
+    // Wait for project to load (tests explicitly open files, so this ensures readiness)
+    await new Promise(resolve => {
+      const check = () => {
+        if (testLanguageServer?.isProjectLoaded()) {
+          resolve(undefined);
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+      // Failsafe timeout
+      setTimeout(() => resolve(undefined), 5000);
+    });
   });
 
   afterAll(async () => {

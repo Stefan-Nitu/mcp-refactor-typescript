@@ -18,7 +18,7 @@ import {
 } from 'vscode-languageserver-protocol';
 import { StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
 import { readFile } from 'fs/promises';
-import { pathToFileURL } from 'url';
+import { pathToFileURL, fileURLToPath } from 'url';
 import { Position, Range, RefactorResult } from '../../types/refactoring.js';
 import { WorkspaceEditHandler } from '../../utils/workspace-edit.js';
 
@@ -29,6 +29,7 @@ export class TypeScriptLanguageServer {
   private rootUri: string;
   private openDocuments = new Set<string>();
   private editHandler = new WorkspaceEditHandler();
+  private projectLoaded = false;
 
   constructor(rootPath?: string) {
     this.rootUri = pathToFileURL(rootPath || process.cwd()).toString();
@@ -119,6 +120,55 @@ export class TypeScriptLanguageServer {
     await this.connection.sendNotification('initialized');
 
     this.initialized = true;
+
+    // Start monitoring tsserver for project loading
+    this.monitorProjectLoading();
+  }
+
+  private monitorProjectLoading(): void {
+    const rootPath = fileURLToPath(this.rootUri);
+    const tsserver = spawn('npx', ['tsserver'], {
+      stdio: ['pipe', 'pipe', 'ignore'],
+      shell: true,
+      cwd: rootPath
+    });
+
+    let seq = 0;
+    const send = (command: string, args: any = {}) => {
+      const msg = JSON.stringify({ seq: seq++, type: 'request', command, arguments: args }) + '\n';
+      tsserver.stdin?.write(msg);
+    };
+
+    let output = '';
+    tsserver.stdout?.on('data', (data) => {
+      output += data.toString();
+      const lines = output.split('\n');
+      output = lines.pop() || '';
+
+      lines.forEach(line => {
+        if (!line.trim() || line.startsWith('Content-Length:')) return;
+
+        try {
+          const msg = JSON.parse(line);
+          if (msg.type === 'event' && msg.event === 'projectLoadingFinish') {
+            console.error('[LSP] TypeScript project loaded:', msg.body?.projectName);
+            this.projectLoaded = true;
+            tsserver.kill();
+          }
+        } catch {}
+      });
+    });
+
+    send('configure', { preferences: {} });
+    send('open', {
+      file: rootPath + '/tsconfig.json',
+      fileContent: '{}',
+      scriptKindName: 'TS'
+    });
+  }
+
+  isProjectLoaded(): boolean {
+    return this.projectLoaded;
   }
 
   async shutdown(): Promise<void> {
@@ -175,6 +225,13 @@ export class TypeScriptLanguageServer {
 
   async rename(filePath: string, position: Position, newName: string): Promise<RefactorResult> {
     if (!this.initialized) await this.initialize();
+
+    if (!this.projectLoaded) {
+      return {
+        success: false,
+        message: 'TypeScript is still indexing the project. Please wait a moment and try again. For large projects, this can take 30-60 seconds.'
+      };
+    }
 
     const uri = await this.ensureDocumentOpen(filePath);
     const lspPosition = this.toLSPPosition(position);

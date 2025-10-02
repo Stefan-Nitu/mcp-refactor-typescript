@@ -187,11 +187,11 @@ npm run test:watch
 ### Known Issues
 
 1. **Cross-file rename timing**:
-   - TypeScript LSP needs time to index the project before finding cross-file references
-   - Default wait time: 2 seconds (configurable via `LSP_INDEX_TIMEOUT_MS` env var)
-   - Small projects (<50 files): 1-2 seconds usually sufficient
-   - Large projects (>500 files): may need 10-60 seconds
-   - Set environment variable for large projects: `LSP_INDEX_TIMEOUT_MS=30000`
+   - TypeScript needs time to index the project before finding cross-file references
+   - The server monitors indexing status using tsserver's `projectLoadingFinish` event
+   - If you try to rename before indexing completes, you'll get a message to wait and retry
+   - Small projects (<50 files): ~1-2 seconds
+   - Large projects (>500 files): may take 10-60 seconds
 
 2. **Cross-file rename requirements**:
    - Valid TypeScript with `.js` extensions in ESM imports
