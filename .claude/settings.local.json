@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm test:*)",
+      "Bash(cat:*)",
+      "Bash(npm run build:*)",
+      "Read(//private/tmp/ts-lsp-test/**)"
     ],
     "deny": [],
     "ask": []
