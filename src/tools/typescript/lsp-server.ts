@@ -171,14 +171,23 @@ export class TypeScriptLanguageServer {
     return this.projectLoaded;
   }
 
-  private checkProjectLoaded(): RefactorResult | null {
-    if (!this.projectLoaded) {
-      return {
-        success: false,
-        message: 'TypeScript is still indexing the project. Please wait a moment and try again. For large projects, this can take 30-60 seconds.'
-      };
+  private async checkProjectLoaded(waitTime = 5000): Promise<RefactorResult | null> {
+    if (this.projectLoaded) return null;
+
+    // Wait up to waitTime for project to load
+    const startTime = Date.now();
+    while (Date.now() - startTime < waitTime) {
+      if (this.projectLoaded) {
+        console.error(`[LSP] Project loaded after ${Date.now() - startTime}ms wait`);
+        return null;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
-    return null;
+
+    return {
+      success: false,
+      message: `TypeScript is still indexing the project after waiting ${waitTime / 1000}s. For large projects, this can take longer. Please try again in a moment.`
+    };
   }
 
   async shutdown(): Promise<void> {
@@ -236,7 +245,7 @@ export class TypeScriptLanguageServer {
   async rename(filePath: string, position: Position, newName: string): Promise<RefactorResult> {
     if (!this.initialized) await this.initialize();
 
-    const loadingCheck = this.checkProjectLoaded();
+    const loadingCheck = await this.checkProjectLoaded();
     if (loadingCheck) return loadingCheck;
 
     const uri = await this.ensureDocumentOpen(filePath);
@@ -279,7 +288,7 @@ export class TypeScriptLanguageServer {
   async extractFunction(filePath: string, range: Range, _functionName?: string): Promise<RefactorResult> {
     if (!this.initialized) await this.initialize();
 
-    const loadingCheck = this.checkProjectLoaded();
+    const loadingCheck = await this.checkProjectLoaded();
     if (loadingCheck) return loadingCheck;
 
     const uri = await this.ensureDocumentOpen(filePath);
@@ -329,7 +338,7 @@ export class TypeScriptLanguageServer {
   async organizeImports(filePath: string): Promise<RefactorResult> {
     if (!this.initialized) await this.initialize();
 
-    const loadingCheck = this.checkProjectLoaded();
+    const loadingCheck = await this.checkProjectLoaded();
     if (loadingCheck) return loadingCheck;
 
     const uri = await this.ensureDocumentOpen(filePath);
@@ -351,7 +360,7 @@ export class TypeScriptLanguageServer {
   async extractVariable(filePath: string, range: Range, _variableName?: string): Promise<RefactorResult> {
     if (!this.initialized) await this.initialize();
 
-    const loadingCheck = this.checkProjectLoaded();
+    const loadingCheck = await this.checkProjectLoaded();
     if (loadingCheck) return loadingCheck;
 
     const uri = await this.ensureDocumentOpen(filePath);
@@ -401,7 +410,7 @@ export class TypeScriptLanguageServer {
   async fixAll(filePath: string): Promise<RefactorResult> {
     if (!this.initialized) await this.initialize();
 
-    const loadingCheck = this.checkProjectLoaded();
+    const loadingCheck = await this.checkProjectLoaded();
     if (loadingCheck) return loadingCheck;
 
     const uri = await this.ensureDocumentOpen(filePath);
@@ -447,7 +456,7 @@ export class TypeScriptLanguageServer {
   async moveFile(sourcePath: string, destinationPath: string): Promise<RefactorResult> {
     if (!this.initialized) await this.initialize();
 
-    const loadingCheck = this.checkProjectLoaded();
+    const loadingCheck = await this.checkProjectLoaded();
     if (loadingCheck) return loadingCheck;
 
     const sourceUri = pathToFileURL(sourcePath).toString();
