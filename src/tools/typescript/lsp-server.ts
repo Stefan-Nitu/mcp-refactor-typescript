@@ -140,7 +140,7 @@ export class TypeScriptLanguageServer {
     this.openDocuments.clear();
   }
 
-  private async ensureDocumentOpen(filePath: string): Promise<string> {
+  async openDocument(filePath: string): Promise<string> {
     const uri = pathToFileURL(filePath).toString();
 
     if (this.openDocuments.has(uri)) {
@@ -161,6 +161,10 @@ export class TypeScriptLanguageServer {
     return uri;
   }
 
+  private async ensureDocumentOpen(filePath: string): Promise<string> {
+    return this.openDocument(filePath);
+  }
+
   private toLSPPosition(pos: Position): LSPPosition {
     return { line: pos.line - 1, character: pos.column - 1 };
   }
@@ -175,7 +179,6 @@ export class TypeScriptLanguageServer {
     const uri = await this.ensureDocumentOpen(filePath);
     const lspPosition = this.toLSPPosition(position);
 
-    // Check if rename is possible
     try {
       const prepareResult = await this.connection!.sendRequest('textDocument/prepareRename', {
         textDocument: { uri },
@@ -189,7 +192,6 @@ export class TypeScriptLanguageServer {
       return { success: false, message: `Cannot rename: ${error}` };
     }
 
-    // Execute rename
     const workspaceEdit: WorkspaceEdit | null = await this.connection!.sendRequest('textDocument/rename', {
       textDocument: { uri },
       position: lspPosition,

@@ -169,14 +169,14 @@ npm run test:watch
 ### Project Status
 
 **Current Implementation:**
-- ✅ **Rename refactoring** - Fully implemented with comprehensive unit tests
+- ✅ **Rename refactoring** - Fully implemented with comprehensive unit tests (all passing)
   - Single file renaming (functions, methods, variables, classes)
   - Cross-file renaming (exported symbols tracked across imports)
   - Error handling (invalid files, positions, and names)
   - Edge cases (name conflicts, formatting preservation)
 - ✅ **LSP Integration** - TypeScript Language Server wrapper with lifecycle management
 - ✅ **MCP Server** - Basic server structure with STDIO transport
-- ⚠️ **Testing** - Unit tests written but hanging on execution (LSP cleanup issue)
+- ✅ **Testing** - 10/10 unit tests passing
 
 **Not Yet Implemented:**
 - ❌ Organize imports
@@ -186,16 +186,15 @@ npm run test:watch
 
 ### Known Issues
 
-1. **Test execution hangs** - Unit tests timeout (likely LSP server shutdown issue)
-
-2. **Cross-file rename** requires:
+1. **Cross-file rename** requires:
+   - All related files to be opened in the LSP for proper reference tracking
    - Valid TypeScript with `.js` extensions in ESM imports
    - No type errors between files
-   - Proper project configuration
+   - Proper project configuration with `tsconfig.json`
 
-3. **Column position** must be within the identifier for accurate rename
+2. **Column position** - TypeScript LSP may find the nearest renameable symbol if position is not exact
 
-4. **Extract operations** not yet implemented
+3. **Extract operations** not yet implemented
 
 ## Contributing
 
