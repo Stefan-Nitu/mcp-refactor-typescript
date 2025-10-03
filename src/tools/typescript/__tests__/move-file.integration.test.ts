@@ -1,19 +1,17 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { moveFile } from './move-file.js';
+import { moveFile } from '../move-file.js';
 import { writeFile, mkdir, rm, readFile } from 'fs/promises';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { TypeScriptLanguageServer } from './lsp-server.js';
+import { join } from 'path';
+import { TypeScriptLanguageServer } from '../lsp-server.js';
 import { existsSync } from 'fs';
+import { createTestDir } from './test-utils.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const testDir = join(__dirname, '../../../test-workspace-move');
+const testDir = createTestDir();
 
 let testLanguageServer: TypeScriptLanguageServer | null = null;
 
 import { vi } from 'vitest';
-vi.mock('./lsp-manager.js', () => ({
+vi.mock('../lsp-manager.js', () => ({
   getLanguageServer: async () => {
     if (!testLanguageServer) {
       throw new Error('Test language server not initialized');
@@ -86,6 +84,9 @@ describe('moveFile', () => {
     const response = JSON.parse(result.content[0].text);
 
     // Assert
+    if (response.status !== 'success') {
+      console.error('Move file error:', JSON.stringify(response, null, 2));
+    }
     expect(response.status).toBe('success');
     expect(response.movedFrom).toBe(utilsPath);
     expect(response.movedTo).toBe(newUtilsPath);
@@ -124,5 +125,62 @@ describe('moveFile', () => {
 
     const indexContent = await readFile(indexPath, 'utf-8');
     expect(indexContent).toContain('./components/Component.js');
+  });
+
+  it('should update relative paths within the moved file', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'service.ts');
+    const newFilePath = join(testDir, 'src', 'services', 'user-service.ts');
+
+    // File with various relative path references
+    await writeFile(filePath, `import { Position } from '../types/common.js';
+import { Helper } from './utils/helper.js';
+import { vi } from 'vitest';
+
+const data = require('../types/common.js');
+
+vi.mock('../types/common.js', () => ({
+  Position: { line: 1, column: 1 }
+}));
+
+export class Service {
+  getConfig() {
+    return './config.json';  // This should NOT be updated (not a module path)
+  }
+}`, 'utf-8');
+
+    // Create the files being imported
+    await mkdir(join(testDir, 'types'), { recursive: true });
+    await mkdir(join(testDir, 'src', 'utils'), { recursive: true });
+    await writeFile(join(testDir, 'types', 'common.ts'), 'export interface Position { line: number; column: number; }', 'utf-8');
+    await writeFile(join(testDir, 'src', 'utils', 'helper.ts'), 'export class Helper {}', 'utf-8');
+
+    if (testLanguageServer) {
+      await testLanguageServer.openDocument(filePath);
+    }
+
+    // Act
+    const result = await moveFile(filePath, newFilePath);
+    const response = JSON.parse(result.content[0].text);
+
+    // Assert
+    expect(response.status).toBe('success');
+    expect(existsSync(newFilePath)).toBe(true);
+
+    // Relative module paths within the moved file should be updated
+    const movedFileContent = await readFile(newFilePath, 'utf-8');
+
+    // Import statements should be updated by the LSP
+    expect(movedFileContent).toContain('../../types/common.js'); // Was ../types, now ../../types
+    expect(movedFileContent).toContain('../utils/helper.js');     // Was ./utils, now ../utils
+
+    // require() SHOULD be updated by our custom logic (for lazy loading, etc)
+    expect(movedFileContent).toContain("require('../../types/common.js')"); // Should be updated!
+
+    // vi.mock paths SHOULD be updated by our custom logic
+    expect(movedFileContent).toContain("vi.mock('../../types/common.js'"); // Should be updated!
+
+    // Non-module paths should NOT be changed
+    expect(movedFileContent).toContain("'./config.json'");
   });
 });

@@ -24,6 +24,7 @@ lerna-debug.log*
 # Testing
 coverage/
 .nyc_output/
+.test-workspace-*
 
 # Environment
 .env

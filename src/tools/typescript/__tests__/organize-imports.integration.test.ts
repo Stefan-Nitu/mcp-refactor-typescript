@@ -1,19 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { organizeImports } from './organize-imports.js';
-import { writeFile, mkdir, rm } from 'fs/promises';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { TypeScriptLanguageServer } from './lsp-server.js';
-import { readFile } from 'fs/promises';
+import { organizeImports } from '../organize-imports.js';
+import { writeFile, mkdir, rm, readFile } from 'fs/promises';
+import { join } from 'path';
+import { TypeScriptLanguageServer } from '../lsp-server.js';
+import { createTestDir } from './test-utils.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const testDir = join(__dirname, '../../../test-workspace-organize');
+const testDir = createTestDir();
 
 let testLanguageServer: TypeScriptLanguageServer | null = null;
 
 import { vi } from 'vitest';
-vi.mock('./lsp-manager.js', () => ({
+vi.mock('../lsp-manager.js', () => ({
   getLanguageServer: async () => {
     if (!testLanguageServer) {
       throw new Error('Test language server not initialized');
@@ -64,7 +61,7 @@ describe('organizeImports', () => {
     // Arrange
     const filePath = join(testDir, 'src', 'messy.ts');
     const messyCode = `import { z } from 'unused';
-import { c, a, b } from './utils.js';
+import { c, a, b } from '../utils.js';
 import { readFile } from 'fs/promises';
 
 console.log(a, b, c);
@@ -93,7 +90,7 @@ console.log(a, b, c);
     // Arrange
     const filePath = join(testDir, 'src', 'unused.ts');
     const code = `import { readFile } from 'fs/promises';
-import { something } from './helpers.js';
+import { something } from '../helpers.js';
 
 console.log('hello');
 `;

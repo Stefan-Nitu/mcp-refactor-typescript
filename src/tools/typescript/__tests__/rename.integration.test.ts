@@ -1,20 +1,18 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { rename } from './rename.js';
+import { rename } from '../rename.js';
 import { writeFile, mkdir, rm } from 'fs/promises';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { TypeScriptLanguageServer } from './lsp-server.js';
+import { join } from 'path';
+import { TypeScriptLanguageServer } from '../lsp-server.js';
+import { createTestDir } from './test-utils.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const testDir = join(__dirname, '../../../test-workspace');
+const testDir = createTestDir();
 
 // We'll create a dedicated language server for the test workspace
 let testLanguageServer: TypeScriptLanguageServer | null = null;
 
 // Mock the lsp-manager to use our test server
 import { vi } from 'vitest';
-vi.mock('./lsp-manager.js', () => ({
+vi.mock('../lsp-manager.js', () => ({
   getLanguageServer: async () => {
     if (!testLanguageServer) {
       throw new Error('Test language server not initialized');
@@ -227,6 +225,13 @@ export function wrapper(input: string) {
       // Assert
       const response = JSON.parse(result.content[0].text);
 
+      if (response.filesChanged?.length !== 2) {
+        console.error('[TEST] Cross-file rename - filesChanged:', JSON.stringify(response.filesChanged));
+        console.error('[TEST] Expected 2 files, got:', response.filesChanged?.length);
+        console.error('[TEST] libPath:', libPath);
+        console.error('[TEST] mainPath:', mainPath);
+      }
+
       expect(response.status).toBe('success');
       expect(response.filesChanged).toHaveLength(2);
       expect(response.filesChanged).toContain(libPath);
@@ -278,7 +283,7 @@ export function wrapper(input: string) {
 }`;
 
       const servicePath = join(testDir, 'src', 'service.ts');
-      const serviceContent = `import { User } from './models/user.js';
+      const serviceContent = `import { User } from '../models/user.js';
 
 export class UserService {
   getDisplayName(user: User): string {
@@ -300,6 +305,12 @@ export class UserService {
 
       // Assert
       const response = JSON.parse(result.content[0].text);
+
+      if (response.filesChanged?.length !== 2) {
+        console.error('[TEST] Class method rename - filesChanged:', JSON.stringify(response.filesChanged));
+        console.error('[TEST] userPath:', userPath);
+        console.error('[TEST] servicePath:', servicePath);
+      }
 
       expect(response.status).toBe('success');
       expect(response.filesChanged).toHaveLength(2);

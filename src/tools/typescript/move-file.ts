@@ -6,21 +6,8 @@ export async function moveFile(sourcePath: string, destinationPath: string) {
   try {
     const server = await getLanguageServer();
 
-    if (!server.isProjectLoaded()) {
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            tool: 'typescript',
-            action: 'move_file',
-            status: 'error',
-            error: 'TypeScript is still indexing the project. Please wait a moment and try again.'
-          }, null, 2)
-        }]
-      };
-    }
-
     // Get import updates BEFORE moving the file
+    // (server.moveFile will wait for project loading if needed)
     const result = await server.moveFile(sourcePath, destinationPath);
 
     // Now actually move the file on disk

@@ -1,18 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { fixAll } from './fix-all.js';
+import { fixAll } from '../fix-all.js';
 import { writeFile, mkdir, rm, readFile } from 'fs/promises';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { TypeScriptLanguageServer } from './lsp-server.js';
+import { join } from 'path';
+import { TypeScriptLanguageServer } from '../lsp-server.js';
+import { createTestDir } from './test-utils.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const testDir = join(__dirname, '../../../test-workspace-fixall');
+const testDir = createTestDir();
 
 let testLanguageServer: TypeScriptLanguageServer | null = null;
 
 import { vi } from 'vitest';
-vi.mock('./lsp-manager.js', () => ({
+vi.mock('../lsp-manager.js', () => ({
   getLanguageServer: async () => {
     if (!testLanguageServer) {
       throw new Error('Test language server not initialized');

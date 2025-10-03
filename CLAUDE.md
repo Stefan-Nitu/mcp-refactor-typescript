@@ -8,16 +8,19 @@
 ### Required Documents (READ NOW IN THIS ORDER):
 1. `docs/ARCHITECTURE.md` - MCP server architecture and best practices
 2. `docs/TESTING.md` - MCP server testing strategies and patterns
-3. `docs/ERROR-HANDLING.md` - Error handling patterns for MCP servers
-4. `docs/MCP-TYPESCRIPT-README.md` - TypeScript MCP SDK patterns and examples
+3. `docs/TESTING-NOTES.md` - Critical test workspace setup requirements
+4. `docs/ERROR-HANDLING.md` - Error handling patterns for MCP servers
+5. `docs/MCP-TYPESCRIPT-README.md` - TypeScript MCP SDK patterns and examples
 
 ### Verification Checklist:
 - [ ] I have read `docs/ARCHITECTURE.md` completely
 - [ ] I have read `docs/TESTING.md` completely
+- [ ] I have read `docs/TESTING-NOTES.md` completely
 - [ ] I have read `docs/ERROR-HANDLING.md` completely
 - [ ] I have read `docs/MCP-TYPESCRIPT-README.md` completely
 - [ ] I understand the MCP architecture (simple functional patterns, no over-engineering)
 - [ ] I understand the testing approach (MCP Inspector, STDIO compliance, stderr logging)
+- [ ] I understand test workspace requirements (must be inside project, not /tmp)
 - [ ] I understand error handling (MCP protocol compliance, user-friendly messages)
 - [ ] I understand TypeScript SDK patterns (tools, resources, schemas)
 
