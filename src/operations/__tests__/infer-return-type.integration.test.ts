@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { InferReturnTypeOperation } from '../infer-return-type.js';
-import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { writeFile, mkdir, rm, readFile } from 'fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
+import { InferReturnTypeOperation } from '../infer-return-type.js';
 import { createTestDir } from './test-utils.js';
 
 const testDir = createTestDir();

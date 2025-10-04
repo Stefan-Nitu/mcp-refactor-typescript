@@ -16,7 +16,14 @@ export default defineConfig({
       ]
     },
     testTimeout: 30000, // LSP operations can take time
-    hookTimeout: 30000
+    hookTimeout: 30000,
+    fileParallelism: false, // Run integration tests sequentially to avoid race conditions
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true
+      }
+    }
   },
   esbuild: {
     target: 'node18'

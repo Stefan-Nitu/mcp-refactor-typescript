@@ -3,10 +3,8 @@
  */
 
 import { z } from 'zod';
-import { readFile, writeFile, rename, mkdir } from 'fs/promises';
-import { dirname } from 'path';
-import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import type { TSTextChange, TSFileEdit } from '../language-servers/typescript/tsserver-types.js';
+import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import { MoveFileHelper } from './move-file-helper.js';
 
 export const moveFileSchema = z.object({
   sourcePath: z.string().min(1, 'Source path cannot be empty'),
@@ -17,7 +15,11 @@ export const moveFileSchema = z.object({
 export type MoveFileInput = z.infer<typeof moveFileSchema>;
 
 export class MoveFileOperation {
-  constructor(private tsServer: TypeScriptServer) {}
+  private helper: MoveFileHelper;
+
+  constructor(private tsServer: TypeScriptServer) {
+    this.helper = new MoveFileHelper(tsServer);
+  }
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
@@ -30,126 +32,24 @@ export class MoveFileOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      // Open the source file so TypeScript can track imports
       await this.tsServer.openFile(validated.sourcePath);
 
-      const edits = await this.tsServer.sendRequest<TSFileEdit[]>('getEditsForFileRename', {
-        oldFilePath: validated.sourcePath,
-        newFilePath: validated.destinationPath
-      });
-
-      if (!edits || edits.length === 0) {
-        // No import updates needed, just move the file
-        if (validated.preview) {
-          return {
-            success: true,
-            message: `Preview: Would move file (no import updates needed)`,
-            filesChanged: [],
-            changes: [],
-            preview: {
-              filesAffected: 1,
-              estimatedTime: '< 1s',
-              command: 'Run again with preview: false to apply changes'
-            }
-          };
-        }
-
-        await this.ensureDirectoryExists(validated.destinationPath);
-        await rename(validated.sourcePath, validated.destinationPath);
-
-        return {
-          success: true,
-          message: 'File moved (no import updates needed)',
-          filesChanged: [],
-          changes: [],
-          nextActions: [
-            'find_references - Verify no references were missed'
-          ]
-        };
+      try {
+        await this.tsServer.waitForProjectUpdate(5000);
+      } catch {
+        // Continue with partial results if indexing times out
       }
 
-      const filesChanged: string[] = [];
-      const changes: RefactorResult['changes'] = [];
+      const projectFullyLoaded = this.tsServer.isProjectLoaded();
+      const result = await this.helper.performMove(validated.sourcePath, validated.destinationPath, validated.preview);
 
-      // Apply edits to each affected file
-      for (const fileEdit of edits) {
-        const fileContent = await readFile(fileEdit.fileName, 'utf8');
-        const lines = fileContent.split('\n');
-
-        const fileChanges = {
-          file: fileEdit.fileName.split('/').pop() || fileEdit.fileName,
-          path: fileEdit.fileName,
-          edits: [] as RefactorResult['changes'][0]['edits']
-        };
-
-        // Apply text changes in reverse order
-        const sortedChanges = [...fileEdit.textChanges].sort((a: TSTextChange, b: TSTextChange) => {
-          if (b.start.line !== a.start.line) return b.start.line - a.start.line;
-          return b.start.offset - a.start.offset;
-        });
-
-        for (const change of sortedChanges) {
-          const startLine = change.start.line - 1;
-          const endLine = change.end.line - 1;
-          const startOffset = change.start.offset - 1;
-          const endOffset = change.end.offset - 1;
-
-          fileChanges.edits.push({
-            line: change.start.line,
-            old: lines[startLine].substring(startOffset, endOffset),
-            new: change.newText
-          });
-
-          if (startLine === endLine) {
-            lines[startLine] =
-              lines[startLine].substring(0, startOffset) +
-              change.newText +
-              lines[startLine].substring(endOffset);
-          } else {
-            const before = lines[startLine].substring(0, startOffset);
-            const after = lines[endLine].substring(endOffset);
-            lines.splice(startLine, endLine - startLine + 1, before + change.newText + after);
-          }
-        }
-
-        const updatedContent = lines.join('\n');
-
-        // Only write if not in preview mode
-        if (!validated.preview) {
-          await writeFile(fileEdit.fileName, updatedContent);
-        }
-        filesChanged.push(fileEdit.fileName);
-        changes.push(fileChanges);
-      }
-
-      // Return preview if requested
-      if (validated.preview) {
-        return {
-          success: true,
-          message: `Preview: Would move file and update ${filesChanged.length} import(s)`,
-          filesChanged,
-          changes,
-          preview: {
-            filesAffected: filesChanged.length + 1, // +1 for the moved file itself
-            estimatedTime: '< 1s',
-            command: 'Run again with preview: false to apply changes'
-          }
-        };
-      }
-
-      // Actually move the file
-      await this.ensureDirectoryExists(validated.destinationPath);
-      await rename(validated.sourcePath, validated.destinationPath);
+      const warningMessage = !projectFullyLoaded
+        ? '\n\nWarning: TypeScript is still indexing the project. Some import updates may have been missed. If results seem incomplete, wait a moment and try again.'
+        : '';
 
       return {
-        success: true,
-        message: `Moved file and updated ${filesChanged.length} import(s)`,
-        filesChanged,
-        changes,
-        nextActions: [
-          'organize_imports - Clean up import statements',
-          'fix_all - Fix any errors from the move'
-        ]
+        ...result,
+        message: result.message + warningMessage
       };
     } catch (error) {
       return {
@@ -166,9 +66,8 @@ Try:
     }
   }
 
-  private async ensureDirectoryExists(filePath: string): Promise<void> {
-    const dir = dirname(filePath);
-    await mkdir(dir, { recursive: true });
+  async performMove(sourcePath: string, destinationPath: string, preview?: boolean): Promise<RefactorResult> {
+    return await this.helper.performMove(sourcePath, destinationPath, preview);
   }
 
   getSchema() {

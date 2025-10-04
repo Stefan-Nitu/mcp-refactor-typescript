@@ -1,9 +1,9 @@
-import { z } from 'zod';
 import { readFile, writeFile } from 'fs/promises';
-import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRefactorInfo, TSRefactorAction, TSTextChange, TSRefactorEditInfo, TSRenameResponse, TSRenameLoc } from '../language-servers/typescript/tsserver-types.js';
-import { Operation } from './registry.js';
+import { z } from 'zod';
+import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc, TSRenameResponse, TSTextChange } from '../language-servers/typescript/tsserver-types.js';
 import { formatValidationError } from '../utils/validation-error.js';
+import { Operation } from './registry.js';
 
 export const extractVariableSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),

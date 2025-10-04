@@ -2,10 +2,10 @@
  * Rename operation handler
  */
 
-import { z } from 'zod';
 import { readFile, writeFile } from 'fs/promises';
-import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRenameResponse, TSRenameLoc } from '../language-servers/typescript/tsserver-types.js';
+import { z } from 'zod';
+import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import type { TSRenameLoc, TSRenameResponse } from '../language-servers/typescript/tsserver-types.js';
 
 export const renameSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -32,6 +32,16 @@ export class RenameOperation {
       if (loadingResult) return loadingResult;
 
       await this.tsServer.openFile(validated.filePath);
+
+      await this.tsServer.discoverAndOpenImportingFiles(validated.filePath);
+
+      try {
+        await this.tsServer.waitForProjectUpdate(5000);
+      } catch {
+        // Continue with partial results if indexing times out
+      }
+
+      const projectFullyLoaded = this.tsServer.isProjectLoaded();
 
       const renameInfo = await this.tsServer.sendRequest('rename', {
         file: validated.filePath,
@@ -90,7 +100,6 @@ Try:
             line.substring(edit.end.offset - 1);
         }
 
-        // Only write file if not in preview mode
         if (!validated.preview) {
           await writeFile(fileLoc.file, lines.join('\n'));
         }
@@ -98,11 +107,14 @@ Try:
         changes.push(fileChanges);
       }
 
-      // Return preview information if in preview mode
+      const warningMessage = !projectFullyLoaded
+        ? '\n\nWarning: TypeScript is still indexing the project. Some references may have been missed. If results seem incomplete, wait a moment and try again.'
+        : '';
+
       if (validated.preview) {
         return {
           success: true,
-          message: `Preview: Would rename to "${validated.newName}" in ${filesChanged.length} file(s)`,
+          message: `Preview: Would rename to "${validated.newName}" in ${filesChanged.length} file(s)${warningMessage}`,
           filesChanged,
           changes,
           preview: {
@@ -115,7 +127,7 @@ Try:
 
       return {
         success: true,
-        message: `Renamed to "${validated.newName}"`,
+        message: `Renamed to "${validated.newName}"${warningMessage}`,
         filesChanged,
         changes,
         nextActions: [

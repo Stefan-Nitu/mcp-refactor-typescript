@@ -3,11 +3,11 @@
  */
 
 import { z } from 'zod';
-import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import { formatValidationError } from '../utils/validation-error.js';
+import { FixAllOperation } from './fix-all.js';
 import { MoveFileOperation } from './move-file.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
-import { FixAllOperation } from './fix-all.js';
-import { formatValidationError } from '../utils/validation-error.js';
 
 export const refactorModuleSchema = z.object({
   sourcePath: z.string().min(1, 'Source path cannot be empty'),

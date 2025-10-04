@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
-import { rm, mkdir, writeFile, readFile } from 'fs/promises';
-import { CleanupCodebaseOperation } from '../cleanup-codebase.js';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
+import { CleanupCodebaseOperation } from '../cleanup-codebase.js';
 import { createTestDir } from './test-utils.js';
 
 describe('cleanupCodebase', () => {

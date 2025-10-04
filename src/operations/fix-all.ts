@@ -2,9 +2,9 @@
  * Fix all operation handler
  */
 
-import { z } from 'zod';
 import { readFile, writeFile } from 'fs/promises';
-import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import { z } from 'zod';
+import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSCodeFixAction } from '../language-servers/typescript/tsserver-types.js';
 
 export const fixAllSchema = z.object({

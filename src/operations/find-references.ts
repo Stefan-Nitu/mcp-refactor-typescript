@@ -3,8 +3,8 @@
  */
 
 import { z } from 'zod';
-import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import type { TSReferencesResponse, TSReferenceEntry } from '../language-servers/typescript/tsserver-types.js';
+import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import type { TSReferenceEntry, TSReferencesResponse } from '../language-servers/typescript/tsserver-types.js';
 
 export const findReferencesSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),

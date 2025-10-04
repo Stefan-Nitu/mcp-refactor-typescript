@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { renameSchema } from '../rename.js';
-import { moveFileSchema } from '../move-file.js';
+import { describe, expect, it } from 'vitest';
 import { batchMoveFilesSchema } from '../batch-move-files.js';
-import { organizeImportsSchema } from '../organize-imports.js';
-import { fixAllSchema } from '../fix-all.js';
-import { removeUnusedSchema } from '../remove-unused.js';
-import { findReferencesSchema } from '../find-references.js';
 import { extractFunctionSchema } from '../extract-function.js';
+import { findReferencesSchema } from '../find-references.js';
+import { fixAllSchema } from '../fix-all.js';
+import { moveFileSchema } from '../move-file.js';
+import { organizeImportsSchema } from '../organize-imports.js';
+import { removeUnusedSchema } from '../remove-unused.js';
+import { renameSchema } from '../rename.js';
 
 describe('Schema Validation', () => {
   describe('renameSchema', () => {

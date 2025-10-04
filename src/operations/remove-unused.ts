@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { FixAllOperation } from './fix-all.js';
 
 export const removeUnusedSchema = z.object({

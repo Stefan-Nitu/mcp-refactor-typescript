@@ -2,13 +2,13 @@
  * Cleanup codebase operation - combines remove_unused + organize_imports across all files
  */
 
-import { z } from 'zod';
 import { readdir } from 'fs/promises';
-import { join, extname } from 'path';
-import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import { RemoveUnusedOperation } from './remove-unused.js';
-import { OrganizeImportsOperation } from './organize-imports.js';
+import { extname, join } from 'path';
+import { z } from 'zod';
+import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
+import { OrganizeImportsOperation } from './organize-imports.js';
+import { RemoveUnusedOperation } from './remove-unused.js';
 
 export const cleanupCodebaseSchema = z.object({
   directory: z.string().min(1, 'Directory cannot be empty'),

@@ -122,6 +122,44 @@ console.error(util(), helper());`, 'utf-8');
     expect(indexContent).toContain('./models/user/model.js');
   });
 
+  it('should handle moving many files efficiently', async () => {
+    // Arrange - Create 20 files and 1 index file that imports from all of them
+    const files: string[] = [];
+    const imports: string[] = [];
+
+    for (let i = 1; i <= 20; i++) {
+      const filePath = join(testDir, 'src', `module${i}.ts`);
+      files.push(filePath);
+      await writeFile(filePath, `export const value${i} = ${i};`, 'utf-8');
+      imports.push(`import { value${i} } from './module${i}.js';`);
+    }
+
+    const indexPath = join(testDir, 'src', 'index.ts');
+    await writeFile(indexPath, imports.join('\n'), 'utf-8');
+
+    const targetFolder = join(testDir, 'src', 'lib');
+
+    // Act
+    const startTime = Date.now();
+    const response = await operation!.execute({
+      files,
+      targetFolder
+    });
+    const duration = Date.now() - startTime;
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(response.filesChanged.length).toBeGreaterThan(0);
+
+    // Should complete in reasonable time (not 20 seconds if waiting 1s per file)
+    expect(duration).toBeLessThan(10000); // 10 seconds max
+
+    // Verify imports were updated
+    const indexContent = await readFile(indexPath, 'utf-8');
+    expect(indexContent).toContain('./lib/module1.js');
+    expect(indexContent).toContain('./lib/module20.js');
+  });
+
   it('should return error when target folder is not provided', async () => {
     // Act
     const response = await operation!.execute({

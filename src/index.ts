@@ -6,8 +6,8 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { OperationRegistry } from './operations/registry.js';
 import { z } from 'zod';
+import { OperationRegistry } from './operations/registry.js';
 import { logger } from './utils/logger.js';
 
 const server = new McpServer({

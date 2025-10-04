@@ -3,9 +3,9 @@
  * Communicates with tsserver using its native protocol for full project awareness
  */
 
-import { spawn, ChildProcess } from 'child_process';
-import { resolve } from 'path';
-import { readFile } from 'fs/promises';
+import { ChildProcess, spawn } from 'child_process';
+import { readFile, readdir } from 'fs/promises';
+import { dirname, join, resolve } from 'path';
 import { logger } from '../../utils/logger.js';
 
 export interface RefactorResult {
@@ -58,6 +58,8 @@ export class TypeScriptServer {
   private projectPath = '';
   private projectLoaded = false;
   private projectLoadingPromise: Promise<void> | null = null;
+  private projectUpdatePromise: Promise<void> | null = null;
+  private projectUpdateResolve: (() => void) | null = null;
   private running = false;
 
   constructor() {}
@@ -128,8 +130,15 @@ export class TypeScriptServer {
     });
 
     this.running = true;
-    // Consider project loaded after starting - tsserver can handle requests while indexing
-    this.projectLoaded = true;
+
+    // For small/empty projects, projectLoadingStart might not fire
+    // If we don't see it within 500ms, assume project is ready
+    setTimeout(() => {
+      if (!this.projectLoaded && this.running) {
+        logger.debug('No project loading event received, assuming small project');
+        this.projectLoaded = true;
+      }
+    }, 500);
   }
 
   async stop(): Promise<void> {
@@ -189,6 +198,12 @@ export class TypeScriptServer {
       } else if (message.event === 'projectsUpdatedInBackground') {
         logger.debug('Projects updated in background');
         this.projectLoaded = true;
+
+        if (this.projectUpdateResolve) {
+          this.projectUpdateResolve();
+          this.projectUpdateResolve = null;
+          this.projectUpdatePromise = null;
+        }
       }
     }
 
@@ -238,8 +253,10 @@ export class TypeScriptServer {
       file: filePath,
       fileContent: content
     });
-    // After opening a file successfully, consider the project loaded
-    this.projectLoaded = true;
+  }
+
+  isProjectLoaded(): boolean {
+    return this.projectLoaded;
   }
 
   async checkProjectLoaded(timeout = 5000): Promise<RefactorResult | null> {
@@ -266,6 +283,111 @@ export class TypeScriptServer {
       filesChanged: [],
       changes: []
     };
+  }
+
+  async waitForProjectUpdate(timeout = 5000): Promise<void> {
+    if (this.projectLoaded && !this.projectUpdatePromise) {
+      return Promise.resolve();
+    }
+
+    if (this.projectUpdatePromise) {
+      return this.projectUpdatePromise;
+    }
+
+    this.projectUpdatePromise = new Promise<void>((resolve, reject) => {
+      this.projectUpdateResolve = resolve;
+
+      setTimeout(() => {
+        if (this.projectUpdateResolve) {
+          this.projectUpdateResolve = null;
+          this.projectUpdatePromise = null;
+          reject(new Error(`Project update timeout after ${timeout}ms`));
+        }
+      }, timeout);
+    });
+
+    return this.projectUpdatePromise;
+  }
+
+  async discoverAndOpenImportingFiles(filePath: string): Promise<void> {
+    const fileRefsResponse = await this.sendRequest<{
+      refs: Array<{ file: string }>;
+      symbolName: string;
+    }>('fileReferences', { file: filePath });
+
+    if (fileRefsResponse?.refs) {
+      const importingFiles = [...new Set(fileRefsResponse.refs.map(ref => ref.file))];
+      logger.debug({ file: filePath, importingFiles }, 'Discovered importing files');
+
+      for (const file of importingFiles) {
+        if (file !== filePath) {
+          await this.openFile(file);
+        }
+      }
+    }
+  }
+
+  private async findTypeScriptFiles(dir: string): Promise<string[]> {
+    const files: string[] = [];
+
+    try {
+      const entries = await readdir(dir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+
+        if (entry.isDirectory()) {
+          const subFiles = await this.findTypeScriptFiles(fullPath);
+          files.push(...subFiles);
+        } else if (entry.isFile() && /\.(ts|tsx|js|jsx)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
+          files.push(fullPath);
+        }
+      }
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+        return [];
+      }
+      throw error;
+    }
+
+    return files;
+  }
+
+  async openAllProjectFiles(anyFile: string): Promise<number> {
+    const projectInfo = await this.sendRequest<{
+      configFileName: string;
+      fileNames?: string[];
+    }>('projectInfo', {
+      file: anyFile,
+      needFileNameList: true
+    });
+
+    if (!projectInfo?.configFileName) {
+      return 0;
+    }
+
+    const projectRoot = dirname(projectInfo.configFileName);
+    const srcDir = join(projectRoot, 'src');
+
+    const allFiles = await this.findTypeScriptFiles(srcDir);
+
+    console.error(`[tsserver] Opening ${allFiles.length} project files...`);
+
+    let filesOpened = 0;
+    for (const file of allFiles) {
+      try {
+        await this.openFile(file);
+        filesOpened++;
+      } catch (error) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+          logger.debug({ file, error }, 'Skipping non-existent file');
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    return filesOpened;
   }
 }
 

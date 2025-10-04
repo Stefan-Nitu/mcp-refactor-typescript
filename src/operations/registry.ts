@@ -3,22 +3,22 @@
  * Single place to manage and access all operations
  */
 
-import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import { RenameOperation } from './rename.js';
-import { MoveFileOperation } from './move-file.js';
-import { BatchMoveFilesOperation } from './batch-move-files.js';
-import { OrganizeImportsOperation } from './organize-imports.js';
-import { FixAllOperation } from './fix-all.js';
-import { RemoveUnusedOperation } from './remove-unused.js';
-import { FindReferencesOperation } from './find-references.js';
-import { ExtractFunctionOperation } from './extract-function.js';
-import { ExtractConstantOperation } from './extract-constant.js';
-import { ExtractVariableOperation } from './extract-variable.js';
-import { InlineVariableOperation } from './inline-variable.js';
-import { InferReturnTypeOperation } from './infer-return-type.js';
-import { RefactorModuleOperation } from './refactor-module.js';
-import { CleanupCodebaseOperation } from './cleanup-codebase.js';
+import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { logger } from '../utils/logger.js';
+import { BatchMoveFilesOperation } from './batch-move-files.js';
+import { CleanupCodebaseOperation } from './cleanup-codebase.js';
+import { ExtractConstantOperation } from './extract-constant.js';
+import { ExtractFunctionOperation } from './extract-function.js';
+import { ExtractVariableOperation } from './extract-variable.js';
+import { FindReferencesOperation } from './find-references.js';
+import { FixAllOperation } from './fix-all.js';
+import { InferReturnTypeOperation } from './infer-return-type.js';
+import { InlineVariableOperation } from './inline-variable.js';
+import { MoveFileOperation } from './move-file.js';
+import { OrganizeImportsOperation } from './organize-imports.js';
+import { RefactorModuleOperation } from './refactor-module.js';
+import { RemoveUnusedOperation } from './remove-unused.js';
+import { RenameOperation } from './rename.js';
 
 import { z } from 'zod';
 

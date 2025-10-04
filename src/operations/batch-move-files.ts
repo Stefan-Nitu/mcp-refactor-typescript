@@ -2,12 +2,12 @@
  * Batch move files operation handler
  */
 
-import { z } from 'zod';
-import { join, basename } from 'path';
 import { mkdir } from 'fs/promises';
-import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import { MoveFileOperation } from './move-file.js';
+import { basename, join } from 'path';
+import { z } from 'zod';
+import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
+import { MoveFileHelper } from './move-file-helper.js';
 
 export const batchMoveFilesSchema = z.object({
   files: z.array(z.string().min(1)).min(1, 'At least one file must be provided'),
@@ -18,7 +18,11 @@ export const batchMoveFilesSchema = z.object({
 export type BatchMoveFilesInput = z.infer<typeof batchMoveFilesSchema>;
 
 export class BatchMoveFilesOperation {
-  constructor(private tsServer: TypeScriptServer) {}
+  private helper: MoveFileHelper;
+
+  constructor(private tsServer: TypeScriptServer) {
+    this.helper = new MoveFileHelper(tsServer);
+  }
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
@@ -33,12 +37,24 @@ export class BatchMoveFilesOperation {
 
       await mkdir(validated.targetFolder, { recursive: true });
 
-      // Open all source files so TypeScript can track imports
       for (const sourceFile of validated.files) {
         await this.tsServer.openFile(sourceFile);
       }
 
-      const moveOperation = new MoveFileOperation(this.tsServer);
+      try {
+        await this.tsServer.openAllProjectFiles(validated.files[0]);
+      } catch (error) {
+        console.error('[batch-move] Error opening project files:', error);
+      }
+
+      try {
+        await this.tsServer.waitForProjectUpdate(5000);
+      } catch {
+        console.error('[batch-move] Timeout waiting for project update, continuing anyway');
+      }
+
+      const projectFullyLoaded = this.tsServer.isProjectLoaded();
+
       const allFilesChanged: string[] = [];
       const allChanges: RefactorResult['changes'] = [];
       let successCount = 0;
@@ -48,22 +64,22 @@ export class BatchMoveFilesOperation {
         const fileName = basename(sourceFile);
         const destinationPath = join(validated.targetFolder, fileName);
 
-        const result = await moveOperation.execute({
-          sourcePath: sourceFile,
-          destinationPath,
-          preview: validated.preview
-        });
+        try {
+          const result = await this.helper.performMove(sourceFile, destinationPath, validated.preview);
 
-        if (result.success) {
-          successCount++;
-          if (result.filesChanged) {
-            allFilesChanged.push(...result.filesChanged.filter(f => !allFilesChanged.includes(f)));
+          if (result.success) {
+            successCount++;
+            if (result.filesChanged) {
+              allFilesChanged.push(...result.filesChanged.filter(f => !allFilesChanged.includes(f)));
+            }
+            if (result.changes) {
+              allChanges.push(...result.changes);
+            }
+          } else {
+            errors.push(`${fileName}: ${result.message}`);
           }
-          if (result.changes) {
-            allChanges.push(...result.changes);
-          }
-        } else {
-          errors.push(`${fileName}: ${result.message}`);
+        } catch (error) {
+          errors.push(`${fileName}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
@@ -82,11 +98,15 @@ Try:
         };
       }
 
+      const warningMessage = !projectFullyLoaded
+        ? '\n\nWarning: TypeScript is still indexing the project. Some import updates may have been missed. If results seem incomplete, wait a moment and try again.'
+        : '';
+
       // Return preview if requested
       if (validated.preview) {
         return {
           success: true,
-          message: `Preview: Would move ${successCount} file(s) to ${basename(validated.targetFolder)}`,
+          message: `Preview: Would move ${successCount} file(s) to ${basename(validated.targetFolder)}${warningMessage}`,
           filesChanged: allFilesChanged,
           changes: allChanges,
           preview: {
@@ -103,7 +123,7 @@ Try:
 
       return {
         success: true,
-        message,
+        message: message + warningMessage,
         filesChanged: allFilesChanged,
         changes: allChanges,
         nextActions: [
