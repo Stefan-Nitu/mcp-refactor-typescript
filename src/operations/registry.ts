@@ -14,6 +14,8 @@ import { FindReferencesOperation } from './find-references.js';
 import { ExtractFunctionOperation } from './extract-function.js';
 import { ExtractConstantOperation } from './extract-constant.js';
 import { ExtractVariableOperation } from './extract-variable.js';
+import { InlineVariableOperation } from './inline-variable.js';
+import { InferReturnTypeOperation } from './infer-return-type.js';
 import { logger } from '../utils/logger.js';
 
 import { z } from 'zod';
@@ -43,6 +45,8 @@ export class OperationRegistry {
     this.operations.set('extract_function', new ExtractFunctionOperation(this.tsServer));
     this.operations.set('extract_constant', new ExtractConstantOperation(this.tsServer));
     this.operations.set('extract_variable', new ExtractVariableOperation(this.tsServer));
+    this.operations.set('inline_variable', new InlineVariableOperation(this.tsServer));
+    this.operations.set('infer_return_type', new InferReturnTypeOperation(this.tsServer));
   }
 
   getOperation(name: string): Operation | undefined {
