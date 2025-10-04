@@ -8,7 +8,8 @@ import { TypeScriptServer, RefactorResult } from '../language-servers/typescript
 import type { TSOrganizeImportsResponse } from '../language-servers/typescript/tsserver-types.js';
 
 export const organizeImportsSchema = z.object({
-  filePath: z.string().min(1, 'File path cannot be empty')
+  filePath: z.string().min(1, 'File path cannot be empty'),
+  preview: z.boolean().optional()
 });
 
 export type OrganizeImportsInput = z.infer<typeof organizeImportsSchema>;
@@ -86,6 +87,22 @@ export class OrganizeImportsOperation {
 
       const updatedContent = lines.join('\n');
 
+      // Return preview if requested
+      if (validated.preview) {
+        return {
+          success: true,
+          message: 'Preview: Would organize imports',
+          filesChanged: [validated.filePath],
+          changes: [fileChanges],
+          preview: {
+            filesAffected: 1,
+            estimatedTime: '< 1s',
+            command: 'Run again with preview: false to apply changes'
+          }
+        };
+      }
+
+      // Only write if not in preview mode
       await writeFile(validated.filePath, updatedContent);
 
       return {

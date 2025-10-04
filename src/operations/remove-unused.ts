@@ -7,7 +7,8 @@ import { TypeScriptServer, RefactorResult } from '../language-servers/typescript
 import { FixAllOperation } from './fix-all.js';
 
 export const removeUnusedSchema = z.object({
-  filePath: z.string().min(1, 'File path cannot be empty')
+  filePath: z.string().min(1, 'File path cannot be empty'),
+  preview: z.boolean().optional()
 });
 
 export type RemoveUnusedInput = z.infer<typeof removeUnusedSchema>;
@@ -24,6 +25,14 @@ export class RemoveUnusedOperation {
 
     const fixAll = new FixAllOperation(this.tsServer);
     const result = await fixAll.execute(validated);
+
+    // Update message for preview mode
+    if (validated.preview && result.preview) {
+      return {
+        ...result,
+        message: result.message.replace('Would apply', 'Would remove unused code -')
+      };
+    }
 
     return {
       ...result,

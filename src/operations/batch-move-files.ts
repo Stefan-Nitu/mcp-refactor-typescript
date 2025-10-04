@@ -11,7 +11,8 @@ import { formatValidationError } from '../utils/validation-error.js';
 
 export const batchMoveFilesSchema = z.object({
   files: z.array(z.string().min(1)).min(1, 'At least one file must be provided'),
-  targetFolder: z.string().min(1, 'Target folder cannot be empty')
+  targetFolder: z.string().min(1, 'Target folder cannot be empty'),
+  preview: z.boolean().optional()
 });
 
 export type BatchMoveFilesInput = z.infer<typeof batchMoveFilesSchema>;
@@ -44,7 +45,8 @@ export class BatchMoveFilesOperation {
 
         const result = await moveOperation.execute({
           sourcePath: sourceFile,
-          destinationPath
+          destinationPath,
+          preview: validated.preview
         });
 
         if (result.success) {
@@ -72,6 +74,21 @@ ${errors.join('\n')}
   3. Verify no filename conflicts in destination`,
           filesChanged: [],
           changes: []
+        };
+      }
+
+      // Return preview if requested
+      if (validated.preview) {
+        return {
+          success: true,
+          message: `Preview: Would move ${successCount} file(s) to ${basename(validated.targetFolder)}`,
+          filesChanged: allFilesChanged,
+          changes: allChanges,
+          preview: {
+            filesAffected: successCount,
+            estimatedTime: '< 2s',
+            command: 'Run again with preview: false to apply changes'
+          }
         };
       }
 

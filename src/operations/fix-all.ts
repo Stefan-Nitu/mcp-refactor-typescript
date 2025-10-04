@@ -8,7 +8,8 @@ import { TypeScriptServer, RefactorResult } from '../language-servers/typescript
 import type { TSCodeFixAction } from '../language-servers/typescript/tsserver-types.js';
 
 export const fixAllSchema = z.object({
-  filePath: z.string().min(1, 'File path cannot be empty')
+  filePath: z.string().min(1, 'File path cannot be empty'),
+  preview: z.boolean().optional()
 });
 
 export type FixAllInput = z.infer<typeof fixAllSchema>;
@@ -84,6 +85,22 @@ export class FixAllOperation {
           updatedContent.substring(change.span.start + change.span.length);
       }
 
+      // Return preview if requested
+      if (validated.preview) {
+        return {
+          success: true,
+          message: `Preview: Would apply ${result.length} fix(es)`,
+          filesChanged: [validated.filePath],
+          changes: [fileChanges],
+          preview: {
+            filesAffected: 1,
+            estimatedTime: '< 1s',
+            command: 'Run again with preview: false to apply changes'
+          }
+        };
+      }
+
+      // Only write if not in preview mode
       await writeFile(validated.filePath, updatedContent);
 
       return {

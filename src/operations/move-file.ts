@@ -10,7 +10,8 @@ import type { TSTextChange, TSFileEdit } from '../language-servers/typescript/ts
 
 export const moveFileSchema = z.object({
   sourcePath: z.string().min(1, 'Source path cannot be empty'),
-  destinationPath: z.string().min(1, 'Destination path cannot be empty')
+  destinationPath: z.string().min(1, 'Destination path cannot be empty'),
+  preview: z.boolean().optional()
 });
 
 export type MoveFileInput = z.infer<typeof moveFileSchema>;
@@ -36,6 +37,20 @@ export class MoveFileOperation {
 
       if (!edits || edits.length === 0) {
         // No import updates needed, just move the file
+        if (validated.preview) {
+          return {
+            success: true,
+            message: `Preview: Would move file (no import updates needed)`,
+            filesChanged: [],
+            changes: [],
+            preview: {
+              filesAffected: 1,
+              estimatedTime: '< 1s',
+              command: 'Run again with preview: false to apply changes'
+            }
+          };
+        }
+
         await this.ensureDirectoryExists(validated.destinationPath);
         await rename(validated.sourcePath, validated.destinationPath);
 
@@ -95,9 +110,28 @@ export class MoveFileOperation {
         }
 
         const updatedContent = lines.join('\n');
-        await writeFile(fileEdit.fileName, updatedContent);
+
+        // Only write if not in preview mode
+        if (!validated.preview) {
+          await writeFile(fileEdit.fileName, updatedContent);
+        }
         filesChanged.push(fileEdit.fileName);
         changes.push(fileChanges);
+      }
+
+      // Return preview if requested
+      if (validated.preview) {
+        return {
+          success: true,
+          message: `Preview: Would move file and update ${filesChanged.length} import(s)`,
+          filesChanged,
+          changes,
+          preview: {
+            filesAffected: filesChanged.length + 1, // +1 for the moved file itself
+            estimatedTime: '< 1s',
+            command: 'Run again with preview: false to apply changes'
+          }
+        };
       }
 
       // Actually move the file

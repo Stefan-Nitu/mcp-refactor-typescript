@@ -12,7 +12,8 @@ export const extractConstantSchema = z.object({
   startColumn: z.number().int().nonnegative('Start column must be a non-negative integer'),
   endLine: z.number().int().positive('End line must be a positive integer'),
   endColumn: z.number().int().nonnegative('End column must be a non-negative integer'),
-  constantName: z.string().optional()
+  constantName: z.string().optional(),
+  preview: z.boolean().optional()
 });
 
 export type ExtractConstantInput = z.infer<typeof extractConstantSchema>;
@@ -197,7 +198,11 @@ Try a different selection or use one of the available refactorings`,
         }
 
         const updatedContent = lines.join('\n');
-        await writeFile(fileEdit.fileName, updatedContent);
+
+        // Only write if not in preview mode
+        if (!validated.preview) {
+          await writeFile(fileEdit.fileName, updatedContent);
+        }
         filesChanged.push(fileEdit.fileName);
         changes.push(fileChanges);
 
@@ -211,6 +216,21 @@ Try a different selection or use one of the available refactorings`,
             constantColumn = declarationLine.indexOf(generatedConstantName) + 1;
           }
         }
+      }
+
+      // Return preview if requested
+      if (validated.preview) {
+        return {
+          success: true,
+          message: `Preview: Would extract constant${constantName ? ` "${constantName}"` : ''}`,
+          filesChanged,
+          changes,
+          preview: {
+            filesAffected: filesChanged.length,
+            estimatedTime: '< 1s',
+            command: 'Run again with preview: false to apply changes'
+          }
+        };
       }
 
       if (constantName && generatedConstantName && generatedConstantName !== constantName && constantDeclarationLine && constantColumn) {

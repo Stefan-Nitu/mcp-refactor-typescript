@@ -13,7 +13,8 @@ export const extractFunctionSchema = z.object({
   startColumn: z.number().int().positive('Start column must be a positive integer'),
   endLine: z.number().int().positive('End line must be a positive integer'),
   endColumn: z.number().int().positive('End column must be a positive integer'),
-  functionName: z.string().optional()
+  functionName: z.string().optional(),
+  preview: z.boolean().optional()
 }).refine(
   (data) => data.endLine >= data.startLine,
   { message: 'End line must be greater than or equal to start line' }
@@ -169,7 +170,11 @@ Try a different selection or use one of the available refactorings`,
         }
 
         const updatedContent = lines.join('\n');
-        await writeFile(fileEdit.fileName, updatedContent);
+
+        // Only write if not in preview mode
+        if (!validated.preview) {
+          await writeFile(fileEdit.fileName, updatedContent);
+        }
         filesChanged.push(fileEdit.fileName);
         changes.push(fileChanges);
 
@@ -183,6 +188,21 @@ Try a different selection or use one of the available refactorings`,
             functionColumn = declarationLine.indexOf(generatedFunctionName) + 1;
           }
         }
+      }
+
+      // Return preview if requested
+      if (validated.preview) {
+        return {
+          success: true,
+          message: `Preview: Would extract function${validated.functionName ? ` "${validated.functionName}"` : ''}`,
+          filesChanged,
+          changes,
+          preview: {
+            filesAffected: filesChanged.length,
+            estimatedTime: '< 1s',
+            command: 'Run again with preview: false to apply changes'
+          }
+        };
       }
 
       if (validated.functionName && generatedFunctionName && generatedFunctionName !== validated.functionName && functionDeclarationLine && functionColumn) {

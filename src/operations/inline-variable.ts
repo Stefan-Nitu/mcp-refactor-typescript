@@ -9,7 +9,8 @@ import { logger } from '../utils/logger.js';
 export const inlineVariableSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
-  column: z.number().int().positive('Column must be a positive integer')
+  column: z.number().int().positive('Column must be a positive integer'),
+  preview: z.boolean().optional()
 });
 
 export type InlineVariableInput = z.infer<typeof inlineVariableSchema>;
@@ -181,9 +182,28 @@ Try a different location or use one of the available refactorings`,
         }
 
         const updatedContent = lines.join('\n');
-        await writeFile(fileEdit.fileName, updatedContent);
+
+        // Only write if not in preview mode
+        if (!validated.preview) {
+          await writeFile(fileEdit.fileName, updatedContent);
+        }
         filesChanged.push(fileEdit.fileName);
         changes.push(fileChanges);
+      }
+
+      // Return preview if requested
+      if (validated.preview) {
+        return {
+          success: true,
+          message: 'Preview: Would inline variable',
+          filesChanged,
+          changes,
+          preview: {
+            filesAffected: filesChanged.length,
+            estimatedTime: '< 1s',
+            command: 'Run again with preview: false to apply changes'
+          }
+        };
       }
 
       return {
