@@ -55,12 +55,6 @@ describe('moveFile', () => {
     await writeFile(utilsPath, 'export function helper() { return 42; }', 'utf-8');
     await writeFile(mainPath, `import { helper } from './utils.js';\nconsole.error(helper());`, 'utf-8');
 
-    // Open files so TypeScript knows about them
-    if (testServer) {
-      await testServer.openFile(utilsPath);
-      await testServer.openFile(mainPath);
-    }
-
     // Act
     const response = await operation!.execute({
       sourcePath: utilsPath,
@@ -88,12 +82,6 @@ describe('moveFile', () => {
 
     await writeFile(componentPath, 'export const Component = () => <div>Hello</div>;', 'utf-8');
     await writeFile(indexPath, `import { Component } from './Component.js';\nexport { Component };`, 'utf-8');
-
-    // Open files so TypeScript knows about them
-    if (testServer) {
-      await testServer.openFile(componentPath);
-      await testServer.openFile(indexPath);
-    }
 
     // Act
     const response = await operation!.execute({

@@ -58,12 +58,6 @@ describe('batchMoveFiles', () => {
 import { helper } from './helpers.js';
 console.error(util(), helper());`, 'utf-8');
 
-    if (testServer) {
-      await testServer.openFile(file1);
-      await testServer.openFile(file2);
-      await testServer.openFile(file3);
-    }
-
     // Act
     const response = await operation!.execute({
       files: [file1, file2],
@@ -113,11 +107,6 @@ console.error(util(), helper());`, 'utf-8');
 
     await writeFile(file1, 'export interface User { name: string; }', 'utf-8');
     await writeFile(file2, `import { User } from './model.js';\nexport { User };`, 'utf-8');
-
-    if (testServer) {
-      await testServer.openFile(file1);
-      await testServer.openFile(file2);
-    }
 
     // Act
     const response = await operation!.execute({

@@ -52,10 +52,6 @@ describe('extractConstant', () => {
   return area;
 }`, 'utf-8');
 
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
-
     // Act - Select just "3.14159"
     const response = await operation!.execute({
       filePath,
@@ -78,10 +74,6 @@ describe('extractConstant', () => {
     await writeFile(filePath, `export function getApiUrl() {
   return "https://api.example.com/v1";
 }`, 'utf-8');
-
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
 
     // Act - Select the string
     const response = await operation!.execute({
@@ -106,10 +98,6 @@ describe('extractConstant', () => {
   return circumference;
 }`, 'utf-8');
 
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
-
     // Act - Extract "3.14159" with custom name "PI"
     const response = await operation!.execute({
       filePath,
@@ -131,10 +119,6 @@ describe('extractConstant', () => {
     // Arrange
     const filePath = join(testDir, 'src', 'invalid.ts');
     await writeFile(filePath, `const x = 1;`, 'utf-8');
-
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
 
     // Act - Try to extract a variable name
     const response = await operation!.execute({

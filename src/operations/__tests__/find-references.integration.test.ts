@@ -54,11 +54,6 @@ describe('findReferences', () => {
 const result = helper();
 const another = helper();`, 'utf-8');
 
-    if (testServer) {
-      await testServer.openFile(utilsPath);
-      await testServer.openFile(mainPath);
-    }
-
     // Act - find references to 'helper' function
     const response = await operation!.execute({
       filePath: utilsPath,
@@ -83,10 +78,6 @@ const another = helper();`, 'utf-8');
 const result = calculateSum(1, 2);
 const another = calculateSum(3, 4);`, 'utf-8');
 
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
-
     // Act - find references to 'calculateSum'
     const response = await operation!.execute({
       filePath,
@@ -104,10 +95,6 @@ const another = calculateSum(3, 4);`, 'utf-8');
     // Arrange
     const filePath = join(testDir, 'src', 'unused.ts');
     await writeFile(filePath, 'function unused() { return 42; }', 'utf-8');
-
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
 
     // Act - find references to unused function (just the declaration)
     const response = await operation!.execute({

@@ -52,10 +52,6 @@ describe('inlineVariable', () => {
   return 5 * multiplier;
 }`, 'utf-8');
 
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
-
     // Act - Select the variable name "multiplier" on its declaration
     const response = await operation!.execute({
       filePath,
@@ -77,10 +73,6 @@ describe('inlineVariable', () => {
   const pi = 3.14;
   return pi * radius * radius;
 }`, 'utf-8');
-
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
 
     // Act - Select "pi"
     const response = await operation!.execute({
@@ -108,10 +100,6 @@ describe('inlineVariable', () => {
 function getValue() {
   return Math.random();
 }`, 'utf-8');
-
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
 
     // Act - Try to inline function call that has side effects
     const response = await operation!.execute({

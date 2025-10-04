@@ -51,10 +51,6 @@ describe('inferReturnType', () => {
   return a + b;
 }`, 'utf-8');
 
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
-
     // Act - Select function name
     const response = await operation!.execute({
       filePath,
@@ -79,10 +75,6 @@ describe('inferReturnType', () => {
   };
 }`, 'utf-8');
 
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
-
     // Act
     const response = await operation!.execute({
       filePath,
@@ -103,10 +95,6 @@ describe('inferReturnType', () => {
     await writeFile(filePath, `function divide(a: number, b: number): number {
   return a / b;
 }`, 'utf-8');
-
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
 
     // Act
     const response = await operation!.execute({

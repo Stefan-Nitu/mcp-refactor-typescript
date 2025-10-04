@@ -200,12 +200,6 @@ export function wrapper(input: string) {
       await writeFile(libPath, libContent, 'utf-8');
       await writeFile(mainPath, mainContent, 'utf-8');
 
-      // Open both files so TypeScript LSP knows about them
-      if (testServer) {
-        await testServer.openFile(libPath);
-        await testServer.openFile(mainPath);
-      }
-
       // Act
       const response = await operation!.execute({
         filePath: libPath,

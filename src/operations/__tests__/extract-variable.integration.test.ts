@@ -51,10 +51,6 @@ describe('extractVariable', () => {
   return (a + b) * 2;
 }`, 'utf-8');
 
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
-
     // Act - Select the expression "(a + b) * 2"
     const response = await operation!.execute({
       filePath,
@@ -77,10 +73,6 @@ describe('extractVariable', () => {
   return (a + b) * 2;
 }`, 'utf-8');
 
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
-
     // Act - Extract "(a + b) * 2" with custom name "doubled"
     const response = await operation!.execute({
       filePath,
@@ -102,10 +94,6 @@ describe('extractVariable', () => {
     // Arrange
     const filePath = join(testDir, 'src', 'invalid.ts');
     await writeFile(filePath, `const x = 1;`, 'utf-8');
-
-    if (testServer) {
-      await testServer.openFile(filePath);
-    }
 
     // Act - Try to extract a variable name
     const response = await operation!.execute({
