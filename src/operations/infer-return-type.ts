@@ -193,7 +193,10 @@ Try a different location or use one of the available refactorings`,
         success: true,
         message: '✅ Inferred return type successfully',
         filesChanged,
-        changes
+        changes,
+        nextActions: [
+          'organize_imports - Add any missing type imports'
+        ]
       };
 
     } catch (error) {

@@ -43,7 +43,10 @@ export class MoveFileOperation {
           success: true,
           message: 'File moved (no import updates needed)',
           filesChanged: [],
-          changes: []
+          changes: [],
+          nextActions: [
+            'find_references - Verify no references were missed'
+          ]
         };
       }
 
@@ -105,7 +108,11 @@ export class MoveFileOperation {
         success: true,
         message: `Moved file and updated ${filesChanged.length} import(s)`,
         filesChanged,
-        changes
+        changes,
+        nextActions: [
+          'organize_imports - Clean up import statements',
+          'fix_all - Fix any errors from the move'
+        ]
       };
     } catch (error) {
       return {

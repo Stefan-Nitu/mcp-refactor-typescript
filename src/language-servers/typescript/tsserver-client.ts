@@ -22,6 +22,7 @@ export interface RefactorResult {
       new: string;
     }>;
   }>;
+  nextActions?: string[];
 }
 
 interface TSServerRequest {

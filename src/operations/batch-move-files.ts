@@ -83,7 +83,11 @@ ${errors.join('\n')}
         success: true,
         message,
         filesChanged: allFilesChanged,
-        changes: allChanges
+        changes: allChanges,
+        nextActions: [
+          'organize_imports - Clean up all import statements',
+          'fix_all - Fix any errors from the moves'
+        ]
       };
     } catch (error) {
       if (error instanceof z.ZodError) {

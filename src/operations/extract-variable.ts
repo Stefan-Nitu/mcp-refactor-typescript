@@ -241,7 +241,10 @@ Try a different selection or use one of the available refactorings`,
         success: true,
         message: `✅ Extracted variable${variableName ? ` "${variableName}"` : ''}`,
         filesChanged,
-        changes
+        changes,
+        nextActions: [
+          'organize_imports - Clean up imports if needed'
+        ]
       };
 
     } catch (error) {

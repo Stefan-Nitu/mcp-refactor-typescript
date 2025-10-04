@@ -190,7 +190,10 @@ Try a different location or use one of the available refactorings`,
         success: true,
         message: '✅ Inlined variable successfully',
         filesChanged,
-        changes
+        changes,
+        nextActions: [
+          'remove_unused - Clean up any unused imports'
+        ]
       };
 
     } catch (error) {

@@ -90,7 +90,10 @@ export class FixAllOperation {
         success: true,
         message: `Applied ${result.length} fix(es)`,
         filesChanged: [validated.filePath],
-        changes: [fileChanges]
+        changes: [fileChanges],
+        nextActions: [
+          'organize_imports - Clean up imports after fixes'
+        ]
       };
     } catch (error) {
       return {

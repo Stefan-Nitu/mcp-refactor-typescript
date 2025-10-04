@@ -98,7 +98,11 @@ export class RenameOperation {
         success: true,
         message: `Renamed to "${validated.newName}"`,
         filesChanged,
-        changes
+        changes,
+        nextActions: [
+          'organize_imports - Clean up import statements',
+          'fix_all - Fix any type errors from rename'
+        ]
       };
     } catch (error) {
       return {

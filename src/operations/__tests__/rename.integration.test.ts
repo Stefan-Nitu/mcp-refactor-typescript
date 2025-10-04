@@ -77,6 +77,10 @@ console.error(result);`;
       // Assert
       expect(response.success).toBe(true);
       expect(response.filesChanged).toContain(filePath);
+      expect(response.nextActions).toEqual([
+        'organize_imports - Clean up import statements',
+        'fix_all - Fix any type errors from rename'
+      ]);
       expect(response.changes).toHaveLength(1);
       expect(response.changes[0].edits).toEqual(
         expect.arrayContaining([

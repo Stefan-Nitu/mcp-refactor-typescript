@@ -223,7 +223,11 @@ Try a different selection or use one of the available refactorings`,
         success: true,
         message: 'Extracted function',
         filesChanged,
-        changes
+        changes,
+        nextActions: [
+          'organize_imports - Clean up imports if needed',
+          'infer_return_type - Add explicit return type to the extracted function'
+        ]
       };
     } catch (error) {
       return {
