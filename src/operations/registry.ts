@@ -19,6 +19,7 @@ import { OrganizeImportsOperation } from './organize-imports.js';
 import { RefactorModuleOperation } from './refactor-module.js';
 import { RemoveUnusedOperation } from './remove-unused.js';
 import { RenameOperation } from './rename.js';
+import { RestartTsServerOperation } from './restart-tsserver.js';
 
 import { z } from 'zod';
 
@@ -51,6 +52,7 @@ export class OperationRegistry {
     this.operations.set('infer_return_type', new InferReturnTypeOperation(this.tsServer));
     this.operations.set('refactor_module', new RefactorModuleOperation(this.tsServer));
     this.operations.set('cleanup_codebase', new CleanupCodebaseOperation(this.tsServer));
+    this.operations.set('restart_tsserver', new RestartTsServerOperation(this.tsServer));
   }
 
   getOperation(name: string): Operation | undefined {
@@ -82,7 +84,6 @@ export class OperationRegistry {
   }
 
   async shutdown(): Promise<void> {
-    // Stop all language servers
     if (this.tsServer.isRunning()) {
       await this.tsServer.stop();
     }

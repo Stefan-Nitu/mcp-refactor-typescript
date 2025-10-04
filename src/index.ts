@@ -80,7 +80,6 @@ for (const [name, operation] of registry.getAllOperations()) {
 }
 
 async function main() {
-  registry.registerOperations();
   await registry.initialize();
 
   const transport = new StdioServerTransport();
