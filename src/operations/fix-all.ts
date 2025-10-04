@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { readFile, writeFile } from 'fs/promises';
 import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import type { TSCodeFixAction } from '../language-servers/typescript/tsserver-types.js';
 
 export const fixAllSchema = z.object({
   filePath: z.string()
@@ -28,7 +29,7 @@ export class FixAllOperation {
 
       await this.tsServer.openFile(validated.filePath);
 
-      const result = await this.tsServer.sendRequest('getCodeFixes', {
+      const result = await this.tsServer.sendRequest<TSCodeFixAction[]>('getCodeFixes', {
         file: validated.filePath,
         startLine: 1,
         startOffset: 1,
@@ -55,9 +56,19 @@ export class FixAllOperation {
         edits: [] as RefactorResult['changes'][0]['edits']
       };
 
-      // Sort changes in reverse order
-      interface Change { span: { start: number; length: number }; newText: string }
-      const allChanges = (result as Array<{ changes: Array<{ textChanges: Change[] }> }>).flatMap(fix => fix.changes[0].textChanges);
+      interface ChangeWithSpan { span: { start: number; length: number }; newText: string }
+      const allChanges: ChangeWithSpan[] = [];
+
+      for (const fix of result) {
+        for (const change of fix.changes) {
+          if (change.textChanges) {
+            for (const textChange of change.textChanges as unknown as ChangeWithSpan[]) {
+              allChanges.push(textChange);
+            }
+          }
+        }
+      }
+
       allChanges.sort((a, b) => b.span.start - a.span.start);
 
       for (const change of allChanges) {
@@ -95,7 +106,7 @@ export class FixAllOperation {
     return {
       title: 'Fix All',
       description: 'Apply all available code fixes',
-      inputSchema: fixAllSchema
+      inputSchema: fixAllSchema.shape
     };
   }
 }

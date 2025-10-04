@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { readFile, writeFile, rename, mkdir } from 'fs/promises';
 import { dirname } from 'path';
 import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import type { TSTextChange } from '../language-servers/typescript/tsserver-types.js';
+import type { TSTextChange, TSFileEdit } from '../language-servers/typescript/tsserver-types.js';
 
 export const moveFileSchema = z.object({
   sourcePath: z.string(),
@@ -29,8 +29,7 @@ export class MoveFileOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      // Get edits for file rename from tsserver
-      const edits = await this.tsServer.sendRequest('getEditsForFileRename', {
+      const edits = await this.tsServer.sendRequest<TSFileEdit[]>('getEditsForFileRename', {
         oldFilePath: validated.sourcePath,
         newFilePath: validated.destinationPath
       });
@@ -127,7 +126,7 @@ export class MoveFileOperation {
     return {
       title: 'Move File',
       description: 'Move a file and update all imports',
-      inputSchema: moveFileSchema
+      inputSchema: moveFileSchema.shape
     };
   }
 }

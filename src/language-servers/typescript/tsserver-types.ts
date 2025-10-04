@@ -78,3 +78,19 @@ export interface TSOrganizeImportsResponse {
   fileName: string;
   textChanges: TSTextChange[];
 }
+
+export interface TSReferenceEntry {
+  file: string;
+  start: TSPosition;
+  end: TSPosition;
+  lineText: string;
+  isWriteAccess: boolean;
+  isDefinition?: boolean;
+}
+
+export interface TSReferencesResponse {
+  symbolName: string;
+  symbolStartOffset: number;
+  symbolDisplayString: string;
+  refs: TSReferenceEntry[];
+}

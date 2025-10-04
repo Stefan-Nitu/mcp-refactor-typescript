@@ -4,6 +4,7 @@
 
 import { z } from 'zod';
 import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import type { TSReferencesResponse, TSReferenceEntry } from '../language-servers/typescript/tsserver-types.js';
 
 export const findReferencesSchema = z.object({
   filePath: z.string(),
@@ -29,7 +30,7 @@ export class FindReferencesOperation {
 
       await this.tsServer.openFile(validated.filePath);
 
-      const references = await this.tsServer.sendRequest('references', {
+      const references = await this.tsServer.sendRequest<TSReferencesResponse>('references', {
         file: validated.filePath,
         line: validated.line,
         offset: validated.column
@@ -44,9 +45,7 @@ export class FindReferencesOperation {
         };
       }
 
-      // Format the references as a readable result
-      interface Ref { file: string; start: { line: number; offset: number }; lineText: string; isWriteAccess: boolean }
-      const fileGroups = new Map<string, Ref[]>();
+      const fileGroups = new Map<string, TSReferenceEntry[]>();
 
       for (const ref of references.refs) {
         if (!fileGroups.has(ref.file)) {
@@ -85,7 +84,7 @@ export class FindReferencesOperation {
     return {
       title: 'Find References',
       description: 'Find all references to a symbol',
-      inputSchema: findReferencesSchema
+      inputSchema: findReferencesSchema.shape
     };
   }
 }

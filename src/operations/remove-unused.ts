@@ -35,7 +35,7 @@ export class RemoveUnusedOperation {
     return {
       title: 'Remove Unused',
       description: 'Remove unused imports and variables',
-      inputSchema: removeUnusedSchema
+      inputSchema: removeUnusedSchema.shape
     };
   }
 }

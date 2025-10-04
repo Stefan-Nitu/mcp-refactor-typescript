@@ -197,7 +197,7 @@ export class TypeScriptServer {
         if (message.success) {
           pending.resolve(message.body);
         } else {
-          const errorMsg = message.body?.message || message.body || 'Request failed';
+          const errorMsg = (message.body as { message?: string })?.message || String(message.body) || 'Request failed';
           pending.reject(new Error(errorMsg));
         }
       }
@@ -205,7 +205,7 @@ export class TypeScriptServer {
   }
 
   async sendRequest<T = unknown>(command: string, args?: Record<string, unknown>): Promise<T | null> {
-    return new Promise((resolve, reject) => {
+    return new Promise<T | null>((resolve, reject) => {
       const seq = ++this.seq;
       const request: TSServerRequest = {
         seq,
@@ -214,7 +214,7 @@ export class TypeScriptServer {
         arguments: args
       };
 
-      this.pendingRequests.set(seq, { resolve, reject });
+      this.pendingRequests.set(seq, { resolve: resolve as (value: unknown) => void, reject });
 
       const message = JSON.stringify(request) + '\n';
       this.process?.stdin?.write(message);

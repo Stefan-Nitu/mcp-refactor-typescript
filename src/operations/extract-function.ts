@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { readFile, writeFile } from 'fs/promises';
 import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRefactorInfo, TSRefactorAction, TSTextChange } from '../language-servers/typescript/tsserver-types.js';
+import type { TSRefactorInfo, TSRefactorAction, TSTextChange, TSRefactorEditInfo } from '../language-servers/typescript/tsserver-types.js';
 
 export const extractFunctionSchema = z.object({
   filePath: z.string(),
@@ -80,7 +80,7 @@ export class ExtractFunctionOperation {
         };
       }
 
-      const edits = await this.tsServer.sendRequest('getEditsForRefactor', {
+      const edits = await this.tsServer.sendRequest<TSRefactorEditInfo>('getEditsForRefactor', {
         file: validated.filePath,
         startLine: validated.startLine,
         startOffset: validated.startColumn,
@@ -169,7 +169,7 @@ export class ExtractFunctionOperation {
     return {
       title: 'Extract Function',
       description: 'Extract selected code into a new function',
-      inputSchema: extractFunctionSchema
+      inputSchema: extractFunctionSchema.shape
     };
   }
 }

@@ -16,7 +16,7 @@ import { z } from 'zod';
 
 export interface Operation {
   execute(input: Record<string, unknown>): Promise<RefactorResult>;
-  getSchema(): { title: string; description: string; inputSchema: z.ZodSchema };
+  getSchema(): { title: string; description: string; inputSchema: z.ZodRawShape };
 }
 
 export class OperationRegistry {

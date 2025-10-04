@@ -109,7 +109,7 @@ export class RenameOperation {
     return {
       title: 'Rename Symbol',
       description: 'Rename a symbol across all files',
-      inputSchema: renameSchema
+      inputSchema: renameSchema.shape
     };
   }
 }

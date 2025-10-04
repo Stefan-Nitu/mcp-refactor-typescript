@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { readFile, writeFile } from 'fs/promises';
 import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import type { TSOrganizeImportsResponse } from '../language-servers/typescript/tsserver-types.js';
 
 export const organizeImportsSchema = z.object({
   filePath: z.string()
@@ -28,7 +29,7 @@ export class OrganizeImportsOperation {
 
       await this.tsServer.openFile(validated.filePath);
 
-      const result = await this.tsServer.sendRequest('organizeImports', {
+      const result = await this.tsServer.sendRequest<TSOrganizeImportsResponse[]>('organizeImports', {
         scope: {
           type: 'file',
           args: { file: validated.filePath }
@@ -107,7 +108,7 @@ export class OrganizeImportsOperation {
     return {
       title: 'Organize Imports',
       description: 'Sort and remove unused imports',
-      inputSchema: organizeImportsSchema
+      inputSchema: organizeImportsSchema.shape
     };
   }
 }
