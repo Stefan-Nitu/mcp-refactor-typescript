@@ -71,7 +71,12 @@ Example: Extract expression with custom name "doubled"
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
-          message: 'Extract variable is not available at this location. Try selecting an expression or value.',
+          message: `❌ Cannot extract variable: No extractable expression at ${filePath}:${startLine}:${startColumn}-${endLine}:${endColumn}
+
+💡 Try:
+  1. Select a valid expression or value (not a statement)
+  2. Ensure the selection is syntactically complete
+  3. Try selecting just the expression without surrounding code`,
           filesChanged: [],
           changes: []
         };
@@ -84,7 +89,11 @@ Example: Extract expression with custom name "doubled"
       if (!extractRefactor) {
         return {
           success: false,
-          message: 'Extract variable not available at this location',
+          message: `❌ Extract variable not available at this location
+
+💡 Available refactorings: ${refactors.map(r => r.name).join(', ')}
+
+Try a different selection or use one of the available refactorings`,
           filesChanged: [],
           changes: []
         };
@@ -97,7 +106,12 @@ Example: Extract expression with custom name "doubled"
       if (!variableAction) {
         return {
           success: false,
-          message: 'No extract variable action available',
+          message: `❌ No extract variable action available
+
+💡 This might happen if:
+  1. The selected code contains syntax errors
+  2. The expression cannot be safely extracted
+  3. The selection is not a valid extractable expression`,
           filesChanged: [],
           changes: []
         };
@@ -116,7 +130,12 @@ Example: Extract expression with custom name "doubled"
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
           success: false,
-          message: 'No edits generated for extract variable',
+          message: `❌ No edits generated for extract variable
+
+💡 This might indicate:
+  1. TypeScript LSP encountered an internal error
+  2. The selection is invalid or too complex
+  3. Try restarting the TypeScript server`,
           filesChanged: [],
           changes: []
         };
@@ -232,7 +251,12 @@ Example: Extract expression with custom name "doubled"
 
       return {
         success: false,
-        message: `❌ Extract variable failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: `❌ Extract variable failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Check that the file is saved and syntactically valid
+  2. Ensure the selected expression can be evaluated independently
+  3. Verify the selection is within a valid scope`,
         filesChanged: [],
         changes: []
       };

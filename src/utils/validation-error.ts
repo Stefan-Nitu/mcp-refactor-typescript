@@ -13,7 +13,10 @@ export function formatValidationError(error: z.ZodError): RefactorResult {
 
   return {
     success: false,
-    message: `Invalid input:\n  • ${errors.join('\n  • ')}`,
+    message: `❌ Invalid input:
+  • ${errors.join('\n  • ')}
+
+💡 Check the input parameters and try again`,
     filesChanged: [],
     changes: []
   };

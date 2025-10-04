@@ -117,6 +117,6 @@ describe('extractFunction', () => {
 
     // Assert - should fail gracefully
     expect(response.success).toBe(false);
-    expect(response.message).toContain('available');
+    expect(response.message).toContain('❌ Cannot extract function');
   });
 });

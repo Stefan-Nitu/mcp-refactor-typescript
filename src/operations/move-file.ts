@@ -110,7 +110,12 @@ export class MoveFileOperation {
     } catch (error) {
       return {
         success: false,
-        message: `Move file failed: ${error}`,
+        message: `❌ Move file failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Ensure source file exists and destination path is valid
+  2. Check that destination directory is writable
+  3. Verify no other file exists at destination path`,
         filesChanged: [],
         changes: []
       };

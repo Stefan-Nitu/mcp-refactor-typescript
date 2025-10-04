@@ -63,7 +63,13 @@ export class BatchMoveFilesOperation {
       if (errors.length > 0 && successCount === 0) {
         return {
           success: false,
-          message: `Failed to move files:\n${errors.join('\n')}`,
+          message: `❌ Failed to move all files:
+${errors.join('\n')}
+
+💡 Try:
+  1. Check that all source files exist
+  2. Ensure target folder is writable
+  3. Verify no filename conflicts in destination`,
           filesChanged: [],
           changes: []
         };
@@ -85,7 +91,12 @@ export class BatchMoveFilesOperation {
       }
       return {
         success: false,
-        message: `Batch move files failed: ${error}`,
+        message: `❌ Batch move files failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Ensure all source files exist
+  2. Check that target folder path is valid
+  3. Verify you have write permissions`,
         filesChanged: [],
         changes: []
       };

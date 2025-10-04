@@ -73,7 +73,12 @@ export class FindReferencesOperation {
     } catch (error) {
       return {
         success: false,
-        message: `Find references failed: ${error}`,
+        message: `❌ Find references failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Ensure the file exists and is a valid TypeScript file
+  2. Check the position points to a valid symbol
+  3. Verify TypeScript project is configured correctly`,
         filesChanged: [],
         changes: []
       };

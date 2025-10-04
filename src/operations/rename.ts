@@ -43,7 +43,12 @@ export class RenameOperation {
       if (!renameInfo?.locs) {
         return {
           success: false,
-          message: 'No rename locations found',
+          message: `❌ Cannot rename: No symbol found at ${validated.filePath}:${validated.line}:${validated.column}
+
+💡 Try:
+  1. Check the cursor position is on a valid identifier
+  2. Use find_references to verify the symbol exists
+  3. Ensure the file is saved and TypeScript can analyze it`,
           filesChanged: [],
           changes: []
         };
@@ -98,7 +103,12 @@ export class RenameOperation {
     } catch (error) {
       return {
         success: false,
-        message: `Rename failed: ${error}`,
+        message: `❌ Rename failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Ensure the file exists and is a valid TypeScript file
+  2. Check that the TypeScript project is configured correctly
+  3. Verify the new name is a valid identifier`,
         filesChanged: [],
         changes: []
       };

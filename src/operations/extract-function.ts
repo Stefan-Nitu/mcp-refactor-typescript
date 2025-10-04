@@ -48,7 +48,12 @@ export class ExtractFunctionOperation {
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
-          message: 'No refactoring available at this location',
+          message: `❌ Cannot extract function: No extractable code at ${validated.filePath}:${validated.startLine}:${validated.startColumn}-${validated.endLine}:${validated.endColumn}
+
+💡 Try:
+  1. Select a valid statement or expression (not just whitespace)
+  2. Ensure the selection is complete and syntactically valid
+  3. Try selecting a larger or smaller code block`,
           filesChanged: [],
           changes: []
         };
@@ -62,7 +67,11 @@ export class ExtractFunctionOperation {
       if (!extractRefactor) {
         return {
           success: false,
-          message: 'Extract function not available at this location',
+          message: `❌ Extract function not available at this location
+
+💡 Available refactorings: ${refactors.map(r => r.name).join(', ')}
+
+Try a different selection or use one of the available refactorings`,
           filesChanged: [],
           changes: []
         };
@@ -77,7 +86,12 @@ export class ExtractFunctionOperation {
       if (!extractAction) {
         return {
           success: false,
-          message: 'No extract function action available',
+          message: `❌ No extract function action available
+
+💡 This might happen if:
+  1. The code has syntax errors
+  2. The selection contains only declarations
+  3. The selected code cannot be extracted safely`,
           filesChanged: [],
           changes: []
         };
@@ -96,7 +110,12 @@ export class ExtractFunctionOperation {
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
           success: false,
-          message: 'No edits returned for refactoring',
+          message: `❌ No edits generated for extract function
+
+💡 This might indicate:
+  1. TypeScript LSP encountered an internal error
+  2. The selection is invalid or too complex
+  3. Try restarting the TypeScript server`,
           filesChanged: [],
           changes: []
         };
@@ -209,7 +228,12 @@ export class ExtractFunctionOperation {
     } catch (error) {
       return {
         success: false,
-        message: `Extract function failed: ${error}`,
+        message: `❌ Extract function failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Check that the file is saved and syntactically valid
+  2. Ensure TypeScript can parse the selected code
+  3. Verify the selection doesn't span multiple scopes incorrectly`,
         filesChanged: [],
         changes: []
       };

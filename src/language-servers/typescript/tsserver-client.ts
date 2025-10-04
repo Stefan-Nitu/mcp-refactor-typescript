@@ -251,7 +251,12 @@ export class TypeScriptServer {
     // Project is still loading after timeout
     return {
       success: false,
-      message: 'TypeScript is still indexing the project. Please try again shortly.',
+      message: `⏳ TypeScript is still indexing the project (waited ${timeout}ms)
+
+💡 Try:
+  1. Wait a few more seconds and try again
+  2. For large projects, indexing can take 10-30 seconds
+  3. Check that tsconfig.json is properly configured`,
       filesChanged: [],
       changes: []
     };

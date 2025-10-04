@@ -95,7 +95,12 @@ export class FixAllOperation {
     } catch (error) {
       return {
         success: false,
-        message: `Fix all failed: ${error}`,
+        message: `❌ Fix all failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Ensure the file exists and is a valid TypeScript file
+  2. Check that TypeScript can compile the file
+  3. Some errors may not be auto-fixable`,
         filesChanged: [],
         changes: []
       };

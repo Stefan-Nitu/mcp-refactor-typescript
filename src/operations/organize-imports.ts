@@ -97,7 +97,12 @@ export class OrganizeImportsOperation {
     } catch (error) {
       return {
         success: false,
-        message: `Organize imports failed: ${error}`,
+        message: `❌ Organize imports failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Ensure the file exists and has valid import statements
+  2. Check that all imported modules can be resolved
+  3. Verify TypeScript configuration is correct`,
         filesChanged: [],
         changes: []
       };

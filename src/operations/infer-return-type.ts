@@ -71,7 +71,12 @@ Example: Add return type to function
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
-          message: 'Infer return type is not available at this location.',
+          message: `❌ Cannot infer return type: Not available at ${filePath}:${line}:${column}
+
+💡 Try:
+  1. Place cursor on a function name or signature
+  2. Ensure the function doesn't already have a return type
+  3. Verify TypeScript can infer the return type from the implementation`,
           filesChanged: [],
           changes: []
         };
@@ -84,7 +89,11 @@ Example: Add return type to function
       if (!inferRefactor) {
         return {
           success: false,
-          message: `Infer return type refactor not available. Available refactors: ${refactors.map(r => r.name).join(', ')}`,
+          message: `❌ Infer return type refactor not available at ${filePath}:${line}:${column}
+
+💡 Available refactorings: ${refactors.map(r => r.name).join(', ')}
+
+Try a different location or use one of the available refactorings`,
           filesChanged: [],
           changes: []
         };
@@ -97,7 +106,12 @@ Example: Add return type to function
       if (!inferAction) {
         return {
           success: false,
-          message: 'No infer return type action available',
+          message: `❌ No infer return type action available at ${filePath}:${line}:${column}
+
+💡 Try:
+  1. The function might already have an explicit return type
+  2. Ensure the function has a return statement
+  3. Verify TypeScript can analyze the function body`,
           filesChanged: [],
           changes: []
         };
@@ -116,7 +130,12 @@ Example: Add return type to function
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
           success: false,
-          message: 'No edits generated for infer return type',
+          message: `❌ No edits generated for infer return type at ${filePath}:${line}:${column}
+
+💡 Try:
+  1. Check that the file is saved and syntactically valid
+  2. Ensure TypeScript can analyze the function's return values
+  3. Verify the function body is complete and type-checkable`,
           filesChanged: [],
           changes: []
         };
@@ -186,7 +205,12 @@ Example: Add return type to function
 
       return {
         success: false,
-        message: `❌ Infer return type failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: `❌ Infer return type failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Check that the file is saved and syntactically valid
+  2. Ensure TypeScript can parse the function
+  3. Verify the function has a determinable return type`,
         filesChanged: [],
         changes: []
       };

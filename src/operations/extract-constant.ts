@@ -74,7 +74,12 @@ Example: Extract 3.14159 with custom name "PI"
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
-          message: 'Extract constant is not available at this location. Try selecting a literal value or simple expression.',
+          message: `❌ Cannot extract constant: No extractable value at ${filePath}:${startLine}:${startColumn}
+
+💡 Try:
+  1. Select a literal value (number, string, or boolean)
+  2. Select a simple expression that can be made constant
+  3. Ensure the selection is syntactically valid`,
           filesChanged: [],
           changes: []
         };
@@ -87,7 +92,11 @@ Example: Extract 3.14159 with custom name "PI"
       if (!extractRefactor) {
         return {
           success: false,
-          message: `Extract constant not available at this location. Available refactors: ${refactors.map(r => r.name).join(', ')}`,
+          message: `❌ Extract constant not available at ${filePath}:${startLine}:${startColumn}
+
+💡 Available refactorings: ${refactors.map(r => r.name).join(', ')}
+
+Try a different selection or use one of the available refactorings`,
           filesChanged: [],
           changes: []
         };
@@ -107,7 +116,12 @@ Example: Extract 3.14159 with custom name "PI"
         ).join(', ');
         return {
           success: false,
-          message: `No constant action found. Available actions: ${actionDetails}`,
+          message: `❌ No constant action available at ${filePath}:${startLine}:${startColumn}
+
+💡 Try:
+  1. Place cursor on a variable or constant declaration
+  2. Ensure the value is eligible for extraction
+  3. Available actions: ${actionDetails}`,
           filesChanged: [],
           changes: []
         };
@@ -126,7 +140,12 @@ Example: Extract 3.14159 with custom name "PI"
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
           success: false,
-          message: 'No edits generated for extract constant',
+          message: `❌ No edits generated for extract constant at ${filePath}:${startLine}:${startColumn}
+
+💡 Try:
+  1. Check that the file is saved and syntactically valid
+  2. Ensure TypeScript can parse the selected value
+  3. Verify the selection is a valid expression`,
           filesChanged: [],
           changes: []
         };
@@ -242,7 +261,12 @@ Example: Extract 3.14159 with custom name "PI"
 
       return {
         success: false,
-        message: `❌ Extract constant failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: `❌ Extract constant failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Check that the file is saved and syntactically valid
+  2. Ensure TypeScript can parse the selected value
+  3. Verify the selection is a complete expression or literal`,
         filesChanged: [],
         changes: []
       };

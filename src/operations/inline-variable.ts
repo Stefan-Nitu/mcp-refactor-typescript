@@ -68,7 +68,12 @@ Example: Inline const multiplier
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
-          message: 'Inline variable is not available at this location.',
+          message: `❌ Cannot inline variable: No inlinable variable at ${filePath}:${line}:${column}
+
+💡 Try:
+  1. Place cursor on a variable name (in declaration or usage)
+  2. Ensure the variable has a simple value that can be inlined
+  3. Verify the variable is only used in the same scope`,
           filesChanged: [],
           changes: []
         };
@@ -81,7 +86,11 @@ Example: Inline const multiplier
       if (!inlineRefactor) {
         return {
           success: false,
-          message: `Inline refactor not available. Available refactors: ${refactors.map(r => r.name).join(', ')}`,
+          message: `❌ Inline refactor not available at ${filePath}:${line}:${column}
+
+💡 Available refactorings: ${refactors.map(r => r.name).join(', ')}
+
+Try a different location or use one of the available refactorings`,
           filesChanged: [],
           changes: []
         };
@@ -94,7 +103,12 @@ Example: Inline const multiplier
       if (!inlineAction) {
         return {
           success: false,
-          message: 'No inline action available',
+          message: `❌ No inline action available at ${filePath}:${line}:${column}
+
+💡 Try:
+  1. The variable might have side effects that prevent inlining
+  2. Check if the variable is used multiple times in different scopes
+  3. Ensure the variable's value is simple enough to inline`,
           filesChanged: [],
           changes: []
         };
@@ -113,7 +127,12 @@ Example: Inline const multiplier
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
           success: false,
-          message: 'No edits generated for inline variable',
+          message: `❌ No edits generated for inline variable at ${filePath}:${line}:${column}
+
+💡 Try:
+  1. Check that the file is saved and syntactically valid
+  2. Ensure the variable can be safely inlined
+  3. Verify there are no circular dependencies`,
           filesChanged: [],
           changes: []
         };
@@ -183,7 +202,12 @@ Example: Inline const multiplier
 
       return {
         success: false,
-        message: `❌ Inline variable failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: `❌ Inline variable failed: ${error instanceof Error ? error.message : String(error)}
+
+💡 Try:
+  1. Check that the file is saved and syntactically valid
+  2. Ensure TypeScript can parse the code
+  3. Verify the variable can be safely inlined without side effects`,
         filesChanged: [],
         changes: []
       };
