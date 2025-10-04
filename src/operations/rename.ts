@@ -44,9 +44,9 @@ export class RenameOperation {
       if (!renameInfo?.locs) {
         return {
           success: false,
-          message: `❌ Cannot rename: No symbol found at ${validated.filePath}:${validated.line}:${validated.column}
+          message: `Cannot rename: No symbol found at ${validated.filePath}:${validated.line}:${validated.column}
 
-💡 Try:
+Try:
   1. Check the cursor position is on a valid identifier
   2. Use find_references to verify the symbol exists
   3. Ensure the file is saved and TypeScript can analyze it`,
@@ -126,9 +126,9 @@ export class RenameOperation {
     } catch (error) {
       return {
         success: false,
-        message: `❌ Rename failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Rename failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Ensure the file exists and is a valid TypeScript file
   2. Check that the TypeScript project is configured correctly
   3. Verify the new name is a valid identifier`,
@@ -141,7 +141,7 @@ export class RenameOperation {
   getSchema() {
     return {
       title: 'Rename Symbol',
-      description: `⚡ Rename across ALL files + update imports/exports automatically. TypeScript-aware renaming catches dynamic imports, re-exports, and type references that text search misses. Completes in <1s vs 5-10min manual search/replace with risk of missed references.
+      description: `Rename across ALL files + update imports/exports automatically. TypeScript-aware renaming catches dynamic imports, re-exports, and type references that text search misses. Completes in <1s vs 5-10min manual search/replace with risk of missed references.
 
 Example: Rename 'calculateSum' to 'computeSum'
   ✓ Updates function declaration

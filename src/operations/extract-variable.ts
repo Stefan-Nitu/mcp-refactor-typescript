@@ -23,7 +23,7 @@ export class ExtractVariableOperation implements Operation {
   getSchema() {
     return {
       title: 'Extract Variable',
-      description: `⚡ Extract complex expressions to local variables with type inference and your custom name. Reduces code duplication and improves readability. Auto-determines proper const/let based on usage patterns.
+      description: `Extract complex expressions to local variables with type inference and your custom name. Reduces code duplication and improves readability. Auto-determines proper const/let based on usage patterns.
 
 Example: Extract expression with custom name "doubled"
   Input:
@@ -72,9 +72,9 @@ Example: Extract expression with custom name "doubled"
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
-          message: `❌ Cannot extract variable: No extractable expression at ${filePath}:${startLine}:${startColumn}-${endLine}:${endColumn}
+          message: `Cannot extract variable: No extractable expression at ${filePath}:${startLine}:${startColumn}-${endLine}:${endColumn}
 
-💡 Try:
+Try:
   1. Select a valid expression or value (not a statement)
   2. Ensure the selection is syntactically complete
   3. Try selecting just the expression without surrounding code`,
@@ -90,9 +90,9 @@ Example: Extract expression with custom name "doubled"
       if (!extractRefactor) {
         return {
           success: false,
-          message: `❌ Extract variable not available at this location
+          message: `Extract variable not available at this location
 
-💡 Available refactorings: ${refactors.map(r => r.name).join(', ')}
+Available refactorings: ${refactors.map(r => r.name).join(', ')}
 
 Try a different selection or use one of the available refactorings`,
           filesChanged: [],
@@ -107,9 +107,9 @@ Try a different selection or use one of the available refactorings`,
       if (!variableAction) {
         return {
           success: false,
-          message: `❌ No extract variable action available
+          message: `No extract variable action available
 
-💡 This might happen if:
+This might happen if:
   1. The selected code contains syntax errors
   2. The expression cannot be safely extracted
   3. The selection is not a valid extractable expression`,
@@ -131,9 +131,9 @@ Try a different selection or use one of the available refactorings`,
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
           success: false,
-          message: `❌ No edits generated for extract variable
+          message: `No edits generated for extract variable
 
-💡 This might indicate:
+This might indicate:
   1. TypeScript LSP encountered an internal error
   2. The selection is invalid or too complex
   3. Try restarting the TypeScript server`,
@@ -259,7 +259,7 @@ Try a different selection or use one of the available refactorings`,
 
       return {
         success: true,
-        message: `✅ Extracted variable${variableName ? ` "${variableName}"` : ''}`,
+        message: `Extracted variable${variableName ? ` "${variableName}"` : ''}`,
         filesChanged,
         changes,
         nextActions: [
@@ -274,9 +274,9 @@ Try a different selection or use one of the available refactorings`,
 
       return {
         success: false,
-        message: `❌ Extract variable failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Extract variable failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Check that the file is saved and syntactically valid
   2. Ensure the selected expression can be evaluated independently
   3. Verify the selection is within a valid scope`,

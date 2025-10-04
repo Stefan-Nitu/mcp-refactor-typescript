@@ -151,9 +151,9 @@ export class MoveFileOperation {
     } catch (error) {
       return {
         success: false,
-        message: `❌ Move file failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Move file failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Ensure source file exists and destination path is valid
   2. Check that destination directory is writable
   3. Verify no other file exists at destination path`,
@@ -171,7 +171,7 @@ export class MoveFileOperation {
   getSchema() {
     return {
       title: 'Move File',
-      description: `⚡ Move file + auto-update ALL import paths across entire codebase. Zero manual import fixing. Handles ES6 imports, CommonJS requires, dynamic imports, re-exports, and type-only imports. Completes in <2s vs 15-30min manually updating imports across dozens of files.
+      description: `Move file + auto-update ALL import paths across entire codebase. Zero manual import fixing. Handles ES6 imports, CommonJS requires, dynamic imports, re-exports, and type-only imports. Completes in <2s vs 15-30min manually updating imports across dozens of files.
 
 Example: Move src/utils.ts → src/helpers/utils.ts
   Input:

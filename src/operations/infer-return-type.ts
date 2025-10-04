@@ -21,7 +21,7 @@ export class InferReturnTypeOperation implements Operation {
   getSchema() {
     return {
       title: 'Infer Return Type',
-      description: `⚡ Generate perfect return type annotations automatically, even for complex nested object types and union types. TypeScript compiler infers the exact type - no guessing, no mistakes. Essential for improving type safety without manual type construction.
+      description: `Generate perfect return type annotations automatically, even for complex nested object types and union types. TypeScript compiler infers the exact type - no guessing, no mistakes. Essential for improving type safety without manual type construction.
 
 Example: Add return type to function
   Input:
@@ -72,9 +72,9 @@ Example: Add return type to function
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
-          message: `❌ Cannot infer return type: Not available at ${filePath}:${line}:${column}
+          message: `Cannot infer return type: Not available at ${filePath}:${line}:${column}
 
-💡 Try:
+Try:
   1. Place cursor on a function name or signature
   2. Ensure the function doesn't already have a return type
   3. Verify TypeScript can infer the return type from the implementation`,
@@ -90,9 +90,9 @@ Example: Add return type to function
       if (!inferRefactor) {
         return {
           success: false,
-          message: `❌ Infer return type refactor not available at ${filePath}:${line}:${column}
+          message: `Infer return type refactor not available at ${filePath}:${line}:${column}
 
-💡 Available refactorings: ${refactors.map(r => r.name).join(', ')}
+Available refactorings: ${refactors.map(r => r.name).join(', ')}
 
 Try a different location or use one of the available refactorings`,
           filesChanged: [],
@@ -107,9 +107,9 @@ Try a different location or use one of the available refactorings`,
       if (!inferAction) {
         return {
           success: false,
-          message: `❌ No infer return type action available at ${filePath}:${line}:${column}
+          message: `No infer return type action available at ${filePath}:${line}:${column}
 
-💡 Try:
+Try:
   1. The function might already have an explicit return type
   2. Ensure the function has a return statement
   3. Verify TypeScript can analyze the function body`,
@@ -131,9 +131,9 @@ Try a different location or use one of the available refactorings`,
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
           success: false,
-          message: `❌ No edits generated for infer return type at ${filePath}:${line}:${column}
+          message: `No edits generated for infer return type at ${filePath}:${line}:${column}
 
-💡 Try:
+Try:
   1. Check that the file is saved and syntactically valid
   2. Ensure TypeScript can analyze the function's return values
   3. Verify the function body is complete and type-checkable`,
@@ -211,7 +211,7 @@ Try a different location or use one of the available refactorings`,
 
       return {
         success: true,
-        message: '✅ Inferred return type successfully',
+        message: 'Inferred return type successfully',
         filesChanged,
         changes,
         nextActions: [
@@ -228,9 +228,9 @@ Try a different location or use one of the available refactorings`,
 
       return {
         success: false,
-        message: `❌ Infer return type failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Infer return type failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Check that the file is saved and syntactically valid
   2. Ensure TypeScript can parse the function
   3. Verify the function has a determinable return type`,

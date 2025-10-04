@@ -39,14 +39,14 @@ const ErrorCodes = {
 Tools return success results with content, not error codes:
 
 ```typescript
-// ✅ CORRECT: Tool returns user-friendly error in content
+// CORRECT: Tool returns user-friendly error in content
 async function buildTool(args: any): Promise<MCPResponse> {
   try {
     const result = await executeBuild(args);
     return {
       content: [{
         type: 'text',
-        text: `✅ Build succeeded: ${result.appName}`
+        text: `Build succeeded: ${result.appName}`
       }]
     };
   } catch (error) {
@@ -54,13 +54,13 @@ async function buildTool(args: any): Promise<MCPResponse> {
     return {
       content: [{
         type: 'text',
-        text: `❌ Build failed: ${error.message}`
+        text: `Build failed: ${error.message}`
       }]
     };
   }
 }
 
-// ❌ WRONG: Don't throw JSON-RPC errors from tools
+// WRONG: Don't throw JSON-RPC errors from tools
 async function buildTool(args: any) {
   throw new JSONRPCError(-32004, 'Build failed'); // Don't do this!
 }
@@ -108,16 +108,16 @@ export class BootSimulatorController {
     return {
       content: [{
         type: 'text',
-        text: '✅ Simulator booted successfully'
+        text: 'Simulator booted successfully'
       }]
     };
   }
 
   private formatError(error: Error): string {
     if (error instanceof SimulatorNotFoundError) {
-      return `❌ Simulator not found: ${error.deviceId}`;
+      return `Simulator not found: ${error.deviceId}`;
     }
-    return `❌ ${error.message}`;
+    return `${error.message}`;
   }
 }
 ```
@@ -156,7 +156,7 @@ export class MCPToolController {
       return {
         content: [{
           type: 'text',
-          text: '❌ An unexpected error occurred. Please try again.'
+          text: 'An unexpected error occurred. Please try again.'
         }]
       };
     }
@@ -208,7 +208,7 @@ async function validateAndBuild(args: unknown) {
       return {
         content: [{
           type: 'text',
-          text: `❌ Invalid input:\n${issues}`
+          text: `Invalid input:\n${issues}`
         }]
       };
     }
@@ -239,9 +239,9 @@ function formatCommandError(error: CommandExecutionError): string {
   // Extract relevant error from stderr/stdout
   const errorMessage = extractErrorMessage(error.stderr || error.stdout);
 
-  return `❌ Build failed: ${errorMessage}
+  return `Build failed: ${errorMessage}
 
-📁 Full output:
+Full output:
 ${error.stderr || error.stdout}`;
 }
 
@@ -289,8 +289,8 @@ function formatStateError(error: SimulatorStateError): string {
 
   const suggestion = suggestions[error.currentState] || '';
 
-  return `❌ Cannot perform operation: Simulator is ${error.currentState}
-${suggestion ? `💡 ${suggestion}` : ''}`;
+  return `Cannot perform operation: Simulator is ${error.currentState}
+${suggestion ? `${suggestion}` : ''}`;
 }
 ```
 
@@ -332,39 +332,55 @@ async function withTimeout<T>(
 }
 ```
 
-## Visual Indicators (Emojis)
+## JSON Response Format
 
-Consistent emoji usage across all tools:
+All MCP tools should return structured JSON responses for programmatic parsing:
 
 ```typescript
-const Indicators = {
-  // Status
-  SUCCESS: '✅',
-  ERROR: '❌',
-  WARNING: '⚠️',
-  INFO: 'ℹ️',
+interface ToolResponse {
+  tool: string;
+  status: 'success' | 'error';
+  message: string;
+  data?: {
+    filesChanged?: string[];
+    changes?: Array<{
+      file: string;
+      path: string;
+      edits: Array<{
+        line: number;
+        column?: number;
+        old: string;
+        new: string;
+      }>;
+    }>;
+  };
+  preview?: {
+    filesAffected: number;
+    estimatedTime: string;
+    command: string;
+  };
+  nextActions?: string[];
+  errors?: Array<{
+    path: string;
+    message: string;
+  }>;
+}
 
-  // Actions
-  BUILDING: '🔨',
-  TESTING: '🧪',
-  RUNNING: '▶️',
-  STOPPED: '⏹️',
-
-  // Resources
-  FILE: '📁',
-  DEVICE: '📱',
-  CLOUD: '☁️',
-
-  // Hints
-  TIP: '💡',
-  DEBUG: '🐛'
-} as const;
-
-// Usage
-`${Indicators.SUCCESS} Build completed successfully`
-`${Indicators.ERROR} Test failed: 3 failures`
-`${Indicators.WARNING} Deprecated API usage detected`
-`${Indicators.FILE} Logs saved to: ${logPath}`
+// Usage - wrap JSON in text content
+return {
+  content: [{
+    type: 'text',
+    text: JSON.stringify({
+      tool: 'rename',
+      status: 'success',
+      message: 'Renamed to "newName"',
+      data: {
+        filesChanged: ['file1.ts', 'file2.ts'],
+        changes: [...]
+      }
+    }, null, 2)
+  }]
+};
 ```
 
 ## Error Recovery and Suggestions
@@ -381,20 +397,17 @@ interface ErrorWithSuggestion {
   };
 }
 
-function formatErrorWithSuggestion(error: Error): string {
+function formatErrorResponse(error: Error): ToolResponse {
   const suggestions = getSuggestions(error);
 
-  let output = `❌ ${error.message}`;
-
-  if (suggestions.suggestion) {
-    output += `\n💡 ${suggestions.suggestion}`;
-  }
-
-  if (suggestions.action) {
-    output += `\n🔧 Try: ${suggestions.action.tool} ${JSON.stringify(suggestions.action.args)}`;
-  }
-
-  return output;
+  return {
+    tool: 'operation_name',
+    status: 'error',
+    message: error.message,
+    nextActions: suggestions.action ? [
+      `${suggestions.action.tool} - ${suggestions.suggestion || 'Try this tool'}`
+    ] : undefined
+  };
 }
 
 function getSuggestions(error: Error): ErrorWithSuggestion {
@@ -476,15 +489,22 @@ describe('Error Formatting', () => {
     ]);
 
     const formatted = formatValidationError(error);
+    const response = JSON.parse(formatted);
 
-    expect(formatted).toBe('❌ Invalid input:\n  • projectPath: Required');
+    expect(response.status).toBe('error');
+    expect(response.message).toContain('Invalid input');
+    expect(response.errors).toContainEqual({
+      path: 'projectPath',
+      message: 'Required'
+    });
   });
 
   it('should suggest actions for known errors', () => {
     const error = new SimulatorNotFoundError('iPhone-15');
-    const formatted = formatErrorWithSuggestion(error);
+    const formatted = formatErrorResponse(error);
 
-    expect(formatted).toContain('💡 List available simulators');
+    expect(formatted.status).toBe('error');
+    expect(formatted.nextActions).toContain('list_simulators');
   });
 });
 ```
@@ -493,23 +513,25 @@ describe('Error Formatting', () => {
 
 ```typescript
 describe('MCP Error Responses', () => {
-  it('should return user-friendly error in content', async () => {
+  it('should return JSON error in content', async () => {
     const response = await buildTool({
       projectPath: 'invalid.xcodeproj',
       scheme: 'NonExistent'
     });
 
     expect(response.content[0].type).toBe('text');
-    expect(response.content[0].text).toContain('❌');
-    expect(response.content[0].text).toContain('Build failed');
+    const parsed = JSON.parse(response.content[0].text);
+    expect(parsed.status).toBe('error');
+    expect(parsed.message).toContain('Build failed');
   });
 
   it('should not throw JSON-RPC errors from tools', async () => {
-    // Tools should always return MCPResponse, never throw
+    // Tools should always return MCPResponse with JSON content, never throw
     const response = await simulatorTool({ action: 'invalid' });
 
     expect(response).toHaveProperty('content');
-    expect(response.content[0].text).toContain('❌');
+    const parsed = JSON.parse(response.content[0].text);
+    expect(parsed.status).toBe('error');
   });
 });
 ```
@@ -518,12 +540,13 @@ describe('MCP Error Responses', () => {
 
 1. **Layer Separation**: Domain errors contain data, presentation formats messages
 2. **MCP Compliance**: Return errors in content, not JSON-RPC errors
-3. **User-Friendly**: Use emojis and clear language
-4. **Actionable**: Provide suggestions and next steps
-5. **Track Everything**: Log locally and to error tracking service
-6. **Privacy First**: Sanitize sensitive data before logging
-7. **Test Coverage**: Test both error formatting and behavior
-8. **Graceful Degradation**: Always return something useful to the user
+3. **JSON Format**: Always return structured JSON responses for programmatic parsing
+4. **User-Friendly**: Use clear language without emojis for better cross-platform compatibility
+5. **Actionable**: Provide suggestions and next steps via nextActions array
+6. **Track Everything**: Log locally and to error tracking service
+7. **Privacy First**: Sanitize sensitive data before logging
+8. **Test Coverage**: Test both error formatting and behavior
+9. **Graceful Degradation**: Always return something useful to the user
 
 ## Common Pitfalls to Avoid
 

@@ -43,7 +43,7 @@ export class RemoveUnusedOperation {
   getSchema() {
     return {
       title: 'Remove Unused',
-      description: `⚡ Safely remove ALL unused vars/imports with zero risk of breaking code. Type-aware analysis distinguishes between truly unused code and legitimate unused imports (like side-effect imports or type-only imports used in JSDoc). Never accidentally removes needed code.
+      description: `Safely remove ALL unused vars/imports with zero risk of breaking code. Type-aware analysis distinguishes between truly unused code and legitimate unused imports (like side-effect imports or type-only imports used in JSDoc). Never accidentally removes needed code.
 
 Example: Clean up unused code
   Input:

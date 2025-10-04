@@ -117,6 +117,6 @@ describe('inferReturnType', () => {
 
     // Assert
     expect(response.success).toBe(false);
-    expect(response.message).toContain('❌ Cannot infer return type');
+    expect(response.message).toContain('Cannot infer return type');
   });
 });

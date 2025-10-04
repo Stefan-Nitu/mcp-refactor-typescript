@@ -121,6 +121,6 @@ console.error(result);`, 'utf-8');
 
     // Assert
     expect(response.success).toBe(false);
-    expect(response.message).toContain('❌');
+    expect(response.message).toContain('Move file failed');
   });
 });

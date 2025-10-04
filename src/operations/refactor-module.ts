@@ -115,9 +115,9 @@ ${steps.join('\n')}`,
       }
       return {
         success: false,
-        message: `❌ Refactor module failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Refactor module failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Ensure source file exists
   2. Check destination path is valid
   3. Verify TypeScript project is configured correctly`,
@@ -130,7 +130,7 @@ ${steps.join('\n')}`,
   getSchema() {
     return {
       title: 'Refactor Module',
-      description: `⚡ Complete module refactoring workflow: move file + organize imports + fix errors automatically. Perfect for restructuring code without breaking anything. Combines 3 operations in one atomic action.
+      description: `Complete module refactoring workflow: move file + organize imports + fix errors automatically. Perfect for restructuring code without breaking anything. Combines 3 operations in one atomic action.
 
 Example: Move src/old/service.ts → src/new/service.ts
   ✓ Moves the file and updates all imports

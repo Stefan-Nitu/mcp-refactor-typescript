@@ -147,6 +147,6 @@ describe('extractConstant', () => {
 
     // Assert
     expect(response.success).toBe(false);
-    expect(response.message).toContain('❌ Cannot extract constant');
+    expect(response.message).toContain('Cannot extract constant');
   });
 });

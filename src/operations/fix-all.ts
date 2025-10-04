@@ -115,9 +115,9 @@ export class FixAllOperation {
     } catch (error) {
       return {
         success: false,
-        message: `❌ Fix all failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Fix all failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Ensure the file exists and is a valid TypeScript file
   2. Check that TypeScript can compile the file
   3. Some errors may not be auto-fixable`,
@@ -130,7 +130,7 @@ export class FixAllOperation {
   getSchema() {
     return {
       title: 'Fix All',
-      description: `⚡ Auto-fix ALL TypeScript errors at once with compiler-grade accuracy. Type-aware fixes that preserve correctness - adds missing properties, fixes type mismatches, converts to async/await, and more. Safer than manual fixes because it understands the type system.
+      description: `Auto-fix ALL TypeScript errors at once with compiler-grade accuracy. Type-aware fixes that preserve correctness - adds missing properties, fixes type mismatches, converts to async/await, and more. Safer than manual fixes because it understands the type system.
 
 Example: Fix file with unused imports
   Input: File with unused imports from 'fs/promises'

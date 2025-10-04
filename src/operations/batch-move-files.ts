@@ -65,10 +65,10 @@ export class BatchMoveFilesOperation {
       if (errors.length > 0 && successCount === 0) {
         return {
           success: false,
-          message: `❌ Failed to move all files:
+          message: `Failed to move all files:
 ${errors.join('\n')}
 
-💡 Try:
+Try:
   1. Check that all source files exist
   2. Ensure target folder is writable
   3. Verify no filename conflicts in destination`,
@@ -112,9 +112,9 @@ ${errors.join('\n')}
       }
       return {
         success: false,
-        message: `❌ Batch move files failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Batch move files failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Ensure all source files exist
   2. Check that target folder path is valid
   3. Verify you have write permissions`,
@@ -127,7 +127,7 @@ ${errors.join('\n')}
   getSchema() {
     return {
       title: 'Batch Move Files',
-      description: `⚡ Reorganize entire modules + update ALL imports automatically across the codebase. Move dozens of files at once with zero broken imports. Perfect for restructuring folders or consolidating related files. Saves hours of manual import path updates and eliminates the risk of broken references.
+      description: `Reorganize entire modules + update ALL imports automatically across the codebase. Move dozens of files at once with zero broken imports. Perfect for restructuring folders or consolidating related files. Saves hours of manual import path updates and eliminates the risk of broken references.
 
 Example: Move utils.ts and helpers.ts to lib/ folder
   Input:

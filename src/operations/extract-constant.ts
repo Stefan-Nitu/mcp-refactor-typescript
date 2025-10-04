@@ -24,7 +24,7 @@ export class ExtractConstantOperation implements Operation {
   getSchema() {
     return {
       title: 'Extract Constant',
-      description: `⚡ Extract magic numbers and string literals to named constants with proper scope. Auto-detects optimal scope (module/function/block) and applies your custom name. Makes code more maintainable and eliminates duplicate literal values.
+      description: `Extract magic numbers and string literals to named constants with proper scope. Auto-detects optimal scope (module/function/block) and applies your custom name. Makes code more maintainable and eliminates duplicate literal values.
 
 Example: Extract 3.14159 with custom name "PI"
   Input:
@@ -75,9 +75,9 @@ Example: Extract 3.14159 with custom name "PI"
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
-          message: `❌ Cannot extract constant: No extractable value at ${filePath}:${startLine}:${startColumn}
+          message: `Cannot extract constant: No extractable value at ${filePath}:${startLine}:${startColumn}
 
-💡 Try:
+Try:
   1. Select a literal value (number, string, or boolean)
   2. Select a simple expression that can be made constant
   3. Ensure the selection is syntactically valid`,
@@ -93,9 +93,9 @@ Example: Extract 3.14159 with custom name "PI"
       if (!extractRefactor) {
         return {
           success: false,
-          message: `❌ Extract constant not available at ${filePath}:${startLine}:${startColumn}
+          message: `Extract constant not available at ${filePath}:${startLine}:${startColumn}
 
-💡 Available refactorings: ${refactors.map(r => r.name).join(', ')}
+Available refactorings: ${refactors.map(r => r.name).join(', ')}
 
 Try a different selection or use one of the available refactorings`,
           filesChanged: [],
@@ -117,9 +117,9 @@ Try a different selection or use one of the available refactorings`,
         ).join(', ');
         return {
           success: false,
-          message: `❌ No constant action available at ${filePath}:${startLine}:${startColumn}
+          message: `No constant action available at ${filePath}:${startLine}:${startColumn}
 
-💡 Try:
+Try:
   1. Place cursor on a variable or constant declaration
   2. Ensure the value is eligible for extraction
   3. Available actions: ${actionDetails}`,
@@ -141,9 +141,9 @@ Try a different selection or use one of the available refactorings`,
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
           success: false,
-          message: `❌ No edits generated for extract constant at ${filePath}:${startLine}:${startColumn}
+          message: `No edits generated for extract constant at ${filePath}:${startLine}:${startColumn}
 
-💡 Try:
+Try:
   1. Check that the file is saved and syntactically valid
   2. Ensure TypeScript can parse the selected value
   3. Verify the selection is a valid expression`,
@@ -269,7 +269,7 @@ Try a different selection or use one of the available refactorings`,
 
       return {
         success: true,
-        message: `✅ Extracted constant${constantName ? ` "${constantName}"` : ''}`,
+        message: `Extracted constant${constantName ? ` "${constantName}"` : ''}`,
         filesChanged,
         changes,
         nextActions: [
@@ -284,9 +284,9 @@ Try a different selection or use one of the available refactorings`,
 
       return {
         success: false,
-        message: `❌ Extract constant failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Extract constant failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Check that the file is saved and syntactically valid
   2. Ensure TypeScript can parse the selected value
   3. Verify the selection is a complete expression or literal`,

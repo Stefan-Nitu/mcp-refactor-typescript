@@ -21,7 +21,7 @@ export class InlineVariableOperation implements Operation {
   getSchema() {
     return {
       title: 'Inline Variable',
-      description: `⚡ Inline variables into usages while preserving types and handling scope correctly. Type-aware inlining avoids type narrowing bugs and scope issues that manual inlining causes. Safely handles multiple usages, complex expressions, and edge cases.
+      description: `Inline variables into usages while preserving types and handling scope correctly. Type-aware inlining avoids type narrowing bugs and scope issues that manual inlining causes. Safely handles multiple usages, complex expressions, and edge cases.
 
 Example: Inline const multiplier
   Input:
@@ -69,9 +69,9 @@ Example: Inline const multiplier
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
-          message: `❌ Cannot inline variable: No inlinable variable at ${filePath}:${line}:${column}
+          message: `Cannot inline variable: No inlinable variable at ${filePath}:${line}:${column}
 
-💡 Try:
+Try:
   1. Place cursor on a variable name (in declaration or usage)
   2. Ensure the variable has a simple value that can be inlined
   3. Verify the variable is only used in the same scope`,
@@ -87,9 +87,9 @@ Example: Inline const multiplier
       if (!inlineRefactor) {
         return {
           success: false,
-          message: `❌ Inline refactor not available at ${filePath}:${line}:${column}
+          message: `Inline refactor not available at ${filePath}:${line}:${column}
 
-💡 Available refactorings: ${refactors.map(r => r.name).join(', ')}
+Available refactorings: ${refactors.map(r => r.name).join(', ')}
 
 Try a different location or use one of the available refactorings`,
           filesChanged: [],
@@ -104,9 +104,9 @@ Try a different location or use one of the available refactorings`,
       if (!inlineAction) {
         return {
           success: false,
-          message: `❌ No inline action available at ${filePath}:${line}:${column}
+          message: `No inline action available at ${filePath}:${line}:${column}
 
-💡 Try:
+Try:
   1. The variable might have side effects that prevent inlining
   2. Check if the variable is used multiple times in different scopes
   3. Ensure the variable's value is simple enough to inline`,
@@ -128,9 +128,9 @@ Try a different location or use one of the available refactorings`,
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
           success: false,
-          message: `❌ No edits generated for inline variable at ${filePath}:${line}:${column}
+          message: `No edits generated for inline variable at ${filePath}:${line}:${column}
 
-💡 Try:
+Try:
   1. Check that the file is saved and syntactically valid
   2. Ensure the variable can be safely inlined
   3. Verify there are no circular dependencies`,
@@ -208,7 +208,7 @@ Try a different location or use one of the available refactorings`,
 
       return {
         success: true,
-        message: '✅ Inlined variable successfully',
+        message: 'Inlined variable successfully',
         filesChanged,
         changes,
         nextActions: [
@@ -225,9 +225,9 @@ Try a different location or use one of the available refactorings`,
 
       return {
         success: false,
-        message: `❌ Inline variable failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Inline variable failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Check that the file is saved and syntactically valid
   2. Ensure TypeScript can parse the code
   3. Verify the variable can be safely inlined without side effects`,

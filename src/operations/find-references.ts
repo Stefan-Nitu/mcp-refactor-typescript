@@ -58,7 +58,7 @@ export class FindReferencesOperation {
 
       for (const [file, refs] of fileGroups) {
         const fileName = file.split('/').pop() || file;
-        message += `\n📄 ${fileName}:\n`;
+        message += `\n${fileName}:\n`;
         for (const ref of refs) {
           message += `  • Line ${ref.start.line}: ${ref.lineText.trim()}\n`;
         }
@@ -73,9 +73,9 @@ export class FindReferencesOperation {
     } catch (error) {
       return {
         success: false,
-        message: `❌ Find references failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Find references failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Ensure the file exists and is a valid TypeScript file
   2. Check the position points to a valid symbol
   3. Verify TypeScript project is configured correctly`,
@@ -88,7 +88,7 @@ export class FindReferencesOperation {
   getSchema() {
     return {
       title: 'Find References',
-      description: `⚡ Find ALL usages with type-aware analysis. Catches dynamic imports, CommonJS requires, re-exports, type-only imports, and JSDoc references that text search (grep/ripgrep) completely misses. Essential for understanding impact before refactoring.
+      description: `Find ALL usages with type-aware analysis. Catches dynamic imports, CommonJS requires, re-exports, type-only imports, and JSDoc references that text search (grep/ripgrep) completely misses. Essential for understanding impact before refactoring.
 
 Example: Find references to 'helper' function
   Input:
@@ -96,9 +96,9 @@ Example: Find references to 'helper' function
     main.ts: const result = helper(); const another = helper();
   Output:
     Found 3 reference(s) in 2 file(s):
-    📄 utils.ts: Line 1: export function helper()...
-    📄 main.ts: Line 1: const result = helper();
-    📄 main.ts: Line 2: const another = helper();
+    utils.ts: Line 1: export function helper()...
+    main.ts: Line 1: const result = helper();
+    main.ts: Line 2: const another = helper();
   ✓ Includes declaration + all usages
   ✓ Type-aware (not just text search)`,
       inputSchema: findReferencesSchema.shape

@@ -37,9 +37,9 @@ export class CleanupCodebaseOperation {
       if (tsFiles.length === 0) {
         return {
           success: false,
-          message: `❌ No TypeScript files found in ${validated.directory}
+          message: `No TypeScript files found in ${validated.directory}
 
-💡 Try:
+Try:
   1. Check the directory path is correct
   2. Ensure directory contains .ts or .tsx files
   3. Verify you have read permissions`,
@@ -112,9 +112,9 @@ Processed ${tsFiles.length} TypeScript file(s)`,
       }
       return {
         success: false,
-        message: `❌ Cleanup codebase failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Cleanup codebase failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Ensure directory exists and is readable
   2. Check TypeScript project is configured
   3. Verify files can be analyzed by TypeScript`,
@@ -155,7 +155,7 @@ Processed ${tsFiles.length} TypeScript file(s)`,
   getSchema() {
     return {
       title: 'Cleanup Codebase',
-      description: `⚡ Clean entire codebase: remove unused code + organize imports across ALL files. Perfect for maintaining clean, organized code. Processes entire directories recursively, skipping node_modules.
+      description: `Clean entire codebase: remove unused code + organize imports across ALL files. Perfect for maintaining clean, organized code. Processes entire directories recursively, skipping node_modules.
 
 Example: Cleanup src/ directory
   ✓ Removes unused imports and variables in all files

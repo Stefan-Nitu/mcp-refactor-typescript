@@ -118,6 +118,6 @@ describe('extractVariable', () => {
 
     // Assert
     expect(response.success).toBe(false);
-    expect(response.message).toContain('❌ Cannot extract variable');
+    expect(response.message).toContain('Cannot extract variable');
   });
 });

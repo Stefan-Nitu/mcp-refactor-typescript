@@ -114,9 +114,9 @@ export class OrganizeImportsOperation {
     } catch (error) {
       return {
         success: false,
-        message: `❌ Organize imports failed: ${error instanceof Error ? error.message : String(error)}
+        message: `Organize imports failed: ${error instanceof Error ? error.message : String(error)}
 
-💡 Try:
+Try:
   1. Ensure the file exists and has valid import statements
   2. Check that all imported modules can be resolved
   3. Verify TypeScript configuration is correct`,
@@ -129,7 +129,7 @@ export class OrganizeImportsOperation {
   getSchema() {
     return {
       title: 'Organize Imports',
-      description: `⚡ Sort + remove unused imports with TypeScript compiler accuracy. Preserves side-effect imports, handles type-only imports correctly, and respects import order rules. More thorough than ESLint - catches unused imports that static analysis misses due to type-only usage.
+      description: `Sort + remove unused imports with TypeScript compiler accuracy. Preserves side-effect imports, handles type-only imports correctly, and respects import order rules. More thorough than ESLint - catches unused imports that static analysis misses due to type-only usage.
 
 Example: Messy imports
   Input:
