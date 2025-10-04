@@ -33,6 +33,11 @@ export class BatchMoveFilesOperation {
 
       await mkdir(validated.targetFolder, { recursive: true });
 
+      // Open all source files so TypeScript can track imports
+      for (const sourceFile of validated.files) {
+        await this.tsServer.openFile(sourceFile);
+      }
+
       const moveOperation = new MoveFileOperation(this.tsServer);
       const allFilesChanged: string[] = [];
       const allChanges: RefactorResult['changes'] = [];

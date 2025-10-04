@@ -30,6 +30,9 @@ export class MoveFileOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
+      // Open the source file so TypeScript can track imports
+      await this.tsServer.openFile(validated.sourcePath);
+
       const edits = await this.tsServer.sendRequest<TSFileEdit[]>('getEditsForFileRename', {
         oldFilePath: validated.sourcePath,
         newFilePath: validated.destinationPath
