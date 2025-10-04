@@ -107,7 +107,17 @@ export class OrganizeImportsOperation {
   getSchema() {
     return {
       title: 'Organize Imports',
-      description: '⚡ Sort + remove unused imports with TypeScript compiler accuracy. Preserves side-effect imports, handles type-only imports correctly, and respects import order rules. More thorough than ESLint - catches unused imports that static analysis misses due to type-only usage.',
+      description: `⚡ Sort + remove unused imports with TypeScript compiler accuracy. Preserves side-effect imports, handles type-only imports correctly, and respects import order rules. More thorough than ESLint - catches unused imports that static analysis misses due to type-only usage.
+
+Example: Messy imports
+  Input:
+    import { z } from 'unused';
+    import { c, a, b } from '../utils.js';
+  Output:
+    import { a, b, c } from '../utils.js';
+  ✓ Alphabetically sorted
+  ✓ Unused imports removed
+  ✓ Side-effect imports preserved`,
       inputSchema: organizeImportsSchema.shape
     };
   }

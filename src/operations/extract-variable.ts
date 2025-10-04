@@ -22,7 +22,17 @@ export class ExtractVariableOperation implements Operation {
   getSchema() {
     return {
       title: 'Extract Variable',
-      description: '⚡ Extract complex expressions to local variables with type inference and your custom name. Reduces code duplication and improves readability. Auto-determines proper const/let based on usage patterns.',
+      description: `⚡ Extract complex expressions to local variables with type inference and your custom name. Reduces code duplication and improves readability. Auto-determines proper const/let based on usage patterns.
+
+Example: Extract expression with custom name "doubled"
+  Input:
+    return (a + b) * 2;
+  Output:
+    const doubled = (a + b) * 2;
+    return doubled;
+  ✓ Custom name applied (or auto-generated if not provided)
+  ✓ Type automatically inferred
+  ✓ const/let determined by usage`,
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
         startLine: z.number().int().positive('Start line must be a positive integer'),

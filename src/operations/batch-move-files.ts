@@ -95,7 +95,17 @@ export class BatchMoveFilesOperation {
   getSchema() {
     return {
       title: 'Batch Move Files',
-      description: '⚡ Reorganize entire modules + update ALL imports automatically across the codebase. Move dozens of files at once with zero broken imports. Perfect for restructuring folders or consolidating related files. Saves hours of manual import path updates and eliminates the risk of broken references.',
+      description: `⚡ Reorganize entire modules + update ALL imports automatically across the codebase. Move dozens of files at once with zero broken imports. Perfect for restructuring folders or consolidating related files. Saves hours of manual import path updates and eliminates the risk of broken references.
+
+Example: Move utils.ts and helpers.ts to lib/ folder
+  Input:
+    main.ts: import { util } from './utils.js';
+  ✓ Moves both files to lib/
+  ✓ Updates imports in main.ts:
+      './utils.js' → './lib/utils.js'
+      './helpers.js' → './lib/helpers.js'
+  ✓ All files moved atomically
+  ✓ Zero broken imports`,
       inputSchema: batchMoveFilesSchema.shape
     };
   }

@@ -219,7 +219,19 @@ export class ExtractFunctionOperation {
   getSchema() {
     return {
       title: 'Extract Function',
-      description: '⚡ Extract code blocks into functions with auto-detected parameters, return types, dependencies, and your custom name. TypeScript analyzes data flow to determine what needs to be passed in vs returned. Impossible to do correctly by hand - would require manual analysis of closures, mutations, and control flow.',
+      description: `⚡ Extract code blocks into functions with auto-detected parameters, return types, dependencies, and your custom name. TypeScript analyzes data flow to determine what needs to be passed in vs returned. Impossible to do correctly by hand - would require manual analysis of closures, mutations, and control flow.
+
+Example: Extract "const result = x + y;" with name "addNumbers"
+  Input:
+    const x = 10; const y = 20;
+    const result = x + y;
+  Output:
+    function addNumbers() { return x + y; }
+    const result = addNumbers();
+  ✓ Auto-detects parameters needed (x, y)
+  ✓ Infers return type
+  ✓ Applies custom name
+  ✓ Replaces selection with function call`,
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
         startLine: z.number().int().positive('Start line must be a positive integer'),

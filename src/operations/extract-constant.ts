@@ -23,7 +23,17 @@ export class ExtractConstantOperation implements Operation {
   getSchema() {
     return {
       title: 'Extract Constant',
-      description: '⚡ Extract magic numbers and string literals to named constants with proper scope. Auto-detects optimal scope (module/function/block) and applies your custom name. Makes code more maintainable and eliminates duplicate literal values.',
+      description: `⚡ Extract magic numbers and string literals to named constants with proper scope. Auto-detects optimal scope (module/function/block) and applies your custom name. Makes code more maintainable and eliminates duplicate literal values.
+
+Example: Extract 3.14159 with custom name "PI"
+  Input:
+    const area = 3.14159 * radius * radius;
+  Output:
+    const PI = 3.14159;
+    const area = PI * radius * radius;
+  ✓ Custom name applied (or auto-generated if not provided)
+  ✓ Proper scope detection
+  ✓ All usages updated`,
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
         startLine: z.number().int().positive('Start line must be a positive integer'),

@@ -20,7 +20,17 @@ export class InlineVariableOperation implements Operation {
   getSchema() {
     return {
       title: 'Inline Variable',
-      description: '⚡ Inline variables into usages while preserving types and handling scope correctly. Type-aware inlining avoids type narrowing bugs and scope issues that manual inlining causes. Safely handles multiple usages, complex expressions, and edge cases.',
+      description: `⚡ Inline variables into usages while preserving types and handling scope correctly. Type-aware inlining avoids type narrowing bugs and scope issues that manual inlining causes. Safely handles multiple usages, complex expressions, and edge cases.
+
+Example: Inline const multiplier
+  Input:
+    const multiplier = 2;
+    return 5 * multiplier;
+  Output:
+    return 5 * 2;
+  ✓ Replaces all usages
+  ✓ Removes variable declaration
+  ✓ Preserves type safety`,
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
         line: z.number().int().positive('Line must be a positive integer'),
