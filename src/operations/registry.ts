@@ -6,6 +6,7 @@
 import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { RenameOperation } from './rename.js';
 import { MoveFileOperation } from './move-file.js';
+import { BatchMoveFilesOperation } from './batch-move-files.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
 import { FixAllOperation } from './fix-all.js';
 import { RemoveUnusedOperation } from './remove-unused.js';
@@ -30,17 +31,14 @@ export class OperationRegistry {
   }
 
   registerOperations(): void {
-    // Register all TypeScript operations
     this.operations.set('rename', new RenameOperation(this.tsServer));
     this.operations.set('move_file', new MoveFileOperation(this.tsServer));
+    this.operations.set('batch_move_files', new BatchMoveFilesOperation(this.tsServer));
     this.operations.set('organize_imports', new OrganizeImportsOperation(this.tsServer));
     this.operations.set('fix_all', new FixAllOperation(this.tsServer));
     this.operations.set('remove_unused', new RemoveUnusedOperation(this.tsServer));
     this.operations.set('find_references', new FindReferencesOperation(this.tsServer));
     this.operations.set('extract_function', new ExtractFunctionOperation(this.tsServer));
-
-    // Future: Swift operations
-    // this.operations.set('swift_rename', new SwiftRenameOperation(this.swiftServer));
   }
 
   getOperation(name: string): Operation | undefined {
