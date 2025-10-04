@@ -20,7 +20,7 @@ export class InferReturnTypeOperation implements Operation {
   getSchema() {
     return {
       title: 'Infer Return Type',
-      description: 'Add explicit return type annotation to a function',
+      description: '⚡ Generate perfect return type annotations automatically, even for complex nested object types and union types. TypeScript compiler infers the exact type - no guessing, no mistakes. Essential for improving type safety without manual type construction.',
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
         line: z.number().int().positive('Line must be a positive integer'),

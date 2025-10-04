@@ -105,7 +105,7 @@ export class FixAllOperation {
   getSchema() {
     return {
       title: 'Fix All',
-      description: 'Apply all available code fixes',
+      description: '⚡ Auto-fix ALL TypeScript errors at once with compiler-grade accuracy. Type-aware fixes that preserve correctness - adds missing properties, fixes type mismatches, converts to async/await, and more. Safer than manual fixes because it understands the type system.',
       inputSchema: fixAllSchema.shape
     };
   }

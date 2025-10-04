@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { readFile, writeFile } from 'fs/promises';
 import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRefactorInfo, TSRefactorAction, TSTextChange, TSRefactorEditInfo } from '../language-servers/typescript/tsserver-types.js';
+import type { TSRefactorInfo, TSRefactorAction, TSTextChange, TSRefactorEditInfo, TSRenameResponse, TSRenameLoc } from '../language-servers/typescript/tsserver-types.js';
 import { Operation } from './registry.js';
 import { formatValidationError } from '../utils/validation-error.js';
 
@@ -22,7 +22,7 @@ export class ExtractVariableOperation implements Operation {
   getSchema() {
     return {
       title: 'Extract Variable',
-      description: 'Extract an expression to a named variable',
+      description: '⚡ Extract complex expressions to local variables with type inference and your custom name. Reduces code duplication and improves readability. Auto-determines proper const/let based on usage patterns.',
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
         startLine: z.number().int().positive('Start line must be a positive integer'),
@@ -114,6 +114,9 @@ export class ExtractVariableOperation implements Operation {
 
       const filesChanged: string[] = [];
       const changes: RefactorResult['changes'] = [];
+      let generatedVariableName: string | null = null;
+      let variableDeclarationLine: number | null = null;
+      let variableColumn: number | null = null;
 
       for (const fileEdit of edits.edits) {
         const fileContent = await readFile(fileEdit.fileName, 'utf8');
@@ -158,9 +161,52 @@ export class ExtractVariableOperation implements Operation {
         await writeFile(fileEdit.fileName, updatedContent);
         filesChanged.push(fileEdit.fileName);
         changes.push(fileChanges);
+
+        if (!generatedVariableName && fileEdit.fileName === filePath) {
+          const constMatch = updatedContent.match(/const\s+(\w+)\s*=/);
+          if (constMatch) {
+            generatedVariableName = constMatch[1];
+            const lineIndex = updatedContent.split('\n').findIndex(line => line.includes(`const ${generatedVariableName}`));
+            variableDeclarationLine = lineIndex + 1;
+            const declarationLine = updatedContent.split('\n')[lineIndex];
+            variableColumn = declarationLine.indexOf(generatedVariableName) + 1;
+          }
+        }
       }
 
-      // TODO: Support custom variable names via rename after extraction
+      if (variableName && generatedVariableName && generatedVariableName !== variableName && variableDeclarationLine && variableColumn) {
+        await this.tsServer.openFile(filePath);
+
+        const renameResult = await this.tsServer.sendRequest('rename', {
+          file: filePath,
+          line: variableDeclarationLine,
+          offset: variableColumn,
+          findInComments: false,
+          findInStrings: false
+        }) as TSRenameResponse | null;
+
+        if (renameResult?.locs) {
+          for (const fileLoc of renameResult.locs) {
+            const fileContent = await readFile(fileLoc.file, 'utf8');
+            const lines = fileContent.split('\n');
+
+            const edits = fileLoc.locs.sort((a: TSRenameLoc, b: TSRenameLoc) =>
+              b.start.line === a.start.line ? b.start.offset - a.start.offset : b.start.line - a.start.line
+            );
+
+            for (const edit of edits) {
+              const lineIndex = edit.start.line - 1;
+              const line = lines[lineIndex];
+              lines[lineIndex] =
+                line.substring(0, edit.start.offset - 1) +
+                variableName +
+                line.substring(edit.end.offset - 1);
+            }
+
+            await writeFile(fileLoc.file, lines.join('\n'));
+          }
+        }
+      }
 
       return {
         success: true,

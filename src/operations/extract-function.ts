@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { readFile, writeFile } from 'fs/promises';
 import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRefactorInfo, TSRefactorAction, TSTextChange, TSRefactorEditInfo } from '../language-servers/typescript/tsserver-types.js';
+import type { TSRefactorInfo, TSRefactorAction, TSTextChange, TSRefactorEditInfo, TSRenameResponse, TSRenameLoc } from '../language-servers/typescript/tsserver-types.js';
 
 export const extractFunctionSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -104,6 +104,9 @@ export class ExtractFunctionOperation {
 
       const filesChanged: string[] = [];
       const changes: RefactorResult['changes'] = [];
+      let generatedFunctionName: string | null = null;
+      let functionDeclarationLine: number | null = null;
+      let functionColumn: number | null = null;
 
       // Apply edits
       for (const fileEdit of edits.edits) {
@@ -150,6 +153,51 @@ export class ExtractFunctionOperation {
         await writeFile(fileEdit.fileName, updatedContent);
         filesChanged.push(fileEdit.fileName);
         changes.push(fileChanges);
+
+        if (!generatedFunctionName && fileEdit.fileName === validated.filePath) {
+          const functionMatch = updatedContent.match(/function\s+(\w+)\s*\(/);
+          if (functionMatch) {
+            generatedFunctionName = functionMatch[1];
+            const lineIndex = updatedContent.split('\n').findIndex(line => line.includes(`function ${generatedFunctionName}`));
+            functionDeclarationLine = lineIndex + 1;
+            const declarationLine = updatedContent.split('\n')[lineIndex];
+            functionColumn = declarationLine.indexOf(generatedFunctionName) + 1;
+          }
+        }
+      }
+
+      if (validated.functionName && generatedFunctionName && generatedFunctionName !== validated.functionName && functionDeclarationLine && functionColumn) {
+        await this.tsServer.openFile(validated.filePath);
+
+        const renameResult = await this.tsServer.sendRequest('rename', {
+          file: validated.filePath,
+          line: functionDeclarationLine,
+          offset: functionColumn,
+          findInComments: false,
+          findInStrings: false
+        }) as TSRenameResponse | null;
+
+        if (renameResult?.locs) {
+          for (const fileLoc of renameResult.locs) {
+            const fileContent = await readFile(fileLoc.file, 'utf8');
+            const lines = fileContent.split('\n');
+
+            const edits = fileLoc.locs.sort((a: TSRenameLoc, b: TSRenameLoc) =>
+              b.start.line === a.start.line ? b.start.offset - a.start.offset : b.start.line - a.start.line
+            );
+
+            for (const edit of edits) {
+              const lineIndex = edit.start.line - 1;
+              const line = lines[lineIndex];
+              lines[lineIndex] =
+                line.substring(0, edit.start.offset - 1) +
+                validated.functionName +
+                line.substring(edit.end.offset - 1);
+            }
+
+            await writeFile(fileLoc.file, lines.join('\n'));
+          }
+        }
       }
 
       return {
@@ -171,7 +219,7 @@ export class ExtractFunctionOperation {
   getSchema() {
     return {
       title: 'Extract Function',
-      description: 'Extract selected code into a new function',
+      description: '⚡ Extract code blocks into functions with auto-detected parameters, return types, dependencies, and your custom name. TypeScript analyzes data flow to determine what needs to be passed in vs returned. Impossible to do correctly by hand - would require manual analysis of closures, mutations, and control flow.',
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
         startLine: z.number().int().positive('Start line must be a positive integer'),

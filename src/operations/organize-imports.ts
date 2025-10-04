@@ -107,7 +107,7 @@ export class OrganizeImportsOperation {
   getSchema() {
     return {
       title: 'Organize Imports',
-      description: 'Sort and remove unused imports',
+      description: '⚡ Sort + remove unused imports with TypeScript compiler accuracy. Preserves side-effect imports, handles type-only imports correctly, and respects import order rules. More thorough than ESLint - catches unused imports that static analysis misses due to type-only usage.',
       inputSchema: organizeImportsSchema.shape
     };
   }

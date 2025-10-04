@@ -98,6 +98,35 @@ describe('extractConstant', () => {
     expect(content).toMatch(/const \w+\s*=\s*"https:\/\/api\.example\.com\/v1"/);
   });
 
+  it('should extract with custom constant name', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'custom-name.ts');
+    await writeFile(filePath, `export function calculateCircumference(radius: number) {
+  const circumference = 2 * 3.14159 * radius;
+  return circumference;
+}`, 'utf-8');
+
+    if (testServer) {
+      await testServer.openFile(filePath);
+    }
+
+    // Act - Extract "3.14159" with custom name "PI"
+    const response = await operation!.execute({
+      filePath,
+      startLine: 2,
+      startColumn: 28,
+      endLine: 2,
+      endColumn: 35,
+      constantName: 'PI'
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    const content = await readFile(filePath, 'utf-8');
+    expect(content).toContain('const PI = 3.14159');
+    expect(content).toContain('2 * PI * radius');
+  });
+
   it('should return error when selection is not extractable', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'invalid.ts');

@@ -70,6 +70,34 @@ describe('extractVariable', () => {
     expect(content).toMatch(/const \w+\s*=\s*\(a \+ b\) \* 2/);
   });
 
+  it('should extract with custom variable name', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'custom-name.ts');
+    await writeFile(filePath, `export function calculate(a: number, b: number) {
+  return (a + b) * 2;
+}`, 'utf-8');
+
+    if (testServer) {
+      await testServer.openFile(filePath);
+    }
+
+    // Act - Extract "(a + b) * 2" with custom name "doubled"
+    const response = await operation!.execute({
+      filePath,
+      startLine: 2,
+      startColumn: 10,
+      endLine: 2,
+      endColumn: 21,
+      variableName: 'doubled'
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    const content = await readFile(filePath, 'utf-8');
+    expect(content).toContain('const doubled = (a + b) * 2');
+    expect(content).toContain('return doubled');
+  });
+
   it('should return error when selection is not extractable', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'invalid.ts');

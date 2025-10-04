@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { readFile, writeFile } from 'fs/promises';
 import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRefactorInfo, TSRefactorAction, TSTextChange, TSRefactorEditInfo } from '../language-servers/typescript/tsserver-types.js';
+import type { TSRefactorInfo, TSRefactorAction, TSTextChange, TSRefactorEditInfo, TSRenameResponse, TSRenameLoc } from '../language-servers/typescript/tsserver-types.js';
 import { Operation } from './registry.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { logger } from '../utils/logger.js';
@@ -23,7 +23,7 @@ export class ExtractConstantOperation implements Operation {
   getSchema() {
     return {
       title: 'Extract Constant',
-      description: 'Extract a value to a named constant',
+      description: '⚡ Extract magic numbers and string literals to named constants with proper scope. Auto-detects optimal scope (module/function/block) and applies your custom name. Makes code more maintainable and eliminates duplicate literal values.',
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
         startLine: z.number().int().positive('Start line must be a positive integer'),
@@ -124,6 +124,9 @@ export class ExtractConstantOperation implements Operation {
 
       const filesChanged: string[] = [];
       const changes: RefactorResult['changes'] = [];
+      let generatedConstantName: string | null = null;
+      let constantDeclarationLine: number | null = null;
+      let constantColumn: number | null = null;
 
       for (const fileEdit of edits.edits) {
         const fileContent = await readFile(fileEdit.fileName, 'utf8');
@@ -168,9 +171,52 @@ export class ExtractConstantOperation implements Operation {
         await writeFile(fileEdit.fileName, updatedContent);
         filesChanged.push(fileEdit.fileName);
         changes.push(fileChanges);
+
+        if (!generatedConstantName && fileEdit.fileName === filePath) {
+          const constMatch = updatedContent.match(/const\s+(\w+)\s*=/);
+          if (constMatch) {
+            generatedConstantName = constMatch[1];
+            const lineIndex = updatedContent.split('\n').findIndex(line => line.includes(`const ${generatedConstantName}`));
+            constantDeclarationLine = lineIndex + 1;
+            const declarationLine = updatedContent.split('\n')[lineIndex];
+            constantColumn = declarationLine.indexOf(generatedConstantName) + 1;
+          }
+        }
       }
 
-      // TODO: Support custom constant names via rename after extraction
+      if (constantName && generatedConstantName && generatedConstantName !== constantName && constantDeclarationLine && constantColumn) {
+        await this.tsServer.openFile(filePath);
+
+        const renameResult = await this.tsServer.sendRequest('rename', {
+          file: filePath,
+          line: constantDeclarationLine,
+          offset: constantColumn,
+          findInComments: false,
+          findInStrings: false
+        }) as TSRenameResponse | null;
+
+        if (renameResult?.locs) {
+          for (const fileLoc of renameResult.locs) {
+            const fileContent = await readFile(fileLoc.file, 'utf8');
+            const lines = fileContent.split('\n');
+
+            const edits = fileLoc.locs.sort((a: TSRenameLoc, b: TSRenameLoc) =>
+              b.start.line === a.start.line ? b.start.offset - a.start.offset : b.start.line - a.start.line
+            );
+
+            for (const edit of edits) {
+              const lineIndex = edit.start.line - 1;
+              const line = lines[lineIndex];
+              lines[lineIndex] =
+                line.substring(0, edit.start.offset - 1) +
+                constantName +
+                line.substring(edit.end.offset - 1);
+            }
+
+            await writeFile(fileLoc.file, lines.join('\n'));
+          }
+        }
+      }
 
       return {
         success: true,

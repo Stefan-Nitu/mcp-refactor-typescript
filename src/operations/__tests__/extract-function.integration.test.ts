@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { ExtractFunctionOperation } from '../extract-function.js';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { writeFile, mkdir, rm } from 'fs/promises';
+import { writeFile, mkdir, rm, readFile } from 'fs/promises';
 import { join } from 'path';
 import { createTestDir } from './test-utils.js';
 
@@ -69,6 +69,33 @@ describe('extractFunction', () => {
     // Assert
     expect(response.success).toBe(true);
     expect(response.message).toBe('Extracted function');
+  });
+
+  it('should extract with custom function name', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'customname.ts');
+    const code = `function main() {
+  const x = 1 + 2;
+  console.log(x);
+}`;
+
+    await writeFile(filePath, code, 'utf-8');
+
+    // Act - extract line 2 with custom name
+    const response = await operation!.execute({
+      filePath,
+      startLine: 2,
+      startColumn: 3,
+      endLine: 2,
+      endColumn: 19,
+      functionName: 'addNumbers'
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    const content = await readFile(filePath, 'utf-8');
+    expect(content).toContain('function addNumbers');
+    expect(content).toContain('addNumbers()');
   });
 
   it('should handle when extraction is not possible', async () => {

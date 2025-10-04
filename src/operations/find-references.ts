@@ -83,7 +83,7 @@ export class FindReferencesOperation {
   getSchema() {
     return {
       title: 'Find References',
-      description: 'Find all references to a symbol',
+      description: '⚡ Find ALL usages with type-aware analysis. Catches dynamic imports, CommonJS requires, re-exports, type-only imports, and JSDoc references that text search (grep/ripgrep) completely misses. Essential for understanding impact before refactoring.',
       inputSchema: findReferencesSchema.shape
     };
   }

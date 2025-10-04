@@ -20,7 +20,7 @@ export class InlineVariableOperation implements Operation {
   getSchema() {
     return {
       title: 'Inline Variable',
-      description: 'Inline a variable into its usages',
+      description: '⚡ Inline variables into usages while preserving types and handling scope correctly. Type-aware inlining avoids type narrowing bugs and scope issues that manual inlining causes. Safely handles multiple usages, complex expressions, and edge cases.',
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
         line: z.number().int().positive('Line must be a positive integer'),

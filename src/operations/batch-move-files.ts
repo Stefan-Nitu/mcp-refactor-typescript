@@ -95,7 +95,7 @@ export class BatchMoveFilesOperation {
   getSchema() {
     return {
       title: 'Batch Move Files',
-      description: 'Move multiple files to a target folder and update all imports',
+      description: '⚡ Reorganize entire modules + update ALL imports automatically across the codebase. Move dozens of files at once with zero broken imports. Perfect for restructuring folders or consolidating related files. Saves hours of manual import path updates and eliminates the risk of broken references.',
       inputSchema: batchMoveFilesSchema.shape
     };
   }
