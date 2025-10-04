@@ -413,4 +413,74 @@ export function   oldFunction   (x: number): number {
       expect(response.success).toBe(true);
     });
   });
+
+  describe('preview mode', () => {
+    it('should preview rename without writing files', async () => {
+      // Arrange
+      const filePath = join(testDir, 'src', 'preview.ts');
+      const originalContent = `export function oldName() {
+  return 42;
+}
+
+const result = oldName();`;
+
+      await writeFile(filePath, originalContent, 'utf-8');
+
+      // Act
+      const response = await operation!.execute({
+        filePath,
+        line: 1,
+        column: 17,
+        newName: 'newName',
+        preview: true
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(response.message).toContain('Preview:');
+      expect(response.message).toContain('Would rename to "newName"');
+      expect(response.filesChanged).toHaveLength(1);
+      expect(response.preview).toBeDefined();
+      expect(response.preview?.filesAffected).toBe(1);
+      expect(response.preview?.estimatedTime).toBe('< 1s');
+      expect(response.preview?.command).toContain('preview: false');
+      expect(response.changes).toHaveLength(1);
+      expect(response.changes[0].edits.length).toBeGreaterThan(0);
+
+      // Verify file was NOT modified
+      const fileContent = await readFile(filePath, 'utf-8');
+      expect(fileContent).toBe(originalContent);
+    });
+
+    it('should apply changes when preview is false', async () => {
+      // Arrange
+      const filePath = join(testDir, 'src', 'apply.ts');
+      const originalContent = `export function oldName() {
+  return 42;
+}
+
+const result = oldName();`;
+
+      await writeFile(filePath, originalContent, 'utf-8');
+
+      // Act
+      const response = await operation!.execute({
+        filePath,
+        line: 1,
+        column: 17,
+        newName: 'newName',
+        preview: false
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Renamed to "newName"');
+      expect(response.preview).toBeUndefined();
+
+      // Verify file WAS modified
+      const fileContent = await readFile(filePath, 'utf-8');
+      expect(fileContent).toContain('newName');
+      expect(fileContent).not.toContain('oldName');
+    });
+  });
 });

@@ -11,7 +11,8 @@ export const renameSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
   column: z.number().int().positive('Column must be a positive integer'),
-  newName: z.string().min(1, 'New name cannot be empty')
+  newName: z.string().min(1, 'New name cannot be empty'),
+  preview: z.boolean().optional()
 });
 
 export type RenameInput = z.infer<typeof renameSchema>;
@@ -89,9 +90,27 @@ export class RenameOperation {
             line.substring(edit.end.offset - 1);
         }
 
-        await writeFile(fileLoc.file, lines.join('\n'));
+        // Only write file if not in preview mode
+        if (!validated.preview) {
+          await writeFile(fileLoc.file, lines.join('\n'));
+        }
         filesChanged.push(fileLoc.file);
         changes.push(fileChanges);
+      }
+
+      // Return preview information if in preview mode
+      if (validated.preview) {
+        return {
+          success: true,
+          message: `Preview: Would rename to "${validated.newName}" in ${filesChanged.length} file(s)`,
+          filesChanged,
+          changes,
+          preview: {
+            filesAffected: filesChanged.length,
+            estimatedTime: '< 1s',
+            command: 'Run again with preview: false to apply changes'
+          }
+        };
       }
 
       return {

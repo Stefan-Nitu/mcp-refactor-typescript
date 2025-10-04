@@ -23,6 +23,11 @@ export interface RefactorResult {
     }>;
   }>;
   nextActions?: string[];
+  preview?: {
+    filesAffected: number;
+    estimatedTime: string;
+    command: string;
+  };
 }
 
 interface TSServerRequest {
