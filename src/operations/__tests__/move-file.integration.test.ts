@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { MoveFileOperation } from '../../../operations/move-file.js';
-import { TypeScriptServer } from '../../../language-servers/typescript/tsserver-client.js';
+import { MoveFileOperation } from '../move-file.js';
+import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { writeFile, mkdir, rm, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';

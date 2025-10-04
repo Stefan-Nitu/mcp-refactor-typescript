@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { RemoveUnusedOperation } from '../../../operations/remove-unused.js';
-import { TypeScriptServer } from '../../../language-servers/typescript/tsserver-client.js';
+import { RemoveUnusedOperation } from '../remove-unused.js';
+import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { writeFile, mkdir, rm } from 'fs/promises';
 import { join } from 'path';
 import { createTestDir } from './test-utils.js';

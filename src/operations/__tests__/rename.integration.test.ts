@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { RenameOperation } from '../../../operations/rename.js';
-import { TypeScriptServer } from '../../../language-servers/typescript/tsserver-client.js';
+import { RenameOperation } from '../rename.js';
+import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { writeFile, mkdir, rm, readFile } from 'fs/promises';
 import { join } from 'path';
 import { createTestDir } from './test-utils.js';

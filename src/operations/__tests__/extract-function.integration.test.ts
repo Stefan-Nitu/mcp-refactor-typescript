@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { ExtractFunctionOperation } from '../../../operations/extract-function.js';
-import { TypeScriptServer } from '../../../language-servers/typescript/tsserver-client.js';
+import { ExtractFunctionOperation } from '../extract-function.js';
+import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { writeFile, mkdir, rm } from 'fs/promises';
 import { join } from 'path';
 import { createTestDir } from './test-utils.js';
