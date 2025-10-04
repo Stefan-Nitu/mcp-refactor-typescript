@@ -16,6 +16,8 @@ import { ExtractConstantOperation } from './extract-constant.js';
 import { ExtractVariableOperation } from './extract-variable.js';
 import { InlineVariableOperation } from './inline-variable.js';
 import { InferReturnTypeOperation } from './infer-return-type.js';
+import { RefactorModuleOperation } from './refactor-module.js';
+import { CleanupCodebaseOperation } from './cleanup-codebase.js';
 import { logger } from '../utils/logger.js';
 
 import { z } from 'zod';
@@ -47,6 +49,8 @@ export class OperationRegistry {
     this.operations.set('extract_variable', new ExtractVariableOperation(this.tsServer));
     this.operations.set('inline_variable', new InlineVariableOperation(this.tsServer));
     this.operations.set('infer_return_type', new InferReturnTypeOperation(this.tsServer));
+    this.operations.set('refactor_module', new RefactorModuleOperation(this.tsServer));
+    this.operations.set('cleanup_codebase', new CleanupCodebaseOperation(this.tsServer));
   }
 
   getOperation(name: string): Operation | undefined {
