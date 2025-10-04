@@ -9,8 +9,8 @@ import { TypeScriptServer, RefactorResult } from '../language-servers/typescript
 import type { TSTextChange, TSFileEdit } from '../language-servers/typescript/tsserver-types.js';
 
 export const moveFileSchema = z.object({
-  sourcePath: z.string(),
-  destinationPath: z.string()
+  sourcePath: z.string().min(1, 'Source path cannot be empty'),
+  destinationPath: z.string().min(1, 'Destination path cannot be empty')
 });
 
 export type MoveFileInput = z.infer<typeof moveFileSchema>;

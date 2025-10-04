@@ -8,10 +8,10 @@ import { TypeScriptServer, RefactorResult } from '../language-servers/typescript
 import type { TSRenameResponse, TSRenameLoc } from '../language-servers/typescript/tsserver-types.js';
 
 export const renameSchema = z.object({
-  filePath: z.string(),
-  line: z.number(),
-  column: z.number(),
-  newName: z.string()
+  filePath: z.string().min(1, 'File path cannot be empty'),
+  line: z.number().int().positive('Line must be a positive integer'),
+  column: z.number().int().positive('Column must be a positive integer'),
+  newName: z.string().min(1, 'New name cannot be empty')
 });
 
 export type RenameInput = z.infer<typeof renameSchema>;

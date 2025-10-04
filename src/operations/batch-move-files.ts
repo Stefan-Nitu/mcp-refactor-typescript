@@ -7,10 +7,11 @@ import { join, basename } from 'path';
 import { mkdir } from 'fs/promises';
 import { TypeScriptServer, RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { MoveFileOperation } from './move-file.js';
+import { formatValidationError } from '../utils/validation-error.js';
 
 export const batchMoveFilesSchema = z.object({
-  files: z.array(z.string()).min(1, 'At least one file must be provided'),
-  targetFolder: z.string()
+  files: z.array(z.string().min(1)).min(1, 'At least one file must be provided'),
+  targetFolder: z.string().min(1, 'Target folder cannot be empty')
 });
 
 export type BatchMoveFilesInput = z.infer<typeof batchMoveFilesSchema>;
@@ -80,12 +81,7 @@ export class BatchMoveFilesOperation {
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return {
-          success: false,
-          message: `Invalid input: ${error.errors.map(e => e.message).join(', ')}`,
-          filesChanged: [],
-          changes: []
-        };
+        return formatValidationError(error);
       }
       return {
         success: false,

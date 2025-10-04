@@ -7,9 +7,9 @@ import { TypeScriptServer, RefactorResult } from '../language-servers/typescript
 import type { TSReferencesResponse, TSReferenceEntry } from '../language-servers/typescript/tsserver-types.js';
 
 export const findReferencesSchema = z.object({
-  filePath: z.string(),
-  line: z.number(),
-  column: z.number()
+  filePath: z.string().min(1, 'File path cannot be empty'),
+  line: z.number().int().positive('Line must be a positive integer'),
+  column: z.number().int().positive('Column must be a positive integer')
 });
 
 export type FindReferencesInput = z.infer<typeof findReferencesSchema>;

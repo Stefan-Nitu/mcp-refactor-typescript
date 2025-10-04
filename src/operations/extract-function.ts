@@ -8,13 +8,16 @@ import { TypeScriptServer, RefactorResult } from '../language-servers/typescript
 import type { TSRefactorInfo, TSRefactorAction, TSTextChange, TSRefactorEditInfo } from '../language-servers/typescript/tsserver-types.js';
 
 export const extractFunctionSchema = z.object({
-  filePath: z.string(),
-  startLine: z.number(),
-  startColumn: z.number(),
-  endLine: z.number(),
-  endColumn: z.number(),
+  filePath: z.string().min(1, 'File path cannot be empty'),
+  startLine: z.number().int().positive('Start line must be a positive integer'),
+  startColumn: z.number().int().positive('Start column must be a positive integer'),
+  endLine: z.number().int().positive('End line must be a positive integer'),
+  endColumn: z.number().int().positive('End column must be a positive integer'),
   functionName: z.string().optional()
-});
+}).refine(
+  (data) => data.endLine >= data.startLine,
+  { message: 'End line must be greater than or equal to start line' }
+);
 
 export type ExtractFunctionInput = z.infer<typeof extractFunctionSchema>;
 
@@ -169,7 +172,14 @@ export class ExtractFunctionOperation {
     return {
       title: 'Extract Function',
       description: 'Extract selected code into a new function',
-      inputSchema: extractFunctionSchema.shape
+      inputSchema: {
+        filePath: z.string().min(1, 'File path cannot be empty'),
+        startLine: z.number().int().positive('Start line must be a positive integer'),
+        startColumn: z.number().int().positive('Start column must be a positive integer'),
+        endLine: z.number().int().positive('End line must be a positive integer'),
+        endColumn: z.number().int().positive('End column must be a positive integer'),
+        functionName: z.string().optional()
+      }
     };
   }
 }

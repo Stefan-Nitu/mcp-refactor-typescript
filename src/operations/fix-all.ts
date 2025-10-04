@@ -8,7 +8,7 @@ import { TypeScriptServer, RefactorResult } from '../language-servers/typescript
 import type { TSCodeFixAction } from '../language-servers/typescript/tsserver-types.js';
 
 export const fixAllSchema = z.object({
-  filePath: z.string()
+  filePath: z.string().min(1, 'File path cannot be empty')
 });
 
 export type FixAllInput = z.infer<typeof fixAllSchema>;

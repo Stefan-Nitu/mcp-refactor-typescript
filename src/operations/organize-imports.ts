@@ -8,7 +8,7 @@ import { TypeScriptServer, RefactorResult } from '../language-servers/typescript
 import type { TSOrganizeImportsResponse } from '../language-servers/typescript/tsserver-types.js';
 
 export const organizeImportsSchema = z.object({
-  filePath: z.string()
+  filePath: z.string().min(1, 'File path cannot be empty')
 });
 
 export type OrganizeImportsInput = z.infer<typeof organizeImportsSchema>;

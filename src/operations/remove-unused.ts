@@ -7,7 +7,7 @@ import { TypeScriptServer, RefactorResult } from '../language-servers/typescript
 import { FixAllOperation } from './fix-all.js';
 
 export const removeUnusedSchema = z.object({
-  filePath: z.string()
+  filePath: z.string().min(1, 'File path cannot be empty')
 });
 
 export type RemoveUnusedInput = z.infer<typeof removeUnusedSchema>;
