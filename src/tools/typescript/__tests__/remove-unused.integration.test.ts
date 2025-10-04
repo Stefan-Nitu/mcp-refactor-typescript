@@ -49,7 +49,7 @@ describe('removeUnused', () => {
     const filePath = join(testDir, 'src', 'unused.ts');
     const code = `const x = 42;
 const y = 100;
-console.log(x);
+console.error(x);
 `;
 
     await writeFile(filePath, code, 'utf-8');

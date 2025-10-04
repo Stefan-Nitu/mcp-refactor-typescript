@@ -51,7 +51,7 @@ describe('organizeImports', () => {
 import { c, a, b } from '../utils.js';
 import { readFile } from 'fs/promises';
 
-console.log(a, b, c);
+console.error(a, b, c);
 `;
 
     await writeFile(filePath, messyCode, 'utf-8');
@@ -77,7 +77,7 @@ console.log(a, b, c);
     const code = `import { readFile } from 'fs/promises';
 import { something } from '../helpers.js';
 
-console.log('hello');
+console.error('hello');
 `;
 
     await writeFile(filePath, code, 'utf-8');

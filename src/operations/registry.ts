@@ -11,6 +11,7 @@ import { FixAllOperation } from './fix-all.js';
 import { RemoveUnusedOperation } from './remove-unused.js';
 import { FindReferencesOperation } from './find-references.js';
 import { ExtractFunctionOperation } from './extract-function.js';
+import { logger } from '../utils/logger.js';
 
 import { z } from 'zod';
 
@@ -59,17 +60,14 @@ export class OperationRegistry {
     const hasTypeScriptFiles = await this.hasTypeScriptFiles();
 
     if (hasTypeScriptFiles) {
-      console.error('[MCP Refactor] TypeScript/JavaScript files detected, starting tsserver...');
+      logger.info('TypeScript/JavaScript files detected, starting tsserver...');
       try {
         await this.tsServer.start(process.cwd());
-        // Don't wait for project load here - let it happen in background
-        // Operations will wait if needed
       } catch (error) {
-        console.error('[MCP Refactor] Failed to start tsserver:', error);
-        // Continue anyway - operations will try to start it on demand
+        logger.error({ err: error }, 'Failed to start tsserver');
       }
     } else {
-      console.error('[MCP Refactor] No TypeScript/JavaScript files detected, tsserver will start on demand');
+      logger.info('No TypeScript/JavaScript files detected, tsserver will start on demand');
     }
   }
 

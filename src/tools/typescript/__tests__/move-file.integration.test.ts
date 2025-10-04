@@ -53,7 +53,7 @@ describe('moveFile', () => {
     const newUtilsPath = join(testDir, 'src', 'helpers', 'utils.ts');
 
     await writeFile(utilsPath, 'export function helper() { return 42; }', 'utf-8');
-    await writeFile(mainPath, `import { helper } from './utils.js';\nconsole.log(helper());`, 'utf-8');
+    await writeFile(mainPath, `import { helper } from './utils.js';\nconsole.error(helper());`, 'utf-8');
 
     // Open files so TypeScript knows about them
     if (testServer) {

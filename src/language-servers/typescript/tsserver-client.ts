@@ -6,6 +6,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import { resolve } from 'path';
 import { readFile } from 'fs/promises';
+import { logger } from '../../utils/logger.js';
 
 export interface RefactorResult {
   success: boolean;
@@ -93,8 +94,7 @@ export class TypeScriptServer {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: projectPath,
       env: {
-        ...process.env,
-        TSS_LOG: '-level verbose -file tsserver.log'
+        ...process.env
       }
     });
 
@@ -103,11 +103,11 @@ export class TypeScriptServer {
 
     this.process.stderr?.setEncoding('utf8');
     this.process.stderr?.on('data', (data) => {
-      console.error('[TSServer stderr]:', data);
+      logger.debug({ stderr: data.toString() }, 'TSServer stderr');
     });
 
     this.process.on('exit', (code) => {
-      console.error('[TSServer] Process exited with code:', code);
+      logger.info({ code }, 'TSServer process exited');
       this.running = false;
     });
 
@@ -162,29 +162,26 @@ export class TypeScriptServer {
         const message: TSServerResponse = JSON.parse(jsonBody);
         this.handleMessage(message);
       } catch (error) {
-        console.error('[TSServer] Failed to parse message:', jsonBody, error);
+        logger.error({ err: error, body: jsonBody }, 'Failed to parse TSServer message');
       }
     }
   }
 
   private handleMessage(message: TSServerResponse): void {
-    // Handle events
     if (message.type === 'event') {
-      console.error('[TSServer] Received event:', message.event);
+      logger.debug({ event: message.event }, 'TSServer event');
       if (message.event === 'projectLoadingFinish') {
-        console.error('[TSServer] Project loading finished');
+        logger.debug('Project loading finished');
         this.projectLoaded = true;
 
-        // Resolve the loading promise if it exists
         if (this.projectLoadingPromise) {
           this.projectLoadingPromise = null;
         }
       } else if (message.event === 'projectLoadingStart') {
-        console.error('[TSServer] Project loading started');
+        logger.debug('Project loading started');
         this.projectLoaded = false;
       } else if (message.event === 'projectsUpdatedInBackground') {
-        // Sometimes tsserver doesn't send projectLoadingFinish, but sends this instead
-        console.error('[TSServer] Projects updated in background');
+        logger.debug('Projects updated in background');
         this.projectLoaded = true;
       }
     }
@@ -242,11 +239,10 @@ export class TypeScriptServer {
   async checkProjectLoaded(timeout = 5000): Promise<RefactorResult | null> {
     if (this.projectLoaded) return null;
 
-    // Wait a short time to see if project loads quickly
     const startTime = Date.now();
     while (Date.now() - startTime < timeout) {
       if (this.projectLoaded) {
-        console.error(`[TSServer] Project loaded after ${Date.now() - startTime}ms`);
+        logger.info({ duration: Date.now() - startTime }, 'Project loaded');
         return null;
       }
       await new Promise(resolve => setTimeout(resolve, 100));

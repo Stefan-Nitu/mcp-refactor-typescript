@@ -8,6 +8,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { OperationRegistry } from './operations/registry.js';
 import { z } from 'zod';
+import { logger } from './utils/logger.js';
 
 const server = new McpServer({
   name: 'mcp-refactor',
@@ -85,22 +86,22 @@ async function main() {
   const transport = new StdioServerTransport();
 
   process.on('SIGINT', async () => {
-    console.error('[MCP Refactor] Shutting down...');
+    logger.info('Shutting down...');
     await registry.shutdown();
     process.exit(0);
   });
 
   process.on('SIGTERM', async () => {
-    console.error('[MCP Refactor] Shutting down...');
+    logger.info('Shutting down...');
     await registry.shutdown();
     process.exit(0);
   });
 
   await server.connect(transport);
-  console.error('[MCP Refactor] Server started with tsserver (TypeScript/JavaScript support)');
+  logger.info('Server started with tsserver (TypeScript/JavaScript support)');
 }
 
 main().catch(error => {
-  console.error('[MCP Refactor] Fatal error:', error);
+  logger.error({ err: error }, 'Fatal error');
   process.exit(1);
 });

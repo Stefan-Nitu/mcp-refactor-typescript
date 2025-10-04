@@ -62,7 +62,7 @@ export function calculateProduct(a: number, b: number): number {
 }
 
 const result = calculateSum(1, 2);
-console.log(result);`;
+console.error(result);`;
 
       await writeFile(filePath, content, 'utf-8');
 
@@ -109,7 +109,7 @@ console.log(result);`;
   }
 
   displayInfo(): void {
-    console.log(this.getName());
+    console.error(this.getName());
   }
 }`;
 
@@ -145,7 +145,7 @@ console.log(result);`;
       // Arrange
       const filePath = join(testDir, 'src', 'variable.ts');
       const content = `const myLongVariableName = 42;
-console.log(myLongVariableName);
+console.error(myLongVariableName);
 export { myLongVariableName };`;
 
       await writeFile(filePath, content, 'utf-8');
@@ -187,7 +187,7 @@ export { myLongVariableName };`;
       const mainContent = `import { processData } from './lib.js';
 
 const result = processData('hello');
-console.log(result);
+console.error(result);
 
 export function wrapper(input: string) {
   return processData(input);
@@ -370,7 +370,7 @@ export class UserService {
       const filePath = join(testDir, 'src', 'conflict.ts');
       const content = `const oldName = 1;
 const newName = 2;
-console.log(oldName);`;
+console.error(oldName);`;
 
       await writeFile(filePath, content, 'utf-8');
 
