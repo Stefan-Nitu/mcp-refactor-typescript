@@ -1,0 +1,265 @@
+/**
+ * Direct TSServer client implementation
+ * Communicates with tsserver using its native protocol for full project awareness
+ */
+
+import { spawn, ChildProcess } from 'child_process';
+import { resolve } from 'path';
+import { readFile } from 'fs/promises';
+
+export interface RefactorResult {
+  success: boolean;
+  message: string;
+  filesChanged: string[];
+  changes: Array<{
+    file: string;
+    path: string;
+    edits: Array<{
+      line: number;
+      column?: number;
+      old: string;
+      new: string;
+    }>;
+  }>;
+}
+
+interface TSServerRequest {
+  seq: number;
+  type: 'request';
+  command: string;
+  arguments?: Record<string, unknown>;
+}
+
+interface TSServerResponse {
+  seq: number;
+  type: 'response' | 'event';
+  command?: string;
+  request_seq?: number;
+  success?: boolean;
+  body?: unknown;
+  event?: string;
+}
+
+export class TypeScriptServer {
+  private process: ChildProcess | null = null;
+  private seq = 0;
+  private pendingRequests = new Map<number, {
+    resolve: (value: unknown) => void;
+    reject: (error: Error) => void;
+  }>();
+  private messageBuffer = '';
+  private projectPath = '';
+  private projectLoaded = false;
+  private projectLoadingPromise: Promise<void> | null = null;
+  private running = false;
+
+  constructor() {}
+
+  isRunning(): boolean {
+    return this.running;
+  }
+
+  private errorResult(message: string): RefactorResult {
+    return {
+      success: false,
+      message,
+      filesChanged: [],
+      changes: []
+    };
+  }
+
+  private successResult(
+    message: string,
+    filesChanged: string[],
+    changes: RefactorResult['changes']
+  ): RefactorResult {
+    return {
+      success: true,
+      message,
+      filesChanged,
+      changes
+    };
+  }
+
+  async start(projectPath: string): Promise<void> {
+    if (this.running) {
+      throw new Error('TypeScript server is already running');
+    }
+
+    this.projectPath = projectPath;
+    const tsserverPath = resolve('node_modules/typescript/lib/tsserver.js');
+
+    this.process = spawn('node', [tsserverPath], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: projectPath,
+      env: {
+        ...process.env,
+        TSS_LOG: '-level verbose -file tsserver.log'
+      }
+    });
+
+    this.process.stdout?.setEncoding('utf8');
+    this.process.stdout?.on('data', (data) => this.handleData(data));
+
+    this.process.stderr?.setEncoding('utf8');
+    this.process.stderr?.on('data', (data) => {
+      console.error('[TSServer stderr]:', data);
+    });
+
+    this.process.on('exit', (code) => {
+      console.error('[TSServer] Process exited with code:', code);
+      this.running = false;
+    });
+
+    // Configure preferences
+    await this.sendRequest('configure', {
+      preferences: {
+        includeCompletionsForModuleExports: true,
+        includeCompletionsWithInsertText: true,
+        allowIncompleteCompletions: true,
+        includeAutomaticOptionalChainCompletions: true
+      }
+    });
+
+    this.running = true;
+    // Consider project loaded after starting - tsserver can handle requests while indexing
+    this.projectLoaded = true;
+  }
+
+  async stop(): Promise<void> {
+    if (!this.running || !this.process) {
+      return;
+    }
+
+    this.process.kill();
+    this.process = null;
+    this.running = false;
+  }
+
+  private handleData(data: string): void {
+    this.messageBuffer += data;
+
+    while (true) {
+      // Look for Content-Length header
+      const headerMatch = this.messageBuffer.match(/Content-Length: (\d+)\r?\n\r?\n/);
+      if (!headerMatch) {
+        break; // Wait for more data
+      }
+
+      const contentLength = parseInt(headerMatch[1], 10);
+      const headerLength = headerMatch[0].length;
+      const totalLength = headerLength + contentLength;
+
+      if (this.messageBuffer.length < totalLength) {
+        break; // Wait for complete message
+      }
+
+      // Extract the JSON body
+      const jsonBody = this.messageBuffer.slice(headerLength, totalLength);
+      this.messageBuffer = this.messageBuffer.slice(totalLength);
+
+      try {
+        const message: TSServerResponse = JSON.parse(jsonBody);
+        this.handleMessage(message);
+      } catch (error) {
+        console.error('[TSServer] Failed to parse message:', jsonBody, error);
+      }
+    }
+  }
+
+  private handleMessage(message: TSServerResponse): void {
+    // Handle events
+    if (message.type === 'event') {
+      console.error('[TSServer] Received event:', message.event);
+      if (message.event === 'projectLoadingFinish') {
+        console.error('[TSServer] Project loading finished');
+        this.projectLoaded = true;
+
+        // Resolve the loading promise if it exists
+        if (this.projectLoadingPromise) {
+          this.projectLoadingPromise = null;
+        }
+      } else if (message.event === 'projectLoadingStart') {
+        console.error('[TSServer] Project loading started');
+        this.projectLoaded = false;
+      } else if (message.event === 'projectsUpdatedInBackground') {
+        // Sometimes tsserver doesn't send projectLoadingFinish, but sends this instead
+        console.error('[TSServer] Projects updated in background');
+        this.projectLoaded = true;
+      }
+    }
+
+    // Handle responses
+    if (message.type === 'response' && message.request_seq) {
+      const pending = this.pendingRequests.get(message.request_seq);
+      if (pending) {
+        this.pendingRequests.delete(message.request_seq);
+        if (message.success) {
+          pending.resolve(message.body);
+        } else {
+          const errorMsg = message.body?.message || message.body || 'Request failed';
+          pending.reject(new Error(errorMsg));
+        }
+      }
+    }
+  }
+
+  async sendRequest<T = unknown>(command: string, args?: Record<string, unknown>): Promise<T | null> {
+    return new Promise((resolve, reject) => {
+      const seq = ++this.seq;
+      const request: TSServerRequest = {
+        seq,
+        type: 'request',
+        command,
+        arguments: args
+      };
+
+      this.pendingRequests.set(seq, { resolve, reject });
+
+      const message = JSON.stringify(request) + '\n';
+      this.process?.stdin?.write(message);
+
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (this.pendingRequests.has(seq)) {
+          this.pendingRequests.delete(seq);
+          reject(new Error(`Request ${command} timed out`));
+        }
+      }, 30000);
+    });
+  }
+
+  async openFile(filePath: string): Promise<void> {
+    const content = await readFile(filePath, 'utf8');
+    await this.sendRequest('open', {
+      file: filePath,
+      fileContent: content
+    });
+    // After opening a file successfully, consider the project loaded
+    this.projectLoaded = true;
+  }
+
+  async checkProjectLoaded(timeout = 5000): Promise<RefactorResult | null> {
+    if (this.projectLoaded) return null;
+
+    // Wait a short time to see if project loads quickly
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+      if (this.projectLoaded) {
+        console.error(`[TSServer] Project loaded after ${Date.now() - startTime}ms`);
+        return null;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // Project is still loading after timeout
+    return {
+      success: false,
+      message: 'TypeScript is still indexing the project. Please try again shortly.',
+      filesChanged: [],
+      changes: []
+    };
+  }
+}
+
+

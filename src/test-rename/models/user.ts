@@ -5,7 +5,7 @@ export class User {
     this.name = name;
   }
 
-  getFullName(): string {
+  getName(): string {
     return this.name;
   }
 }

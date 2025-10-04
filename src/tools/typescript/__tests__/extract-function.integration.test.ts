@@ -1,26 +1,18 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { extractFunction } from '../extract-function.js';
-import { writeFile, mkdir, rm, readFile } from 'fs/promises';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { ExtractFunctionOperation } from '../../../operations/extract-function.js';
+import { TypeScriptServer } from '../../../language-servers/typescript/tsserver-client.js';
+import { writeFile, mkdir, rm } from 'fs/promises';
 import { join } from 'path';
-import { TypeScriptLanguageServer } from '../lsp-server.js';
 import { createTestDir } from './test-utils.js';
 
 const testDir = createTestDir();
 
-let testLanguageServer: TypeScriptLanguageServer | null = null;
-
-import { vi } from 'vitest';
-vi.mock('../lsp-manager.js', () => ({
-  getLanguageServer: async () => {
-    if (!testLanguageServer) {
-      throw new Error('Test language server not initialized');
-    }
-    return testLanguageServer;
-  }
-}));
+let testServer: TypeScriptServer | null = null;
+let operation: ExtractFunctionOperation | null = null;
 
 describe('extractFunction', () => {
   beforeAll(async () => {
+    // Arrange - Create test workspace
     await mkdir(testDir, { recursive: true });
     await mkdir(join(testDir, 'src'), { recursive: true });
 
@@ -33,28 +25,23 @@ describe('extractFunction', () => {
     };
     await writeFile(join(testDir, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2), 'utf-8');
 
-    testLanguageServer = new TypeScriptLanguageServer(testDir);
-    await testLanguageServer.initialize();
-
-    await new Promise(resolve => {
-      const check = () => {
-        if (testLanguageServer?.isProjectLoaded()) {
-          resolve(undefined);
-        } else {
-          setTimeout(check, 100);
-        }
-      };
-      check();
-      setTimeout(() => resolve(undefined), 5000);
-    });
+    // Act - Initialize server
+    testServer = new TypeScriptServer();
+    operation = new ExtractFunctionOperation(testServer);
+    await testServer.start(testDir);
   });
 
   afterAll(async () => {
-    if (testLanguageServer) {
-      await testLanguageServer.shutdown();
-      testLanguageServer = null;
+    if (testServer) {
+      await testServer.stop();
+      testServer = null;
     }
     await rm(testDir, { recursive: true, force: true });
+  });
+
+  beforeEach(async () => {
+    await rm(join(testDir, 'src'), { recursive: true, force: true }).catch(() => {});
+    await mkdir(join(testDir, 'src'), { recursive: true });
   });
 
   it('should extract selected code into a function', async () => {
@@ -69,24 +56,19 @@ describe('extractFunction', () => {
 
     await writeFile(filePath, code, 'utf-8');
 
-    if (testLanguageServer) {
-      await testLanguageServer.openDocument(filePath);
-    }
-
     // Act - extract line 4 (const result = x + y;)
-    const result = await extractFunction(
+    const response = await operation!.execute({
       filePath,
-      4, 3,  // startLine, startColumn (line 4, after "  ")
-      4, 23, // endLine, endColumn (line 4, end of "x + y")
-      'addNumbers'
-    );
-    const response = JSON.parse(result.content[0].text);
-
-    console.log('Extract function result:', JSON.stringify(response, null, 2));
+      startLine: 4,
+      startColumn: 3,
+      endLine: 4,
+      endColumn: 23,
+      functionName: 'addNumbers'
+    });
 
     // Assert
-    // TypeScript may or may not support extract function via LSP
-    expect(response.status).toMatch(/success|error/);
+    expect(response.success).toBe(true);
+    expect(response.message).toBe('Extracted function');
   });
 
   it('should handle when extraction is not possible', async () => {
@@ -96,20 +78,18 @@ describe('extractFunction', () => {
 
     await writeFile(filePath, code, 'utf-8');
 
-    if (testLanguageServer) {
-      await testLanguageServer.openDocument(filePath);
-    }
-
     // Act - try to extract part of const declaration
-    const result = await extractFunction(
+    const response = await operation!.execute({
       filePath,
-      1, 1,
-      1, 5,
-      'extracted'
-    );
-    const response = JSON.parse(result.content[0].text);
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 5,
+      functionName: 'extracted'
+    });
 
     // Assert - should fail gracefully
-    expect(response.status).toBe('error');
+    expect(response.success).toBe(false);
+    expect(response.message).toContain('available');
   });
 });
