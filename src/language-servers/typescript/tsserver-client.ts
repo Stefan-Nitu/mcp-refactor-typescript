@@ -302,22 +302,35 @@ export class TypeScriptServer {
 
       logger.debug({ file: filePath, projectFilesCount: projectFiles.length }, 'Opening project files for import discovery');
 
+      // Open all project files
       for (const file of projectFiles) {
         if (file !== filePath) {
           try {
             await this.openFile(file);
           } catch (error) {
-            // Skip files that can't be opened
             logger.debug({ file, error }, 'Failed to open file');
           }
         }
       }
 
-      // Wait for TypeScript to process the opened files
-      try {
-        await this.waitForProjectUpdate(3000);
-      } catch {
-        // Continue even if timeout
+      // Poll until TypeScript can find references to the file
+      // This ensures both the file AND its importers are indexed
+      const maxAttempts = 30; // 3 seconds total
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          const refs = await this.sendRequest<{
+            refs: Array<{ file: string }>;
+          }>('fileReferences', { file: filePath });
+
+          // If we got refs (even if empty array), TypeScript has indexed the file
+          if (refs !== null) {
+            logger.debug({ attempt: i + 1, refsCount: refs.refs?.length || 0 }, 'File indexed and references discovered');
+            break;
+          }
+        } catch {
+          // Not ready yet, wait and retry
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
       }
     }
   }
