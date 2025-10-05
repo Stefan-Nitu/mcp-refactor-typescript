@@ -286,18 +286,30 @@ export class TypeScriptServer {
   }
 
   async discoverAndOpenImportingFiles(filePath: string): Promise<void> {
-    const fileRefsResponse = await this.sendRequest<{
-      refs: Array<{ file: string }>;
-      symbolName: string;
-    }>('fileReferences', { file: filePath });
+    const projectInfo = await this.sendRequest<{
+      configFileName: string;
+      fileNames?: string[];
+    }>('projectInfo', {
+      file: filePath,
+      needFileNameList: true
+    });
 
-    if (fileRefsResponse?.refs) {
-      const importingFiles = [...new Set(fileRefsResponse.refs.map(ref => ref.file))];
-      logger.debug({ file: filePath, importingFiles }, 'Discovered importing files');
+    if (projectInfo?.fileNames) {
+      const projectFiles = projectInfo.fileNames.filter(f =>
+        !f.includes('node_modules') &&
+        !f.match(/\/lib\.[^/]+\.d\.ts$/)
+      );
 
-      for (const file of importingFiles) {
+      logger.debug({ file: filePath, projectFilesCount: projectFiles.length }, 'Opening project files for import discovery');
+
+      for (const file of projectFiles) {
         if (file !== filePath) {
-          await this.openFile(file);
+          try {
+            await this.openFile(file);
+          } catch (error) {
+            // Skip files that can't be opened
+            logger.debug({ file, error }, 'Failed to open file');
+          }
         }
       }
     }
