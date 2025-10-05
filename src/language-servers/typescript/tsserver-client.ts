@@ -60,6 +60,7 @@ export class TypeScriptServer {
   private projectUpdatePromise: Promise<void> | null = null;
   private projectUpdateResolve: (() => void) | null = null;
   private running = false;
+  private lastScanTimedOut = false;
 
   constructor() {}
 
@@ -235,6 +236,10 @@ export class TypeScriptServer {
     return this.projectLoaded;
   }
 
+  didLastScanTimeout(): boolean {
+    return this.lastScanTimedOut;
+  }
+
   async checkProjectLoaded(timeout = 5000): Promise<RefactorResult | null> {
     if (this.projectLoaded) return null;
 
@@ -285,14 +290,27 @@ export class TypeScriptServer {
     return this.projectUpdatePromise;
   }
 
-  private async scanTypeScriptFiles(dir: string): Promise<string[]> {
+  private async scanTypeScriptFiles(dir: string, timeoutMs = 5000): Promise<string[]> {
     const files: string[] = [];
+    const startTime = Date.now();
+    let timedOut = false;
 
     const scan = async (currentDir: string): Promise<void> => {
+      if (Date.now() - startTime > timeoutMs) {
+        timedOut = true;
+        logger.debug({ elapsed: Date.now() - startTime, filesFound: files.length }, 'Filesystem scan timeout');
+        return;
+      }
+
       try {
         const entries = await readdir(currentDir, { withFileTypes: true });
 
         for (const entry of entries) {
+          if (Date.now() - startTime > timeoutMs) {
+            timedOut = true;
+            break;
+          }
+
           const fullPath = join(currentDir, entry.name);
 
           if (entry.isDirectory()) {
@@ -310,43 +328,25 @@ export class TypeScriptServer {
     };
 
     await scan(dir);
+    this.lastScanTimedOut = timedOut;
+
+    if (timedOut) {
+      logger.debug({ filesFound: files.length, elapsed: Date.now() - startTime }, 'Filesystem scan incomplete (timeout)');
+    } else {
+      logger.debug({ filesFound: files.length, elapsed: Date.now() - startTime }, 'Filesystem scan complete');
+    }
+
     return files;
   }
 
   async discoverAndOpenImportingFiles(filePath: string): Promise<void> {
-    const projectInfo = await this.sendRequest<{
-      configFileName: string;
-      fileNames?: string[];
-    }>('projectInfo', {
-      file: filePath,
-      needFileNameList: true
-    });
-
-    if (!projectInfo?.configFileName) {
-      return;
-    }
-
-    const projectRoot = dirname(projectInfo.configFileName);
-
-    // Scan filesystem to find ALL TypeScript files (including ones created after server start)
-    const projectFiles = await this.scanTypeScriptFiles(projectRoot);
-    const filesToOpen = projectFiles.filter(f => f !== filePath);
-
-    logger.debug({ file: filePath, projectFilesCount: filesToOpen.length }, 'Opening project files for import discovery');
-
-    for (const file of filesToOpen) {
-      try {
-        await this.openFile(file);
-      } catch (error) {
-        logger.debug({ file, error }, 'Failed to open file');
-      }
-    }
-
     // Poll to verify indexing is complete
     const maxAttempts = 30;
+    let refs: { refs: Array<{ file: string }> } | null = null;
+
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        const refs = await this.sendRequest<{
+        refs = await this.sendRequest<{
           refs: Array<{ file: string }>;
         }>('fileReferences', { file: filePath });
 
@@ -356,6 +356,44 @@ export class TypeScriptServer {
         }
       } catch {
         await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    // If no refs found after waiting, scan for new files TypeScript doesn't know about yet
+    if (!refs || !refs.refs || refs.refs.length === 0) {
+      logger.debug({ file: filePath }, 'No refs found, scanning for undiscovered files');
+
+      const projectInfo = await this.sendRequest<{
+        configFileName: string;
+        fileNames?: string[];
+      }>('projectInfo', {
+        file: filePath,
+        needFileNameList: true
+      });
+
+      if (!projectInfo?.configFileName) {
+        return;
+      }
+
+      const projectRoot = dirname(projectInfo.configFileName);
+      const knownFiles = new Set(projectInfo.fileNames || []);
+      const allFiles = await this.scanTypeScriptFiles(projectRoot);
+
+      // Only open files TypeScript doesn't know about yet
+      const newFiles = allFiles.filter(f => !knownFiles.has(f) && f !== filePath);
+
+      if (newFiles.length > 0) {
+        logger.debug({ file: filePath, newFilesCount: newFiles.length }, 'Opening undiscovered files');
+
+        for (const file of newFiles) {
+          try {
+            await this.openFile(file);
+          } catch (error) {
+            logger.debug({ file, error }, 'Failed to open file');
+          }
+        }
+      } else {
+        logger.debug({ file: filePath }, 'No new files found, TypeScript already knows all project files');
       }
     }
   }

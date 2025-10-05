@@ -47,6 +47,7 @@ export class BatchMoveFilesOperation {
       }
 
       const projectFullyLoaded = this.tsServer.isProjectLoaded();
+      const scanTimedOut = this.tsServer.didLastScanTimeout();
 
       const allFilesChanged: string[] = [];
       const allChanges: RefactorResult['changes'] = [];
@@ -91,9 +92,16 @@ Try:
         };
       }
 
-      const warningMessage = !projectFullyLoaded
-        ? '\n\nWarning: TypeScript is still indexing the project. Some import updates may have been missed. If results seem incomplete, wait a moment and try again.'
-        : '';
+      let warningMessage = '';
+      if (!projectFullyLoaded) {
+        warningMessage += '\n\nWarning: TypeScript is still indexing the project. Some import updates may have been missed.';
+      }
+      if (scanTimedOut) {
+        warningMessage += '\n\nWarning: File discovery timed out. Some files may not have been scanned. Import updates might be incomplete.';
+      }
+      if (warningMessage) {
+        warningMessage += ' If results seem incomplete, try running the operation again.';
+      }
 
       // Return preview if requested
       if (validated.preview) {

@@ -29,6 +29,7 @@ describe('Rename Operation Business Logic', () => {
       discoverAndOpenImportingFiles: vi.fn().mockResolvedValue(undefined),
       waitForProjectUpdate: vi.fn().mockResolvedValue(undefined),
       isProjectLoaded: vi.fn().mockReturnValue(true),
+      didLastScanTimeout: vi.fn().mockReturnValue(false),
       sendRequest: vi.fn()
     } as unknown as TypeScriptServer;
 

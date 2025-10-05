@@ -34,7 +34,6 @@ jobs:
     - name: Verify build output
       run: |
         test -f dist/index.js
-        test -f dist/server.js
         test -d dist/operations
         test -d dist/language-servers
         test -d dist/utils

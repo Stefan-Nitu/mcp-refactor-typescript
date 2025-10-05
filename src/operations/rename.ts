@@ -34,6 +34,7 @@ export class RenameOperation {
       await this.tsServer.discoverAndOpenImportingFiles(validated.filePath);
 
       const projectFullyLoaded = this.tsServer.isProjectLoaded();
+      const scanTimedOut = this.tsServer.didLastScanTimeout();
 
       const renameInfo = await this.tsServer.sendRequest('rename', {
         file: validated.filePath,
@@ -99,9 +100,16 @@ Try:
         changes.push(fileChanges);
       }
 
-      const warningMessage = !projectFullyLoaded
-        ? '\n\nWarning: TypeScript is still indexing the project. Some references may have been missed. If results seem incomplete, wait a moment and try again.'
-        : '';
+      let warningMessage = '';
+      if (!projectFullyLoaded) {
+        warningMessage += '\n\nWarning: TypeScript is still indexing the project. Some references may have been missed.';
+      }
+      if (scanTimedOut) {
+        warningMessage += '\n\nWarning: File discovery timed out. Some files may not have been scanned. References might be incomplete.';
+      }
+      if (warningMessage) {
+        warningMessage += ' If results seem incomplete, try running the operation again.';
+      }
 
       if (validated.preview) {
         return {
