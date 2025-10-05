@@ -188,7 +188,7 @@ What are entry points?
 Example: Cleanup src/ directory
   Input: { directory: "src" }
   ✓ Removes unused exports
-  ✓ Organizes imports on changed files only
+  ✓ Organizes imports in all files
   ✓ Preserves test files automatically
   ✓ Skips node_modules and hidden directories
 
