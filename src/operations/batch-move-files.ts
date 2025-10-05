@@ -41,7 +41,7 @@ export class BatchMoveFilesOperation {
       }
 
       try {
-        await this.tsServer.discoverAndOpenImportingFiles(validated.files[0]);
+        await this.tsServer.discoverAndOpenImportingFiles(validated.files);
       } catch (error) {
         logger.debug({ error }, 'Error discovering importing files');
       }

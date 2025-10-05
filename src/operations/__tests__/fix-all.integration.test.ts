@@ -1,9 +1,9 @@
-import { mkdir, rm, writeFile } from 'fs/promises';
+import { writeFile } from 'fs/promises';
 import { join } from 'path';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { FixAllOperation } from '../fix-all.js';
-import { createTestDir } from './test-utils.js';
+import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -11,39 +11,15 @@ let testServer: TypeScriptServer | null = null;
 let operation: FixAllOperation | null = null;
 
 describe('fixAll', () => {
-  beforeAll(async () => {
-    // Arrange - Create test workspace
-    await mkdir(testDir, { recursive: true });
-    await mkdir(join(testDir, 'src'), { recursive: true });
-
-    const tsconfig = {
-      compilerOptions: {
-        target: "ES2022",
-        module: "NodeNext",
-        moduleResolution: "NodeNext",
-        strict: true
-      }
-    };
-    await writeFile(join(testDir, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2), 'utf-8');
-
-    // Act - Initialize server
-    testServer = new TypeScriptServer();
-    operation = new FixAllOperation(testServer);
-    await testServer.start(testDir);
-  });
-
-  afterAll(async () => {
-    if (testServer) {
-      await testServer.stop();
-      testServer = null;
-    }
-    await rm(testDir, { recursive: true, force: true });
-  });
+  beforeAll(() => setupTestWorkspace(testDir));
+  afterAll(() => cleanupTestWorkspace(testDir));
 
   beforeEach(async () => {
-    await rm(join(testDir, 'src'), { recursive: true, force: true }).catch(() => {});
-    await mkdir(join(testDir, 'src'), { recursive: true });
+    testServer = await setupTestCase(testDir, TypeScriptServer);
+    operation = new FixAllOperation(testServer);
   });
+
+  afterEach(() => cleanupTestCase(testServer));
 
   it('should handle fix_all successfully', async () => {
     // Arrange

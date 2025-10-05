@@ -339,62 +339,71 @@ export class TypeScriptServer {
     return files;
   }
 
-  async discoverAndOpenImportingFiles(filePath: string): Promise<void> {
-    // Poll to verify indexing is complete
-    const maxAttempts = 30;
-    let refs: { refs: Array<{ file: string }> } | null = null;
-
+  private async waitForFileIndexing(filePath: string, maxAttempts = 30): Promise<{ refs: Array<{ file: string }> } | null> {
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        refs = await this.sendRequest<{
+        const refs = await this.sendRequest<{
           refs: Array<{ file: string }>;
         }>('fileReferences', { file: filePath });
 
         if (refs !== null) {
           logger.debug({ attempt: i + 1, refsCount: refs.refs?.length || 0, file: filePath }, 'File indexed');
-          break;
+          return refs;
         }
       } catch {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
+    return null;
+  }
 
-    // If no refs found after waiting, scan for new files TypeScript doesn't know about yet
-    if (!refs || !refs.refs || refs.refs.length === 0) {
-      logger.debug({ file: filePath }, 'No refs found, scanning for undiscovered files');
+  async discoverAndOpenImportingFiles(filePath: string | string[]): Promise<void> {
+    const files = Array.isArray(filePath) ? filePath : [filePath];
+    const importingFiles = new Set<string>();
 
-      const projectInfo = await this.sendRequest<{
-        configFileName: string;
-        fileNames?: string[];
-      }>('projectInfo', {
-        file: filePath,
-        needFileNameList: true
-      });
+    for (const file of files) {
+      const refs = await this.waitForFileIndexing(file);
 
-      if (!projectInfo?.configFileName) {
-        return;
-      }
-
-      const projectRoot = dirname(projectInfo.configFileName);
-      const knownFiles = new Set(projectInfo.fileNames || []);
-      const allFiles = await this.scanTypeScriptFiles(projectRoot);
-
-      // Only open files TypeScript doesn't know about yet
-      const newFiles = allFiles.filter(f => !knownFiles.has(f) && f !== filePath);
-
-      if (newFiles.length > 0) {
-        logger.debug({ file: filePath, newFilesCount: newFiles.length }, 'Opening undiscovered files');
-
-        for (const file of newFiles) {
-          try {
-            await this.openFile(file);
-          } catch (error) {
-            logger.debug({ file, error }, 'Failed to open file');
+      if (refs?.refs?.length) {
+        logger.debug({ file, importersCount: refs.refs.length }, 'Found files that reference this file');
+        refs.refs.forEach(ref => {
+          if (ref.file !== file) {
+            importingFiles.add(ref.file);
           }
-        }
-      } else {
-        logger.debug({ file: filePath }, 'No new files found, TypeScript already knows all project files');
+        });
+      } else if (!refs || refs.refs.length === 0) {
+        logger.debug({ file }, 'File not indexed or has no refs, scanning for undiscovered files');
+
+        const projectInfo = await this.sendRequest<{
+          configFileName: string;
+          fileNames?: string[];
+        }>('projectInfo', {
+          file,
+          needFileNameList: true
+        });
+
+        if (!projectInfo?.configFileName) continue;
+
+        const projectRoot = dirname(projectInfo.configFileName);
+        const knownFiles = new Set(projectInfo.fileNames || []);
+        const allFiles = await this.scanTypeScriptFiles(projectRoot);
+
+        allFiles
+          .filter(f => !knownFiles.has(f) && !files.includes(f))
+          .forEach(f => importingFiles.add(f));
       }
+    }
+
+    if (importingFiles.size > 0) {
+      logger.debug({ count: importingFiles.size }, 'Opening importing files in parallel');
+
+      await Promise.all(
+        Array.from(importingFiles).map(file =>
+          this.openFile(file).catch(error => {
+            logger.debug({ file, error }, 'Failed to open importing file');
+          })
+        )
+      );
     }
   }
 

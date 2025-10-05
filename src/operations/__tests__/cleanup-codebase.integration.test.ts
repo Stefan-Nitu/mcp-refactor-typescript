@@ -1,50 +1,28 @@
-import { mkdir, readFile, rm, writeFile } from 'fs/promises';
+import { mkdir, readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { CleanupCodebaseOperation } from '../cleanup-codebase.js';
-import { createTestDir } from './test-utils.js';
+import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
 
 describe('cleanupCodebase', () => {
   let operation: CleanupCodebaseOperation | null = null;
   let testServer: TypeScriptServer | null = null;
   let testDir: string;
 
-  beforeAll(async () => {
+  beforeAll(() => {
     testDir = createTestDir();
-    await mkdir(testDir, { recursive: true });
+    return setupTestWorkspace(testDir);
+  });
 
-    const tsconfigPath = join(testDir, 'tsconfig.json');
-    await writeFile(
-      tsconfigPath,
-      JSON.stringify({
-        compilerOptions: {
-          target: 'ES2020',
-          module: 'ES2020',
-          moduleResolution: 'node',
-          strict: true
-        }
-      }),
-      'utf-8'
-    );
+  afterAll(() => cleanupTestWorkspace(testDir));
 
-    testServer = new TypeScriptServer();
-    await testServer.start(testDir);
+  beforeEach(async () => {
+    testServer = await setupTestCase(testDir, TypeScriptServer);
     operation = new CleanupCodebaseOperation(testServer);
   });
 
-  afterAll(async () => {
-    if (testServer) {
-      await testServer.stop();
-      testServer = null;
-    }
-    await rm(testDir, { recursive: true, force: true });
-  });
-
-  beforeEach(async () => {
-    await rm(join(testDir, 'src'), { recursive: true, force: true }).catch(() => {});
-    await mkdir(join(testDir, 'src'), { recursive: true });
-  });
+  afterEach(() => cleanupTestCase(testServer));
 
   it('should cleanup multiple TypeScript files', async () => {
     // Arrange
