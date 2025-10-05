@@ -55,7 +55,6 @@ export class TypeScriptServer {
     reject: (error: Error) => void;
   }>();
   private messageBuffer = '';
-  private projectPath = '';
   private projectLoaded = false;
   private projectLoadingPromise: Promise<void> | null = null;
   private projectUpdatePromise: Promise<void> | null = null;
@@ -68,34 +67,11 @@ export class TypeScriptServer {
     return this.running;
   }
 
-  private errorResult(message: string): RefactorResult {
-    return {
-      success: false,
-      message,
-      filesChanged: [],
-      changes: []
-    };
-  }
-
-  private successResult(
-    message: string,
-    filesChanged: string[],
-    changes: RefactorResult['changes']
-  ): RefactorResult {
-    return {
-      success: true,
-      message,
-      filesChanged,
-      changes
-    };
-  }
-
   async start(projectPath: string): Promise<void> {
     if (this.running) {
       throw new Error('TypeScript server is already running');
     }
 
-    this.projectPath = projectPath;
     const tsserverPath = resolve('node_modules/typescript/lib/tsserver.js');
 
     this.process = spawn('node', [tsserverPath], {
