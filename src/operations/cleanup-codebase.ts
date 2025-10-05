@@ -1,17 +1,26 @@
 /**
- * Cleanup codebase operation - combines remove_unused + organize_imports across all files
+ * Cleanup codebase operation - uses tsr to remove unused exports + organize_imports
  */
 
+import { exec } from 'child_process';
 import { readdir } from 'fs/promises';
 import { extname, join } from 'path';
+import { promisify } from 'util';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
-import { RemoveUnusedOperation } from './remove-unused.js';
+
+const execAsync = promisify(exec);
 
 export const cleanupCodebaseSchema = z.object({
   directory: z.string().min(1, 'Directory cannot be empty'),
+  entrypoints: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Starting files your app runs from (regex patterns). Examples: ["src/main\\\\.ts$"]. Defaults to main/index/app/server files'
+    ),
   preview: z.boolean().optional()
 });
 
@@ -31,7 +40,6 @@ export class CleanupCodebaseOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      // Find all TypeScript files in directory
       const tsFiles = await this.findTypeScriptFiles(validated.directory);
 
       if (tsFiles.length === 0) {
@@ -48,17 +56,17 @@ Try:
         };
       }
 
-      const allFilesChanged: string[] = [];
-      const allChanges: RefactorResult['changes'] = [];
-      const steps: string[] = [];
+      const defaultEntrypoints = 'main\\.tsx?$|index\\.tsx?$|app\\.tsx?$|server\\.tsx?$';
+      const testFilePatterns = '.*\\.test\\.tsx?$|.*\\.spec\\.tsx?$|.*/__tests__/.*\\.tsx?$';
+      const entrypoints =
+        validated.entrypoints?.join('|') || `${defaultEntrypoints}|${testFilePatterns}`;
 
       if (validated.preview) {
         return {
           success: true,
           message: `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)
-  ✓ Remove unused imports and variables
-  ✓ Organize and sort imports
-  ✓ Clean up code across entire codebase`,
+  ✓ Remove unused exports (using tsr)
+  ✓ Organize imports on changed files`,
           filesChanged: [],
           changes: [],
           preview: {
@@ -69,33 +77,51 @@ Try:
         };
       }
 
-      const removeOp = new RemoveUnusedOperation(this.tsServer);
-      const organizeOp = new OrganizeImportsOperation(this.tsServer);
+      const steps: string[] = [];
+      let filesChanged: string[] = [];
 
-      let processedCount = 0;
+      try {
+        await execAsync(`npx tsr --write --recursive '${entrypoints}'`, {
+          cwd: validated.directory,
+          maxBuffer: 10 * 1024 * 1024,
+          timeout: 60000
+        });
+        steps.push('✓ Removed unused exports (tsr)');
+      } catch (error: unknown) {
+        const execError = error as { code?: number; stdout?: string; stderr?: string; killed?: boolean };
 
-      for (const file of tsFiles) {
-        // Step 1: Remove unused code
-        const removeResult = await removeOp.execute({ filePath: file });
-        if (removeResult.success && removeResult.filesChanged.length > 0) {
-          allFilesChanged.push(...removeResult.filesChanged);
-          allChanges.push(...removeResult.changes);
-          processedCount++;
+        if (execError.killed) {
+          return {
+            success: false,
+            message: 'tsr timed out after 60 seconds - project may be too large',
+            filesChanged: [],
+            changes: []
+          };
         }
 
-        // Step 2: Organize imports
-        const organizeResult = await organizeOp.execute({ filePath: file });
-        if (organizeResult.success && organizeResult.filesChanged.length > 0) {
-          if (!removeResult.filesChanged.includes(file)) {
-            allFilesChanged.push(...organizeResult.filesChanged);
-          }
-          allChanges.push(...organizeResult.changes);
+        if (execError.code === 1) {
+          steps.push('✓ Removed unused exports (tsr)');
+        } else {
+          throw error;
         }
       }
 
-      steps.push(`✓ Cleaned up ${processedCount} file(s)`);
-      steps.push(`✓ Removed unused imports and variables`);
-      steps.push(`✓ Organized imports across codebase`);
+      const organizeOp = new OrganizeImportsOperation(this.tsServer);
+      let organizedCount = 0;
+
+      for (const file of tsFiles) {
+        const organizeResult = await organizeOp.execute({ filePath: file });
+        if (organizeResult.success && organizeResult.filesChanged.length > 0) {
+          if (!filesChanged.includes(file)) {
+            filesChanged.push(file);
+          }
+          organizedCount++;
+        }
+      }
+
+      if (organizedCount > 0) {
+        steps.push(`✓ Organized imports in ${organizedCount} file(s)`);
+      }
 
       return {
         success: true,
@@ -103,8 +129,8 @@ Try:
 ${steps.join('\n')}
 
 Processed ${tsFiles.length} TypeScript file(s)`,
-        filesChanged: [...new Set(allFilesChanged)],
-        changes: allChanges
+        filesChanged,
+        changes: []
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -117,7 +143,8 @@ Processed ${tsFiles.length} TypeScript file(s)`,
 Try:
   1. Ensure directory exists and is readable
   2. Check TypeScript project is configured
-  3. Verify files can be analyzed by TypeScript`,
+  3. Verify files can be analyzed by TypeScript
+  4. Install tsr: npm install tsr`,
         filesChanged: [],
         changes: []
       };
@@ -134,7 +161,6 @@ Try:
         const fullPath = join(directory, entry.name);
 
         if (entry.isDirectory()) {
-          // Skip node_modules and hidden directories
           if (entry.name === 'node_modules' || entry.name.startsWith('.')) {
             continue;
           }
@@ -155,14 +181,23 @@ Try:
   getSchema() {
     return {
       title: 'Cleanup Codebase',
-      description: `Clean entire codebase: remove unused code + organize imports across ALL files. Perfect for maintaining clean, organized code. Processes entire directories recursively, skipping node_modules.
+      description: `Clean entire codebase: remove unused exports + organize imports.
+
+What are entry points?
+  Entry points are the "main" files your app starts from (like main.ts or server.ts).
+  The tool follows imports from these files to find what's actually used. Everything else is removed.
 
 Example: Cleanup src/ directory
-  ✓ Removes unused imports and variables in all files
-  ✓ Organizes and alphabetizes all imports
-  ✓ Processes TypeScript files recursively
+  Input: { directory: "src" }
+  ✓ Removes unused exports
+  ✓ Organizes imports on changed files only
+  ✓ Preserves test files automatically
   ✓ Skips node_modules and hidden directories
-  ✓ Complete cleanup in seconds`,
+
+Entry points default to: main/index/app/server files + all test files
+Customize with: { entrypoints: ["src/custom\\\\.ts$"] }
+
+Note: Test files are automatically preserved by including them as entrypoints.`,
       inputSchema: cleanupCodebaseSchema.shape
     };
   }

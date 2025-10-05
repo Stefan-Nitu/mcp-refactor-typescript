@@ -135,6 +135,42 @@ export const c = 3;`, 'utf-8');
     expect(response.message).toContain('No TypeScript files found');
   });
 
+  it('should remove unused exports', async () => {
+    // Arrange
+    const mainPath = join(testDir, 'src', 'main.ts');
+    const utilsPath = join(testDir, 'src', 'utils.ts');
+
+    await writeFile(mainPath, `import { usedFunc } from './utils.js';
+console.log(usedFunc());`, 'utf-8');
+
+    await writeFile(utilsPath, `export function usedFunc() {
+  return 42;
+}
+
+export function unusedFunc() {
+  return 100;
+}`, 'utf-8');
+
+    await writeFile(join(testDir, 'package.json'), JSON.stringify({
+      name: 'test',
+      type: 'module'
+    }), 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      directory: join(testDir, 'src'),
+      entrypoints: ['main\\.ts$']
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+
+    // Verify unusedFunc was removed
+    const utilsContent = await readFile(utilsPath, 'utf-8');
+    expect(utilsContent).toContain('usedFunc');
+    expect(utilsContent).not.toContain('unusedFunc');
+  });
+
   it('should skip node_modules directory', async () => {
     // Arrange
     const srcDir = join(testDir, 'src');
