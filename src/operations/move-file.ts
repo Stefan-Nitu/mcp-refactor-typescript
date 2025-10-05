@@ -33,12 +33,6 @@ export class MoveFileOperation {
       await this.tsServer.openFile(validated.sourcePath);
 
       try {
-        await this.tsServer.waitForProjectUpdate(5000);
-      } catch {
-        // Continue with partial results if indexing times out
-      }
-
-      try {
         await this.tsServer.discoverAndOpenImportingFiles(validated.sourcePath);
       } catch {
         // Continue if file references discovery fails

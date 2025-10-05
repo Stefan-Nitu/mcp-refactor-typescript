@@ -286,25 +286,54 @@ export class TypeScriptServer {
   }
 
   async discoverAndOpenImportingFiles(filePath: string): Promise<void> {
-    const projectInfo = await this.sendRequest<{
-      configFileName: string;
-      fileNames?: string[];
-    }>('projectInfo', {
-      file: filePath,
-      needFileNameList: true
-    });
+    // Try to get references first - this works if TypeScript already knows about importing files
+    let foundRefs = false;
+    try {
+      const refs = await this.sendRequest<{
+        refs: Array<{ file: string }>;
+      }>('fileReferences', { file: filePath });
 
-    if (projectInfo?.fileNames) {
-      const projectFiles = projectInfo.fileNames.filter(f =>
-        !f.includes('node_modules') &&
-        !f.match(/\/lib\.[^/]+\.d\.ts$/)
-      );
+      if (refs?.refs && refs.refs.length > 0) {
+        foundRefs = true;
+        logger.debug({ file: filePath, importersCount: refs.refs.length }, 'Found importing files via fileReferences');
 
-      logger.debug({ file: filePath, projectFilesCount: projectFiles.length }, 'Opening project files for import discovery');
+        // Open only the specific files that import this file
+        for (const ref of refs.refs) {
+          if (ref.file !== filePath) {
+            try {
+              await this.openFile(ref.file);
+            } catch (error) {
+              logger.debug({ file: ref.file, error }, 'Failed to open importing file');
+            }
+          }
+        }
+        return;
+      }
+    } catch (error) {
+      logger.debug({ file: filePath, error }, 'fileReferences request failed');
+    }
 
-      // Open all project files
-      for (const file of projectFiles) {
-        if (file !== filePath) {
+    // If fileReferences didn't find importers, fallback to opening all project files
+    // This handles cases where TypeScript hasn't discovered newly created files yet
+    if (!foundRefs) {
+      const projectInfo = await this.sendRequest<{
+        configFileName: string;
+        fileNames?: string[];
+      }>('projectInfo', {
+        file: filePath,
+        needFileNameList: true
+      });
+
+      if (projectInfo?.fileNames) {
+        const projectFiles = projectInfo.fileNames.filter(f =>
+          !f.includes('node_modules') &&
+          !f.match(/\/lib\.[^/]+\.d\.ts$/) &&
+          f !== filePath
+        );
+
+        logger.debug({ file: filePath, projectFilesCount: projectFiles.length }, 'Opening all project files as fallback');
+
+        for (const file of projectFiles) {
           try {
             await this.openFile(file);
           } catch (error) {
@@ -312,28 +341,26 @@ export class TypeScriptServer {
           }
         }
       }
+    }
 
-      // Poll until TypeScript can find references to the file
-      // This ensures both the file AND its importers are indexed
-      const maxAttempts = 30; // 3 seconds total
-      for (let i = 0; i < maxAttempts; i++) {
-        try {
-          const refs = await this.sendRequest<{
-            refs: Array<{ file: string }>;
-          }>('fileReferences', { file: filePath });
+    // Poll to verify indexing is complete
+    const maxAttempts = 30; // 3 seconds total
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const refs = await this.sendRequest<{
+          refs: Array<{ file: string }>;
+        }>('fileReferences', { file: filePath });
 
-          // If we got refs (even if empty array), TypeScript has indexed the file
-          if (refs !== null) {
-            logger.debug({ attempt: i + 1, refsCount: refs.refs?.length || 0 }, 'File indexed and references discovered');
-            break;
-          }
-        } catch {
-          // Not ready yet, wait and retry
-          await new Promise(resolve => setTimeout(resolve, 100));
+        if (refs !== null) {
+          logger.debug({ attempt: i + 1, refsCount: refs.refs?.length || 0, file: filePath }, 'File indexed');
+          break;
         }
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
   }
+
 }
 
 

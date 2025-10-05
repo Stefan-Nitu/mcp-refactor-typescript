@@ -33,12 +33,6 @@ export class RenameOperation {
 
       await this.tsServer.discoverAndOpenImportingFiles(validated.filePath);
 
-      try {
-        await this.tsServer.waitForProjectUpdate(5000);
-      } catch {
-        // Continue with partial results if indexing times out
-      }
-
       const projectFullyLoaded = this.tsServer.isProjectLoaded();
 
       const renameInfo = await this.tsServer.sendRequest('rename', {

@@ -6,6 +6,7 @@ import { mkdir } from 'fs/promises';
 import { basename, join } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { MoveFileHelper } from './move-file-helper.js';
 
@@ -40,15 +41,9 @@ export class BatchMoveFilesOperation {
       }
 
       try {
-        await this.tsServer.waitForProjectUpdate(5000);
-      } catch {
-        console.error('[batch-move] Timeout waiting for project update, continuing anyway');
-      }
-
-      try {
         await this.tsServer.discoverAndOpenImportingFiles(validated.files[0]);
       } catch (error) {
-        console.error('[batch-move] Error discovering importing files:', error);
+        logger.debug({ error }, 'Error discovering importing files');
       }
 
       const projectFullyLoaded = this.tsServer.isProjectLoaded();
