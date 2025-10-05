@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server that provides comprehensive TypeScript/Jav
 
 ## Overview
 
-The MCP Refactor Server exposes TypeScript's powerful refactoring engine through the Model Context Protocol, enabling AI assistants and other MCP clients to perform sophisticated code transformations that would be impossible or error-prone to do manually.
+MCP Refactor TypeScript exposes TypeScript's powerful refactoring engine through the Model Context Protocol, enabling AI assistants and other MCP clients to perform sophisticated code transformations that would be impossible or error-prone to do manually.
 
 **Key Features:**
 - ✅ **15 Production-Ready Refactoring Tools** - All operations fully implemented and tested
@@ -16,7 +16,19 @@ The MCP Refactor Server exposes TypeScript's powerful refactoring engine through
 
 ## Installation
 
+### Via npm (Recommended)
+
 ```bash
+npm install -g mcp-refactor-typescript
+```
+
+The package will be globally installed and available as `mcp-refactor-typescript`.
+
+### From Source
+
+```bash
+git clone https://github.com/Stefan-Nitu/mcp-refactor-typescript.git
+cd mcp-refactor-typescript
 npm install
 npm run build
 ```
@@ -36,8 +48,20 @@ Add to your Claude Desktop configuration file:
 {
   "mcpServers": {
     "mcp-refactor-typescript": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-refactor-typescript/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "mcp-refactor-typescript"]
+    }
+  }
+}
+```
+
+Or if installed globally:
+
+```json
+{
+  "mcpServers": {
+    "mcp-refactor-typescript": {
+      "command": "mcp-refactor-typescript"
     }
   }
 }
@@ -50,7 +74,13 @@ Restart Claude Desktop and you'll have access to all refactoring tools.
 Test the server interactively:
 
 ```bash
-npx @modelcontextprotocol/inspector node dist/index.js
+npx @modelcontextprotocol/inspector npx -y mcp-refactor-typescript
+```
+
+Or if installed globally:
+
+```bash
+npx @modelcontextprotocol/inspector mcp-refactor-typescript
 ```
 
 Open http://localhost:5173 to explore available tools and test refactoring operations.
