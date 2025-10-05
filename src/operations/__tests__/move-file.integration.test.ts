@@ -21,7 +21,8 @@ describe('moveFile', () => {
       compilerOptions: {
         target: "ES2022",
         module: "NodeNext",
-        moduleResolution: "NodeNext"
+        moduleResolution: "NodeNext",
+        jsx: "react"
       },
       include: ["src/**/*"]
     };
