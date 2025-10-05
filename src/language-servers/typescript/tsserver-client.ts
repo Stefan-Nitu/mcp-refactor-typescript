@@ -4,8 +4,8 @@
  */
 
 import { ChildProcess, spawn } from 'child_process';
-import { readFile } from 'fs/promises';
-import { resolve } from 'path';
+import { readFile, readdir } from 'fs/promises';
+import { dirname, join, resolve } from 'path';
 import { logger } from '../../utils/logger.js';
 
 export interface RefactorResult {
@@ -285,6 +285,34 @@ export class TypeScriptServer {
     return this.projectUpdatePromise;
   }
 
+  private async scanTypeScriptFiles(dir: string): Promise<string[]> {
+    const files: string[] = [];
+
+    const scan = async (currentDir: string): Promise<void> => {
+      try {
+        const entries = await readdir(currentDir, { withFileTypes: true });
+
+        for (const entry of entries) {
+          const fullPath = join(currentDir, entry.name);
+
+          if (entry.isDirectory()) {
+            if (entry.name === 'node_modules' || entry.name.startsWith('.') || entry.name === 'dist') {
+              continue;
+            }
+            await scan(fullPath);
+          } else if (entry.isFile() && /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
+            files.push(fullPath);
+          }
+        }
+      } catch (error) {
+        logger.debug({ dir: currentDir, error }, 'Failed to scan directory');
+      }
+    };
+
+    await scan(dir);
+    return files;
+  }
+
   async discoverAndOpenImportingFiles(filePath: string): Promise<void> {
     const projectInfo = await this.sendRequest<{
       configFileName: string;
@@ -294,21 +322,23 @@ export class TypeScriptServer {
       needFileNameList: true
     });
 
-    if (projectInfo?.fileNames) {
-      const projectFiles = projectInfo.fileNames.filter(f =>
-        !f.includes('node_modules') &&
-        !f.match(/\/lib\.[^/]+\.d\.ts$/) &&
-        f !== filePath
-      );
+    if (!projectInfo?.configFileName) {
+      return;
+    }
 
-      logger.debug({ file: filePath, projectFilesCount: projectFiles.length }, 'Opening project files for import discovery');
+    const projectRoot = dirname(projectInfo.configFileName);
 
-      for (const file of projectFiles) {
-        try {
-          await this.openFile(file);
-        } catch (error) {
-          logger.debug({ file, error }, 'Failed to open file');
-        }
+    // Scan filesystem to find ALL TypeScript files (including ones created after server start)
+    const projectFiles = await this.scanTypeScriptFiles(projectRoot);
+    const filesToOpen = projectFiles.filter(f => f !== filePath);
+
+    logger.debug({ file: filePath, projectFilesCount: filesToOpen.length }, 'Opening project files for import discovery');
+
+    for (const file of filesToOpen) {
+      try {
+        await this.openFile(file);
+      } catch (error) {
+        logger.debug({ file, error }, 'Failed to open file');
       }
     }
 
