@@ -286,68 +286,13 @@ export class TypeScriptServer {
   }
 
   async discoverAndOpenImportingFiles(filePath: string): Promise<void> {
-    // Try to get references first - this works if TypeScript already knows about importing files
-    let foundRefs = false;
-    try {
-      const refs = await this.sendRequest<{
-        refs: Array<{ file: string }>;
-      }>('fileReferences', { file: filePath });
+    // Wait for TypeScript to index the file first
+    const maxAttempts = 30;
+    let refs: { refs: Array<{ file: string }> } | null = null;
 
-      if (refs?.refs && refs.refs.length > 0) {
-        foundRefs = true;
-        logger.debug({ file: filePath, importersCount: refs.refs.length }, 'Found importing files via fileReferences');
-
-        // Open only the specific files that import this file
-        for (const ref of refs.refs) {
-          if (ref.file !== filePath) {
-            try {
-              await this.openFile(ref.file);
-            } catch (error) {
-              logger.debug({ file: ref.file, error }, 'Failed to open importing file');
-            }
-          }
-        }
-        return;
-      }
-    } catch (error) {
-      logger.debug({ file: filePath, error }, 'fileReferences request failed');
-    }
-
-    // If fileReferences didn't find importers, fallback to opening all project files
-    // This handles cases where TypeScript hasn't discovered newly created files yet
-    if (!foundRefs) {
-      const projectInfo = await this.sendRequest<{
-        configFileName: string;
-        fileNames?: string[];
-      }>('projectInfo', {
-        file: filePath,
-        needFileNameList: true
-      });
-
-      if (projectInfo?.fileNames) {
-        const projectFiles = projectInfo.fileNames.filter(f =>
-          !f.includes('node_modules') &&
-          !f.match(/\/lib\.[^/]+\.d\.ts$/) &&
-          f !== filePath
-        );
-
-        logger.debug({ file: filePath, projectFilesCount: projectFiles.length }, 'Opening all project files as fallback');
-
-        for (const file of projectFiles) {
-          try {
-            await this.openFile(file);
-          } catch (error) {
-            logger.debug({ file, error }, 'Failed to open file');
-          }
-        }
-      }
-    }
-
-    // Poll to verify indexing is complete
-    const maxAttempts = 30; // 3 seconds total
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        const refs = await this.sendRequest<{
+        refs = await this.sendRequest<{
           refs: Array<{ file: string }>;
         }>('fileReferences', { file: filePath });
 
@@ -357,6 +302,49 @@ export class TypeScriptServer {
         }
       } catch {
         await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    // If TypeScript found importing files, open only those specific files
+    if (refs?.refs && refs.refs.length > 0) {
+      logger.debug({ file: filePath, importersCount: refs.refs.length }, 'Opening specific importing files');
+
+      for (const ref of refs.refs) {
+        if (ref.file !== filePath) {
+          try {
+            await this.openFile(ref.file);
+          } catch (error) {
+            logger.debug({ file: ref.file, error }, 'Failed to open importing file');
+          }
+        }
+      }
+      return;
+    }
+
+    // If no refs found, open all project files as fallback
+    const projectInfo = await this.sendRequest<{
+      configFileName: string;
+      fileNames?: string[];
+    }>('projectInfo', {
+      file: filePath,
+      needFileNameList: true
+    });
+
+    if (projectInfo?.fileNames) {
+      const projectFiles = projectInfo.fileNames.filter(f =>
+        !f.includes('node_modules') &&
+        !f.match(/\/lib\.[^/]+\.d\.ts$/) &&
+        f !== filePath
+      );
+
+      logger.debug({ file: filePath, projectFilesCount: projectFiles.length }, 'Opening all project files as fallback');
+
+      for (const file of projectFiles) {
+        try {
+          await this.openFile(file);
+        } catch (error) {
+          logger.debug({ file, error }, 'Failed to open file');
+        }
       }
     }
   }
