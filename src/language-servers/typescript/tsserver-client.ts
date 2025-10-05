@@ -286,42 +286,6 @@ export class TypeScriptServer {
   }
 
   async discoverAndOpenImportingFiles(filePath: string): Promise<void> {
-    // Wait for TypeScript to index the file first
-    const maxAttempts = 30;
-    let refs: { refs: Array<{ file: string }> } | null = null;
-
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        refs = await this.sendRequest<{
-          refs: Array<{ file: string }>;
-        }>('fileReferences', { file: filePath });
-
-        if (refs !== null) {
-          logger.debug({ attempt: i + 1, refsCount: refs.refs?.length || 0, file: filePath }, 'File indexed');
-          break;
-        }
-      } catch {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-
-    // If TypeScript found importing files, open only those specific files
-    if (refs?.refs && refs.refs.length > 0) {
-      logger.debug({ file: filePath, importersCount: refs.refs.length }, 'Opening specific importing files');
-
-      for (const ref of refs.refs) {
-        if (ref.file !== filePath) {
-          try {
-            await this.openFile(ref.file);
-          } catch (error) {
-            logger.debug({ file: ref.file, error }, 'Failed to open importing file');
-          }
-        }
-      }
-      return;
-    }
-
-    // If no refs found, open all project files as fallback
     const projectInfo = await this.sendRequest<{
       configFileName: string;
       fileNames?: string[];
@@ -337,7 +301,7 @@ export class TypeScriptServer {
         f !== filePath
       );
 
-      logger.debug({ file: filePath, projectFilesCount: projectFiles.length }, 'Opening all project files as fallback');
+      logger.debug({ file: filePath, projectFilesCount: projectFiles.length }, 'Opening project files for import discovery');
 
       for (const file of projectFiles) {
         try {
@@ -345,6 +309,23 @@ export class TypeScriptServer {
         } catch (error) {
           logger.debug({ file, error }, 'Failed to open file');
         }
+      }
+    }
+
+    // Poll to verify indexing is complete
+    const maxAttempts = 30;
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const refs = await this.sendRequest<{
+          refs: Array<{ file: string }>;
+        }>('fileReferences', { file: filePath });
+
+        if (refs !== null) {
+          logger.debug({ attempt: i + 1, refsCount: refs.refs?.length || 0, file: filePath }, 'File indexed');
+          break;
+        }
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
   }
