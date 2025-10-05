@@ -92,6 +92,45 @@ describe('extractConstant', () => {
     expect(content).toContain('2 * PI * radius');
   });
 
+  it('should preserve indentation when extracting constant', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'indentation.ts');
+    await writeFile(filePath, `function calculatePrice(quantity: number) {
+  const tax = quantity * 0.15;
+  return tax;
+}`, 'utf-8');
+
+    // Act - Extract "0.15" as TAX_RATE
+    // Line: "  const tax = quantity * 0.15;"
+    // Column 26 is start of "0.15", column 30 is end
+    const response = await operation!.execute({
+      filePath,
+      startLine: 2,
+      startColumn: 26,
+      endLine: 2,
+      endColumn: 30,
+      constantName: 'TAX_RATE'
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    const content = await readFile(filePath, 'utf-8');
+    const lines = content.split('\n');
+
+    // Find the constant declaration line
+    const constantLine = lines.find(l => l.includes('TAX_RATE'));
+    expect(constantLine).toBeDefined();
+
+    // Verify it has same indentation as other lines (2 spaces)
+    const taxLine = lines.find(l => l.includes('const tax'));
+    expect(taxLine).toBeDefined();
+
+    const constantIndent = constantLine!.match(/^(\s*)/)?.[1].length || 0;
+    const taxIndent = taxLine!.match(/^(\s*)/)?.[1].length || 0;
+
+    expect(constantIndent).toBe(taxIndent);
+  });
+
   it('should return error when selection is not extractable', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'invalid.ts');

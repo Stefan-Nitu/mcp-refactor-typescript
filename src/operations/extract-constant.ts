@@ -19,6 +19,26 @@ const extractConstantSchema = z.object({
 export class ExtractConstantOperation implements Operation {
   constructor(private tsServer: TypeScriptServer) {}
 
+  private detectIndentation(lines: string[], targetLine: number): string {
+    // Look at surrounding lines to detect indentation
+    for (let i = targetLine; i < Math.min(targetLine + 3, lines.length); i++) {
+      const line = lines[i];
+      if (line.trim().length > 0) {
+        const match = line.match(/^(\s*)/);
+        if (match) return match[1];
+      }
+    }
+    // Look backwards if no indent found ahead
+    for (let i = targetLine - 1; i >= Math.max(0, targetLine - 3); i--) {
+      const line = lines[i];
+      if (line.trim().length > 0) {
+        const match = line.match(/^(\s*)/);
+        if (match) return match[1];
+      }
+    }
+    return '  '; // Default to 2 spaces
+  }
+
   getSchema() {
     return {
       title: 'Extract Constant',
@@ -172,21 +192,41 @@ Try:
           const startOffset = change.start.offset - 1;
           const endOffset = change.end.offset - 1;
 
+          let newText = change.newText;
+
+          // Fix indentation if this change contains a const declaration
+          // TypeScript might insert it with wrong indentation
+          if (newText.includes('const ')) {
+            const textLines = newText.split('\n');
+            const constLineIndex = textLines.findIndex(l => l.includes('const '));
+
+            if (constLineIndex !== -1) {
+              const constLine = textLines[constLineIndex];
+              const insertedIndent = constLine.match(/^(\s*)/)?.[1] || '';
+              const existingIndent = this.detectIndentation(fileContent.split('\n'), startLine);
+
+              if (insertedIndent !== existingIndent) {
+                textLines[constLineIndex] = constLine.replace(/^\s*/, existingIndent);
+                newText = textLines.join('\n');
+              }
+            }
+          }
+
           fileChanges.edits.push({
             line: change.start.line,
             old: lines[startLine].substring(startOffset, endOffset),
-            new: change.newText
+            new: newText
           });
 
           if (startLine === endLine) {
             lines[startLine] =
               lines[startLine].substring(0, startOffset) +
-              change.newText +
+              newText +
               lines[startLine].substring(endOffset);
           } else {
             const before = lines[startLine].substring(0, startOffset);
             const after = lines[endLine].substring(endOffset);
-            lines.splice(startLine, endLine - startLine + 1, before + change.newText + after);
+            lines.splice(startLine, endLine - startLine + 1, before + newText + after);
           }
         }
 
