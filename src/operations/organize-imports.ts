@@ -12,8 +12,6 @@ export const organizeImportsSchema = z.object({
   preview: z.boolean().optional()
 });
 
-export type OrganizeImportsInput = z.infer<typeof organizeImportsSchema>;
-
 export class OrganizeImportsOperation {
   constructor(private tsServer: TypeScriptServer) {}
 

@@ -15,8 +15,6 @@ export const batchMoveFilesSchema = z.object({
   preview: z.boolean().optional()
 });
 
-export type BatchMoveFilesInput = z.infer<typeof batchMoveFilesSchema>;
-
 export class BatchMoveFilesOperation {
   private helper: MoveFileHelper;
 

@@ -11,8 +11,6 @@ export const removeUnusedSchema = z.object({
   preview: z.boolean().optional()
 });
 
-export type RemoveUnusedInput = z.infer<typeof removeUnusedSchema>;
-
 export class RemoveUnusedOperation {
   constructor(private tsServer: TypeScriptServer) {}
 

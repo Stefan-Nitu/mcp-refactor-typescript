@@ -12,8 +12,6 @@ export const fixAllSchema = z.object({
   preview: z.boolean().optional()
 });
 
-export type FixAllInput = z.infer<typeof fixAllSchema>;
-
 export class FixAllOperation {
   constructor(private tsServer: TypeScriptServer) {}
 

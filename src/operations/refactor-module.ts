@@ -9,13 +9,11 @@ import { FixAllOperation } from './fix-all.js';
 import { MoveFileOperation } from './move-file.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
 
-export const refactorModuleSchema = z.object({
+const refactorModuleSchema = z.object({
   sourcePath: z.string().min(1, 'Source path cannot be empty'),
   destinationPath: z.string().min(1, 'Destination path cannot be empty'),
   preview: z.boolean().optional()
 });
-
-export type RefactorModuleInput = z.infer<typeof refactorModuleSchema>;
 
 export class RefactorModuleOperation {
   constructor(private tsServer: TypeScriptServer) {}

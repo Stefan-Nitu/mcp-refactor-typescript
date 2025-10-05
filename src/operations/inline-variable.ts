@@ -6,14 +6,12 @@ import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { Operation } from './registry.js';
 
-export const inlineVariableSchema = z.object({
+const inlineVariableSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
   column: z.number().int().positive('Column must be a positive integer'),
   preview: z.boolean().optional()
 });
-
-export type InlineVariableInput = z.infer<typeof inlineVariableSchema>;
 
 export class InlineVariableOperation implements Operation {
   constructor(private tsServer: TypeScriptServer) {}

@@ -6,14 +6,12 @@ import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { Operation } from './registry.js';
 
-export const inferReturnTypeSchema = z.object({
+const inferReturnTypeSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
   column: z.number().int().positive('Column must be a positive integer'),
   preview: z.boolean().optional()
 });
-
-export type InferReturnTypeInput = z.infer<typeof inferReturnTypeSchema>;
 
 export class InferReturnTypeOperation implements Operation {
   constructor(private tsServer: TypeScriptServer) {}

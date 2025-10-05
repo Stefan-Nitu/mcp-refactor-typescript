@@ -13,7 +13,7 @@ import { OrganizeImportsOperation } from './organize-imports.js';
 
 const execAsync = promisify(exec);
 
-export const cleanupCodebaseSchema = z.object({
+const cleanupCodebaseSchema = z.object({
   directory: z.string().min(1, 'Directory cannot be empty'),
   entrypoints: z
     .array(z.string())
@@ -23,8 +23,6 @@ export const cleanupCodebaseSchema = z.object({
     ),
   preview: z.boolean().optional()
 });
-
-export type CleanupCodebaseInput = z.infer<typeof cleanupCodebaseSchema>;
 
 export class CleanupCodebaseOperation {
   constructor(private tsServer: TypeScriptServer) {}

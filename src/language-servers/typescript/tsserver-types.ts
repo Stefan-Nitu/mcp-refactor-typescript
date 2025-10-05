@@ -3,12 +3,12 @@
  * Based on TypeScript's tsserver protocol
  */
 
-export interface TSPosition {
+interface TSPosition {
   line: number;
   offset: number;
 }
 
-export interface TSTextSpan {
+interface TSTextSpan {
   start: TSPosition;
   end: TSPosition;
 }
@@ -29,7 +29,7 @@ export interface TSRenameLoc {
   end: TSPosition;
 }
 
-export interface TSRenameFileLocation {
+interface TSRenameFileLocation {
   file: string;
   locs: TSRenameLoc[];
 }

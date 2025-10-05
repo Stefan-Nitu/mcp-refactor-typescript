@@ -12,8 +12,6 @@ export const findReferencesSchema = z.object({
   column: z.number().int().positive('Column must be a positive integer')
 });
 
-export type FindReferencesInput = z.infer<typeof findReferencesSchema>;
-
 export class FindReferencesOperation {
   constructor(private tsServer: TypeScriptServer) {}
 

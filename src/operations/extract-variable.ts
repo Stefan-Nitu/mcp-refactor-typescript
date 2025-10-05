@@ -5,7 +5,7 @@ import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc,
 import { formatValidationError } from '../utils/validation-error.js';
 import { Operation } from './registry.js';
 
-export const extractVariableSchema = z.object({
+const extractVariableSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   startLine: z.number().int().positive('Start line must be a positive integer'),
   startColumn: z.number().int().nonnegative('Start column must be a non-negative integer'),
@@ -14,8 +14,6 @@ export const extractVariableSchema = z.object({
   variableName: z.string().optional(),
   preview: z.boolean().optional()
 });
-
-export type ExtractVariableInput = z.infer<typeof extractVariableSchema>;
 
 export class ExtractVariableOperation implements Operation {
   constructor(private tsServer: TypeScriptServer) {}

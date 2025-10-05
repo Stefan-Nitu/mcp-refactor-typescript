@@ -6,7 +6,7 @@ import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { Operation } from './registry.js';
 
-export const extractConstantSchema = z.object({
+const extractConstantSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   startLine: z.number().int().positive('Start line must be a positive integer'),
   startColumn: z.number().int().nonnegative('Start column must be a non-negative integer'),
@@ -15,8 +15,6 @@ export const extractConstantSchema = z.object({
   constantName: z.string().optional(),
   preview: z.boolean().optional()
 });
-
-export type ExtractConstantInput = z.infer<typeof extractConstantSchema>;
 
 export class ExtractConstantOperation implements Operation {
   constructor(private tsServer: TypeScriptServer) {}

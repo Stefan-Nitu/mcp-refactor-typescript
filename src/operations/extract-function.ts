@@ -20,8 +20,6 @@ export const extractFunctionSchema = z.object({
   { message: 'End line must be greater than or equal to start line' }
 );
 
-export type ExtractFunctionInput = z.infer<typeof extractFunctionSchema>;
-
 export class ExtractFunctionOperation {
   constructor(private tsServer: TypeScriptServer) {}
 

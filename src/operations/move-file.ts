@@ -12,8 +12,6 @@ export const moveFileSchema = z.object({
   preview: z.boolean().optional()
 });
 
-export type MoveFileInput = z.infer<typeof moveFileSchema>;
-
 export class MoveFileOperation {
   private helper: MoveFileHelper;
 

@@ -15,8 +15,6 @@ export const renameSchema = z.object({
   preview: z.boolean().optional()
 });
 
-export type RenameInput = z.infer<typeof renameSchema>;
-
 export class RenameOperation {
   constructor(private tsServer: TypeScriptServer) {}
 
