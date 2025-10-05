@@ -170,7 +170,10 @@ export class TypeScriptServer {
         }
       } else if (message.event === 'projectLoadingStart') {
         logger.debug('Project loading started');
-        this.projectLoaded = false;
+        // Don't set projectLoaded = false here - this event fires when opening
+        // new files too, not just initial load. Setting false would cause
+        // every subsequent operation to wait 5s in checkProjectLoaded.
+        // Once the project has loaded initially, it stays loaded even during updates.
       } else if (message.event === 'projectsUpdatedInBackground') {
         logger.debug('Projects updated in background');
         this.projectLoaded = true;
