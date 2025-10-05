@@ -1,0 +1,73 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build
+      run: npm run build
+
+    - name: Check if version changed
+      id: version
+      run: |
+        PUBLISHED_VERSION=$(npm view mcp-refactor-typescript version 2>/dev/null || echo "0.0.0")
+        LOCAL_VERSION=$(node -p "require('./package.json').version")
+        echo "published=$PUBLISHED_VERSION" >> $GITHUB_OUTPUT
+        echo "local=$LOCAL_VERSION" >> $GITHUB_OUTPUT
+        if [ "$PUBLISHED_VERSION" != "$LOCAL_VERSION" ]; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "🚀 Version changed from $PUBLISHED_VERSION to $LOCAL_VERSION"
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+          echo "✅ Version unchanged ($LOCAL_VERSION)"
+        fi
+
+    - name: Publish to npm
+      if: steps.version.outputs.changed == 'true'
+      run: |
+        echo "Publishing version ${{ steps.version.outputs.local }} to npm..."
+        npm publish
+        echo "✅ Successfully published to https://www.npmjs.com/package/mcp-refactor-typescript"
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Create git tag
+      if: steps.version.outputs.changed == 'true'
+      run: |
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
+        TAG="v${{ steps.version.outputs.local }}"
+        if git rev-parse "$TAG" >/dev/null 2>&1; then
+          echo "✅ Tag $TAG already exists, skipping tag creation"
+        else
+          git tag -a "$TAG" -m "Release $TAG"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git push origin "$TAG"
+          echo "✅ Created and pushed tag $TAG"
+        fi
