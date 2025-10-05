@@ -41,11 +41,6 @@ coverage/
 *.tscache
 .tscache/
 
-# Package manager
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
 # Temporary files
 tmp/
 temp/
