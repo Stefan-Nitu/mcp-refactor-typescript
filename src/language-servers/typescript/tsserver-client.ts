@@ -4,8 +4,8 @@
  */
 
 import { ChildProcess, spawn } from 'child_process';
-import { readFile, readdir } from 'fs/promises';
-import { dirname, join, resolve } from 'path';
+import { readFile } from 'fs/promises';
+import { resolve } from 'path';
 import { logger } from '../../utils/logger.js';
 
 export interface RefactorResult {
@@ -312,70 +312,14 @@ export class TypeScriptServer {
           }
         }
       }
-    }
-  }
 
-  private async findTypeScriptFiles(dir: string): Promise<string[]> {
-    const files: string[] = [];
-
-    try {
-      const entries = await readdir(dir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = join(dir, entry.name);
-
-        if (entry.isDirectory()) {
-          const subFiles = await this.findTypeScriptFiles(fullPath);
-          files.push(...subFiles);
-        } else if (entry.isFile() && /\.(ts|tsx|js|jsx)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
-          files.push(fullPath);
-        }
-      }
-    } catch (error) {
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
-        return [];
-      }
-      throw error;
-    }
-
-    return files;
-  }
-
-  async openAllProjectFiles(anyFile: string): Promise<number> {
-    const projectInfo = await this.sendRequest<{
-      configFileName: string;
-      fileNames?: string[];
-    }>('projectInfo', {
-      file: anyFile,
-      needFileNameList: true
-    });
-
-    if (!projectInfo?.configFileName) {
-      return 0;
-    }
-
-    const projectRoot = dirname(projectInfo.configFileName);
-    const srcDir = join(projectRoot, 'src');
-
-    const allFiles = await this.findTypeScriptFiles(srcDir);
-
-    console.error(`[tsserver] Opening ${allFiles.length} project files...`);
-
-    let filesOpened = 0;
-    for (const file of allFiles) {
+      // Wait for TypeScript to process the opened files
       try {
-        await this.openFile(file);
-        filesOpened++;
-      } catch (error) {
-        if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
-          logger.debug({ file, error }, 'Skipping non-existent file');
-          continue;
-        }
-        throw error;
+        await this.waitForProjectUpdate(3000);
+      } catch {
+        // Continue even if timeout
       }
     }
-
-    return filesOpened;
   }
 }
 
