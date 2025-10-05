@@ -131,6 +131,28 @@ describe('extractConstant', () => {
     expect(constantIndent).toBe(taxIndent);
   });
 
+  it('should extract using text parameter (simplified API)', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'simplified.ts');
+    await writeFile(filePath, `function calculateArea(radius: number) {
+  return 3.14159 * radius * radius;
+}`, 'utf-8');
+
+    // Act - Extract "3.14159" using just line and text
+    const response = await operation!.execute({
+      filePath,
+      line: 2,
+      text: '3.14159',
+      constantName: 'PI'
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    const content = await readFile(filePath, 'utf-8');
+    expect(content).toContain('const PI = 3.14159');
+    expect(content).toContain('PI * radius');
+  });
+
   it('should return error when selection is not extractable', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'invalid.ts');

@@ -9,15 +9,30 @@ import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc,
 
 export const extractFunctionSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
-  startLine: z.number().int().positive('Start line must be a positive integer'),
-  startColumn: z.number().int().positive('Start column must be a positive integer'),
-  endLine: z.number().int().positive('End line must be a positive integer'),
-  endColumn: z.number().int().positive('End column must be a positive integer'),
+  line: z.number().int().positive().optional(),
+  text: z.string().optional(),
+  startLine: z.number().int().positive().optional(),
+  startColumn: z.number().int().positive().optional(),
+  endLine: z.number().int().positive().optional(),
+  endColumn: z.number().int().positive().optional(),
   functionName: z.string().optional(),
   preview: z.boolean().optional()
 }).refine(
-  (data) => data.endLine >= data.startLine,
-  { message: 'End line must be greater than or equal to start line' }
+  (data) => {
+    const hasSimplified = data.line !== undefined && data.text !== undefined;
+    const hasPrecise = data.startLine !== undefined && data.startColumn !== undefined &&
+                       data.endLine !== undefined && data.endColumn !== undefined;
+    if (!hasSimplified && !hasPrecise) {
+      return false;
+    }
+    if (hasPrecise && data.endLine! < data.startLine!) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Must provide either (line + text) or (startLine + startColumn + endLine + endColumn), and endLine >= startLine'
+  }
 );
 
 export class ExtractFunctionOperation {
@@ -26,6 +41,54 @@ export class ExtractFunctionOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = extractFunctionSchema.parse(input);
+      let { startLine, startColumn, endLine, endColumn } = validated;
+
+      // Handle simplified API: convert line + text to column positions
+      if (validated.line !== undefined && validated.text !== undefined) {
+        const fileContent = await readFile(validated.filePath, 'utf8');
+        const lines = fileContent.split('\n');
+        const lineIndex = validated.line - 1;
+
+        if (lineIndex < 0 || lineIndex >= lines.length) {
+          return {
+            success: false,
+            message: `Line ${validated.line} is out of range (file has ${lines.length} lines)`,
+            filesChanged: []
+          };
+        }
+
+        const lineContent = lines[lineIndex];
+        const textIndex = lineContent.indexOf(validated.text);
+
+        if (textIndex === -1) {
+          return {
+            success: false,
+            message: `Text "${validated.text}" not found on line ${validated.line}
+
+Line content: ${lineContent}
+
+Try:
+  1. Check the text matches exactly (case-sensitive)
+  2. Ensure you're on the correct line
+  3. Use the precise column API if the text appears multiple times`,
+            filesChanged: []
+          };
+        }
+
+        startLine = validated.line;
+        startColumn = textIndex + 1;
+        endLine = validated.line;
+        endColumn = textIndex + validated.text.length + 1;
+      }
+
+      if (startLine === undefined || startColumn === undefined ||
+          endLine === undefined || endColumn === undefined) {
+        return {
+          success: false,
+          message: 'Internal error: column positions not properly set',
+          filesChanged: []
+        };
+      }
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -38,10 +101,10 @@ export class ExtractFunctionOperation {
 
       const refactors = await this.tsServer.sendRequest('getApplicableRefactors', {
         file: validated.filePath,
-        startLine: validated.startLine,
-        startOffset: validated.startColumn,
-        endLine: validated.endLine,
-        endOffset: validated.endColumn
+        startLine,
+        startOffset: startColumn,
+        endLine,
+        endOffset: endColumn
       }) as TSRefactorInfo[] | null;
 
       if (!refactors || refactors.length === 0) {
