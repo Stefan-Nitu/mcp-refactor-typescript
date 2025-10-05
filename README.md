@@ -331,7 +331,6 @@ The server uses TypeScript's native `tsserver` for all refactoring operations:
 **Key Design Decisions:**
 - Direct `tsserver` communication (not VS Code LSP)
 - One `tsserver` instance shared across all operations
-- Automatic restart on configuration changes
 - All logging to stderr (MCP protocol compliance)
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture information.

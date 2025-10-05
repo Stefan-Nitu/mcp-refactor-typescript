@@ -13,6 +13,11 @@ dist/
 *~
 .DS_Store
 
+# MCP and Claude Code
+.claude/
+.mcp.json
+mcp.json
+
 # Logs
 logs/
 *.log
