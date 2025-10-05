@@ -1,3 +1,8 @@
+[![NPM Version](https://img.shields.io/npm/v/mcp-refactor-typescript)](https://www.npmjs.com/package/mcp-refactor-typescript)
+[![NPM Downloads](https://img.shields.io/npm/dm/mcp-refactor-typescript)](https://www.npmjs.com/package/mcp-refactor-typescript)
+[![CI Status](https://github.com/Stefan-Nitu/mcp-refactor-typescript/actions/workflows/ci.yml/badge.svg)](https://github.com/Stefan-Nitu/mcp-refactor-typescript/actions/workflows/ci.yml)
+[![MIT Licensed](https://img.shields.io/npm/l/mcp-refactor-typescript)](https://github.com/Stefan-Nitu/mcp-refactor-typescript/blob/main/LICENSE)
+
 # MCP Refactor TypeScript
 
 A Model Context Protocol (MCP) server that provides comprehensive TypeScript/JavaScript refactoring capabilities powered by the TypeScript compiler. Perform complex code transformations with compiler-grade accuracy and type-safety.
