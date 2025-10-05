@@ -38,6 +38,12 @@ export class MoveFileOperation {
         // Continue with partial results if indexing times out
       }
 
+      try {
+        await this.tsServer.discoverAndOpenImportingFiles(validated.sourcePath);
+      } catch {
+        // Continue if file references discovery fails
+      }
+
       const projectFullyLoaded = this.tsServer.isProjectLoaded();
       const result = await this.helper.performMove(validated.sourcePath, validated.destinationPath, validated.preview);
 
