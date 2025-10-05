@@ -1,12 +1,27 @@
 {
   "name": "mcp-refactor-typescript",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "MCP server for TypeScript/JavaScript code refactoring using TypeScript Language Server",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "mcp-refactor-typescript": "dist/index.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Stefan-Nitu/mcp-refactor-typescript.git"
+  },
+  "author": "Stefan Nitu",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "typescript",
+    "javascript",
+    "refactoring",
+    "lsp",
+    "language-server"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",

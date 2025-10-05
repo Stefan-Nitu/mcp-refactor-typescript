@@ -12,7 +12,7 @@ import { logger } from './utils/logger.js';
 
 const server = new McpServer({
   name: 'mcp-refactor-typescript',
-  version: '2.0.0'
+  version: '1.0.0'
 });
 
 const registry = new OperationRegistry();
