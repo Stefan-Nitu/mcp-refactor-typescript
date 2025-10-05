@@ -54,12 +54,10 @@ Try:
   2. Use find_references to verify the symbol exists
   3. Ensure the file is saved and TypeScript can analyze it`,
           filesChanged: [],
-          changes: []
         };
       }
 
-      const filesChanged: string[] = [];
-      const changes: RefactorResult['changes'] = [];
+      const filesChanged: RefactorResult['filesChanged'] = [];
 
       for (const fileLoc of renameInfo.locs) {
         const fileContent = await readFile(fileLoc.file, 'utf8');
@@ -68,7 +66,7 @@ Try:
         const fileChanges = {
           file: fileLoc.file.split('/').pop() || fileLoc.file,
           path: fileLoc.file,
-          edits: [] as RefactorResult['changes'][0]['edits']
+          edits: [] as RefactorResult['filesChanged'][0]['edits']
         };
 
         const edits = fileLoc.locs.sort((a: TSRenameLoc, b: TSRenameLoc) =>
@@ -96,8 +94,7 @@ Try:
         if (!validated.preview) {
           await writeFile(fileLoc.file, lines.join('\n'));
         }
-        filesChanged.push(fileLoc.file);
-        changes.push(fileChanges);
+        filesChanged.push(fileChanges);
       }
 
       let warningMessage = '';
@@ -116,7 +113,6 @@ Try:
           success: true,
           message: `Preview: Would rename to "${validated.newName}" in ${filesChanged.length} file(s)${warningMessage}`,
           filesChanged,
-          changes,
           preview: {
             filesAffected: filesChanged.length,
             estimatedTime: '< 1s',
@@ -129,7 +125,6 @@ Try:
         success: true,
         message: `Renamed to "${validated.newName}"${warningMessage}`,
         filesChanged,
-        changes,
         nextActions: [
           'organize_imports - Clean up import statements',
           'fix_all - Fix any type errors from rename'
@@ -145,7 +140,6 @@ Try:
   2. Check that the TypeScript project is configured correctly
   3. Verify the new name is a valid identifier`,
         filesChanged: [],
-        changes: []
       };
     }
   }

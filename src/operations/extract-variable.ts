@@ -77,7 +77,6 @@ Try:
   2. Ensure the selection is syntactically complete
   3. Try selecting just the expression without surrounding code`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -94,7 +93,6 @@ Available refactorings: ${refactors.map(r => r.name).join(', ')}
 
 Try a different selection or use one of the available refactorings`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -112,7 +110,6 @@ This might happen if:
   2. The expression cannot be safely extracted
   3. The selection is not a valid extractable expression`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -136,12 +133,10 @@ This might indicate:
   2. The selection is invalid or too complex
   3. Try restarting the TypeScript server`,
           filesChanged: [],
-          changes: []
         };
       }
 
-      const filesChanged: string[] = [];
-      const changes: RefactorResult['changes'] = [];
+      const filesChanged: RefactorResult['filesChanged'] = [];
       let generatedVariableName: string | null = null;
       let variableDeclarationLine: number | null = null;
       let variableColumn: number | null = null;
@@ -153,7 +148,7 @@ This might indicate:
         const fileChanges = {
           file: fileEdit.fileName.split('/').pop() || fileEdit.fileName,
           path: fileEdit.fileName,
-          edits: [] as RefactorResult['changes'][0]['edits']
+          edits: [] as RefactorResult['filesChanged'][0]['edits']
         };
 
         const sortedChanges = [...fileEdit.textChanges].sort((a: TSTextChange, b: TSTextChange) => {
@@ -191,8 +186,7 @@ This might indicate:
         if (!validated.preview) {
           await writeFile(fileEdit.fileName, updatedContent);
         }
-        filesChanged.push(fileEdit.fileName);
-        changes.push(fileChanges);
+        filesChanged.push(fileChanges);
 
         if (!generatedVariableName && fileEdit.fileName === filePath) {
           const constMatch = updatedContent.match(/const\s+(\w+)\s*=/);
@@ -212,7 +206,6 @@ This might indicate:
           success: true,
           message: `Preview: Would extract variable${variableName ? ` "${variableName}"` : ''}`,
           filesChanged,
-          changes,
           preview: {
             filesAffected: filesChanged.length,
             estimatedTime: '< 1s',
@@ -259,7 +252,6 @@ This might indicate:
         success: true,
         message: `Extracted variable${variableName ? ` "${variableName}"` : ''}`,
         filesChanged,
-        changes,
         nextActions: [
           'organize_imports - Clean up imports if needed'
         ]
@@ -279,7 +271,6 @@ Try:
   2. Ensure the selected expression can be evaluated independently
   3. Verify the selection is within a valid scope`,
         filesChanged: [],
-        changes: []
       };
     }
   }

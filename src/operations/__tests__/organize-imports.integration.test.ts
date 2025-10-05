@@ -41,7 +41,9 @@ console.error(a, b, c);
       console.error('[TEST] Organize imports failed:', response.message);
     }
     expect(response.success).toBe(true);
-    expect(response.filesChanged).toContain(filePath);
+    expect(response.filesChanged.length).toBeGreaterThan(0);
+    expect(response.filesChanged[0].path).toBe(filePath);
+    expect(response.filesChanged[0].edits.length).toBeGreaterThan(0);
 
     // Check that file was modified
     const organized = await readFile(filePath, 'utf-8');

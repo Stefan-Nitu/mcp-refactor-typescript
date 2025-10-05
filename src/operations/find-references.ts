@@ -39,7 +39,6 @@ export class FindReferencesOperation {
           success: true,
           message: 'No references found',
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -66,7 +65,6 @@ export class FindReferencesOperation {
         success: true,
         message,
         filesChanged: [],
-        changes: []
       };
     } catch (error) {
       return {
@@ -78,7 +76,6 @@ Try:
   2. Check the position points to a valid symbol
   3. Verify TypeScript project is configured correctly`,
         filesChanged: [],
-        changes: []
       };
     }
   }

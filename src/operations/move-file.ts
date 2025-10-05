@@ -67,7 +67,6 @@ Try:
   2. Check that destination directory is writable
   3. Verify no other file exists at destination path`,
         filesChanged: [],
-        changes: []
       };
     }
   }

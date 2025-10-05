@@ -171,4 +171,49 @@ console.error(y);`, 'utf-8');
     // Should only process 1 file (not the one in node_modules)
     expect(response.message).toContain('Processed 1 TypeScript file');
   });
+
+  it('should only report files that actually changed', async () => {
+    // Arrange
+    const file1Path = join(testDir, 'src', 'clean-file.ts');
+    const file2Path = join(testDir, 'src', 'needs-cleanup.ts');
+
+    // File with already-organized imports (no changes needed)
+    await writeFile(file1Path, `import { a, b, c } from './utils.js';
+
+const x = a + b + c;
+console.error(x);`, 'utf-8');
+
+    // File with unsorted imports (needs organizing)
+    await writeFile(file2Path, `import { c, b, a } from './utils.js';
+
+const y = a + b + c;
+console.error(y);`, 'utf-8');
+
+    await writeFile(join(testDir, 'src', 'utils.ts'), `export const a = 1;
+export const b = 2;
+export const c = 3;`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      directory: join(testDir, 'src')
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(response.filesChanged).toBeDefined();
+    expect(Array.isArray(response.filesChanged)).toBe(true);
+
+    // filesChanged should be array of objects with path and edits
+    expect(response.filesChanged.length).toBe(1);
+
+    const changedFile = response.filesChanged[0];
+    expect(changedFile).toHaveProperty('path');
+    expect(changedFile).toHaveProperty('edits');
+    expect(changedFile.path).toBe(file2Path);
+    expect(Array.isArray(changedFile.edits)).toBe(true);
+    expect(changedFile.edits.length).toBeGreaterThan(0);
+
+    // file1 should NOT be in filesChanged (was already clean)
+    expect(response.filesChanged.every(f => f.path !== file1Path)).toBe(true);
+  });
 });

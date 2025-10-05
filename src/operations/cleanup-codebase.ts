@@ -49,8 +49,7 @@ Try:
   1. Check the directory path is correct
   2. Ensure directory contains .ts or .tsx files
   3. Verify you have read permissions`,
-          filesChanged: [],
-          changes: []
+          filesChanged: []
         };
       }
 
@@ -66,7 +65,6 @@ Try:
   ✓ Remove unused exports (using tsr)
   ✓ Organize imports on changed files`,
           filesChanged: [],
-          changes: [],
           preview: {
             filesAffected: tsFiles.length,
             estimatedTime: `< ${Math.max(2, Math.ceil(tsFiles.length / 10))}s`,
@@ -76,7 +74,7 @@ Try:
       }
 
       const steps: string[] = [];
-      let filesChanged: string[] = [];
+      const filesChanged: RefactorResult['filesChanged'] = [];
 
       try {
         await execAsync(`npx tsr --write --recursive '${entrypoints}'`, {
@@ -92,8 +90,7 @@ Try:
           return {
             success: false,
             message: 'tsr timed out after 60 seconds - project may be too large',
-            filesChanged: [],
-            changes: []
+            filesChanged: []
           };
         }
 
@@ -105,20 +102,16 @@ Try:
       }
 
       const organizeOp = new OrganizeImportsOperation(this.tsServer);
-      let organizedCount = 0;
 
       for (const file of tsFiles) {
         const organizeResult = await organizeOp.execute({ filePath: file });
         if (organizeResult.success && organizeResult.filesChanged.length > 0) {
-          if (!filesChanged.includes(file)) {
-            filesChanged.push(file);
-          }
-          organizedCount++;
+          filesChanged.push(...organizeResult.filesChanged);
         }
       }
 
-      if (organizedCount > 0) {
-        steps.push(`✓ Organized imports in ${organizedCount} file(s)`);
+      if (filesChanged.length > 0) {
+        steps.push(`✓ Organized imports in ${filesChanged.length} file(s)`);
       }
 
       return {
@@ -127,8 +120,7 @@ Try:
 ${steps.join('\n')}
 
 Processed ${tsFiles.length} TypeScript file(s)`,
-        filesChanged,
-        changes: []
+        filesChanged
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -143,8 +135,7 @@ Try:
   2. Check TypeScript project is configured
   3. Verify files can be analyzed by TypeScript
   4. Install tsr: npm install tsr`,
-        filesChanged: [],
-        changes: []
+        filesChanged: []
       };
     }
   }

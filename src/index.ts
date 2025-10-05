@@ -32,8 +32,7 @@ for (const [name, operation] of registry.getAllOperations()) {
           status: result.success ? 'success' : 'error',
           message: result.message,
           data: {
-            filesChanged: result.filesChanged || [],
-            changes: result.changes || []
+            filesChanged: result.filesChanged || []
           }
         };
 

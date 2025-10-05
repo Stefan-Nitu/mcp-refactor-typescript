@@ -74,7 +74,6 @@ Try:
   2. Ensure the variable has a simple value that can be inlined
   3. Verify the variable is only used in the same scope`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -91,7 +90,6 @@ Available refactorings: ${refactors.map(r => r.name).join(', ')}
 
 Try a different location or use one of the available refactorings`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -109,7 +107,6 @@ Try:
   2. Check if the variable is used multiple times in different scopes
   3. Ensure the variable's value is simple enough to inline`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -133,12 +130,10 @@ Try:
   2. Ensure the variable can be safely inlined
   3. Verify there are no circular dependencies`,
           filesChanged: [],
-          changes: []
         };
       }
 
-      const filesChanged: string[] = [];
-      const changes: RefactorResult['changes'] = [];
+      const filesChanged: RefactorResult['filesChanged'] = [];
 
       for (const fileEdit of edits.edits) {
         const fileContent = await readFile(fileEdit.fileName, 'utf8');
@@ -147,7 +142,7 @@ Try:
         const fileChanges = {
           file: fileEdit.fileName.split('/').pop() || fileEdit.fileName,
           path: fileEdit.fileName,
-          edits: [] as RefactorResult['changes'][0]['edits']
+          edits: [] as RefactorResult['filesChanged'][0]['edits']
         };
 
         const sortedChanges = [...fileEdit.textChanges].sort((a: TSTextChange, b: TSTextChange) => {
@@ -185,8 +180,7 @@ Try:
         if (!validated.preview) {
           await writeFile(fileEdit.fileName, updatedContent);
         }
-        filesChanged.push(fileEdit.fileName);
-        changes.push(fileChanges);
+        filesChanged.push(fileChanges);
       }
 
       // Return preview if requested
@@ -195,7 +189,6 @@ Try:
           success: true,
           message: 'Preview: Would inline variable',
           filesChanged,
-          changes,
           preview: {
             filesAffected: filesChanged.length,
             estimatedTime: '< 1s',
@@ -208,7 +201,6 @@ Try:
         success: true,
         message: 'Inlined variable successfully',
         filesChanged,
-        changes,
         nextActions: [
           'remove_unused - Clean up any unused imports'
         ]
@@ -230,7 +222,6 @@ Try:
   2. Ensure TypeScript can parse the code
   3. Verify the variable can be safely inlined without side effects`,
         filesChanged: [],
-        changes: []
       };
     }
   }

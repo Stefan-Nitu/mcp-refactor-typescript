@@ -39,8 +39,7 @@ export class OrganizeImportsOperation {
         return {
           success: true,
           message: 'No import changes needed',
-          filesChanged: [],
-          changes: []
+          filesChanged: []
         };
       }
 
@@ -50,7 +49,7 @@ export class OrganizeImportsOperation {
       const fileChanges = {
         file: validated.filePath.split('/').pop() || validated.filePath,
         path: validated.filePath,
-        edits: [] as RefactorResult['changes'][0]['edits']
+        edits: [] as RefactorResult['filesChanged'][0]['edits']
       };
 
       // Apply changes in reverse order to maintain positions
@@ -90,8 +89,7 @@ export class OrganizeImportsOperation {
         return {
           success: true,
           message: 'Preview: Would organize imports',
-          filesChanged: [validated.filePath],
-          changes: [fileChanges],
+          filesChanged: [fileChanges],
           preview: {
             filesAffected: 1,
             estimatedTime: '< 1s',
@@ -106,8 +104,7 @@ export class OrganizeImportsOperation {
       return {
         success: true,
         message: 'Organized imports',
-        filesChanged: [validated.filePath],
-        changes: [fileChanges]
+        filesChanged: [fileChanges]
       };
     } catch (error) {
       return {
@@ -118,8 +115,7 @@ Try:
   1. Ensure the file exists and has valid import statements
   2. Check that all imported modules can be resolved
   3. Verify TypeScript configuration is correct`,
-        filesChanged: [],
-        changes: []
+        filesChanged: []
       };
     }
   }

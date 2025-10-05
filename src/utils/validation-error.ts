@@ -17,7 +17,6 @@ export function formatValidationError(error: z.ZodError): RefactorResult {
   • ${errors.join('\n  • ')}
 
 Check the input parameters and try again`,
-    filesChanged: [],
-    changes: []
+    filesChanged: []
   };
 }

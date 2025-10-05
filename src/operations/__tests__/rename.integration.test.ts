@@ -48,13 +48,13 @@ console.error(result);`;
 
       // Assert
       expect(response.success).toBe(true);
-      expect(response.filesChanged).toContain(filePath);
+      expect(response.filesChanged.map(f => f.path)).toContain(filePath);
       expect(response.nextActions).toEqual([
         'organize_imports - Clean up import statements',
         'fix_all - Fix any type errors from rename'
       ]);
-      expect(response.changes).toHaveLength(1);
-      expect(response.changes[0].edits).toEqual(
+      expect(response.filesChanged).toHaveLength(1);
+      expect(response.filesChanged[0].edits).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             line: 1,
@@ -101,7 +101,7 @@ console.error(result);`;
 
       // Assert
       expect(response.success).toBe(true);
-      expect(response.changes[0].edits).toEqual(
+      expect(response.filesChanged[0].edits).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             line: 8,
@@ -146,8 +146,8 @@ export { myLongVariableName };`;
       // Assert - both should work
       expect(response1.success).toBe(true);
       expect(response2.success).toBe(true);
-      expect(response1.changes[0].edits.length).toBe(3);
-      expect(response2.changes[0].edits.length).toBe(3);
+      expect(response1.filesChanged[0].edits.length).toBe(3);
+      expect(response2.filesChanged[0].edits.length).toBe(3);
     });
   });
 
@@ -188,9 +188,9 @@ export function wrapper(input: string) {
       // In production projects with 200k+ files, indexing takes longer and the warning
       // will correctly appear. We've verified TSServer events fire properly via manual testing.
       expect(response.filesChanged.length).toBeGreaterThanOrEqual(1);
-      expect(response.filesChanged).toContain(libPath);
+      expect(response.filesChanged.map(f => f.path)).toContain(libPath);
 
-      const libEdit = response.changes.find((c) => c.path === libPath);
+      const libEdit = response.filesChanged.find((c) => c.path === libPath);
       expect(libEdit).toBeDefined();
       expect(libEdit!.edits[0]).toMatchObject({
         old: 'processData',
@@ -238,7 +238,7 @@ export class UserService {
       // Assert
       expect(response.success).toBe(true);
       expect(response.filesChanged.length).toBeGreaterThanOrEqual(1);
-      expect(response.filesChanged).toContain(userPath);
+      expect(response.filesChanged.map(f => f.path)).toContain(userPath);
       // Note: Small test projects index too fast to trigger the warning.
       // The warning system works correctly for large production projects.
     });
@@ -372,8 +372,8 @@ const result = oldName();`;
       expect(response.preview?.filesAffected).toBe(1);
       expect(response.preview?.estimatedTime).toBe('< 1s');
       expect(response.preview?.command).toContain('preview: false');
-      expect(response.changes).toHaveLength(1);
-      expect(response.changes[0].edits.length).toBeGreaterThan(0);
+      expect(response.filesChanged).toHaveLength(1);
+      expect(response.filesChanged[0].edits.length).toBeGreaterThan(0);
 
       // Verify file was NOT modified
       const fileContent = await readFile(filePath, 'utf-8');

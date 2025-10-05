@@ -11,8 +11,7 @@ import { logger } from '../../utils/logger.js';
 export interface RefactorResult {
   success: boolean;
   message: string;
-  filesChanged: string[];
-  changes: Array<{
+  filesChanged: Array<{
     file: string;
     path: string;
     edits: Array<{
@@ -261,8 +260,7 @@ export class TypeScriptServer {
   1. Wait a few more seconds and try again
   2. For large projects, indexing can take 10-30 seconds
   3. Check that tsconfig.json is properly configured`,
-      filesChanged: [],
-      changes: []
+      filesChanged: []
     };
   }
 

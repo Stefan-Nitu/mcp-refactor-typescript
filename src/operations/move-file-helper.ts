@@ -26,7 +26,6 @@ export class MoveFileHelper {
           success: true,
           message: `Preview: Would move file (no import updates needed)`,
           filesChanged: [],
-          changes: [],
           preview: {
             filesAffected: 1,
             estimatedTime: '< 1s',
@@ -42,15 +41,13 @@ export class MoveFileHelper {
         success: true,
         message: 'File moved (no import updates needed)',
         filesChanged: [],
-        changes: [],
         nextActions: [
           'find_references - Verify no references were missed'
         ]
       };
     }
 
-    const filesChanged: string[] = [];
-    const changes: RefactorResult['changes'] = [];
+    const filesChanged: RefactorResult['filesChanged'] = [];
 
     for (const fileEdit of edits) {
       const fileContent = await readFile(fileEdit.fileName, 'utf8');
@@ -59,7 +56,7 @@ export class MoveFileHelper {
       const fileChanges = {
         file: fileEdit.fileName.split('/').pop() || fileEdit.fileName,
         path: fileEdit.fileName,
-        edits: [] as RefactorResult['changes'][0]['edits']
+        edits: [] as RefactorResult['filesChanged'][0]['edits']
       };
 
       const sortedChanges = [...fileEdit.textChanges].sort((a: TSTextChange, b: TSTextChange) => {
@@ -96,8 +93,7 @@ export class MoveFileHelper {
       if (!preview) {
         await writeFile(fileEdit.fileName, updatedContent);
       }
-      filesChanged.push(fileEdit.fileName);
-      changes.push(fileChanges);
+      filesChanged.push(fileChanges);
     }
 
     if (preview) {
@@ -105,7 +101,6 @@ export class MoveFileHelper {
         success: true,
         message: `Preview: Would move file and update ${filesChanged.length} import(s)`,
         filesChanged,
-        changes,
         preview: {
           filesAffected: filesChanged.length + 1,
           estimatedTime: '< 1s',
@@ -121,7 +116,6 @@ export class MoveFileHelper {
       success: true,
       message: `Moved file and updated ${filesChanged.length} import(s)`,
       filesChanged,
-      changes,
       nextActions: [
         'organize_imports - Clean up import statements',
         'fix_all - Fix any errors from the move'

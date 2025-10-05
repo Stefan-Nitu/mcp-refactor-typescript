@@ -80,7 +80,6 @@ Try:
   2. Select a simple expression that can be made constant
   3. Ensure the selection is syntactically valid`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -97,7 +96,6 @@ Available refactorings: ${refactors.map(r => r.name).join(', ')}
 
 Try a different selection or use one of the available refactorings`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -122,7 +120,6 @@ Try:
   2. Ensure the value is eligible for extraction
   3. Available actions: ${actionDetails}`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -146,12 +143,10 @@ Try:
   2. Ensure TypeScript can parse the selected value
   3. Verify the selection is a valid expression`,
           filesChanged: [],
-          changes: []
         };
       }
 
-      const filesChanged: string[] = [];
-      const changes: RefactorResult['changes'] = [];
+      const filesChanged: RefactorResult['filesChanged'] = [];
       let generatedConstantName: string | null = null;
       let constantDeclarationLine: number | null = null;
       let constantColumn: number | null = null;
@@ -163,7 +158,7 @@ Try:
         const fileChanges = {
           file: fileEdit.fileName.split('/').pop() || fileEdit.fileName,
           path: fileEdit.fileName,
-          edits: [] as RefactorResult['changes'][0]['edits']
+          edits: [] as RefactorResult['filesChanged'][0]['edits']
         };
 
         const sortedChanges = [...fileEdit.textChanges].sort((a: TSTextChange, b: TSTextChange) => {
@@ -201,8 +196,7 @@ Try:
         if (!validated.preview) {
           await writeFile(fileEdit.fileName, updatedContent);
         }
-        filesChanged.push(fileEdit.fileName);
-        changes.push(fileChanges);
+        filesChanged.push(fileChanges);
 
         if (!generatedConstantName && fileEdit.fileName === filePath) {
           const constMatch = updatedContent.match(/const\s+(\w+)\s*=/);
@@ -222,7 +216,6 @@ Try:
           success: true,
           message: `Preview: Would extract constant${constantName ? ` "${constantName}"` : ''}`,
           filesChanged,
-          changes,
           preview: {
             filesAffected: filesChanged.length,
             estimatedTime: '< 1s',
@@ -269,7 +262,6 @@ Try:
         success: true,
         message: `Extracted constant${constantName ? ` "${constantName}"` : ''}`,
         filesChanged,
-        changes,
         nextActions: [
           'organize_imports - Clean up imports if needed'
         ]
@@ -289,7 +281,6 @@ Try:
   2. Ensure TypeScript can parse the selected value
   3. Verify the selection is a complete expression or literal`,
         filesChanged: [],
-        changes: []
       };
     }
   }

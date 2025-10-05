@@ -103,8 +103,8 @@ const result = processData('hello');`, 'utf-8');
 
       expect(renameResponse.success).toBe(true);
       expect(renameResponse.filesChanged).toHaveLength(2);
-      expect(renameResponse.filesChanged).toContain(libPath);
-      expect(renameResponse.filesChanged).toContain(mainPath);
+      expect(renameResponse.filesChanged.map(f => f.path)).toContain(libPath);
+      expect(renameResponse.filesChanged.map(f => f.path)).toContain(mainPath);
     } else {
       // fileReferences might not find files if they haven't been indexed
       // This is the limitation we're testing for

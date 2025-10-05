@@ -54,7 +54,6 @@ Try:
   2. Ensure the selection is complete and syntactically valid
   3. Try selecting a larger or smaller code block`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -72,7 +71,6 @@ Available refactorings: ${refactors.map(r => r.name).join(', ')}
 
 Try a different selection or use one of the available refactorings`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -92,7 +90,6 @@ This might happen if:
   2. The selection contains only declarations
   3. The selected code cannot be extracted safely`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -116,12 +113,10 @@ This might indicate:
   2. The selection is invalid or too complex
   3. Try restarting the TypeScript server`,
           filesChanged: [],
-          changes: []
         };
       }
 
-      const filesChanged: string[] = [];
-      const changes: RefactorResult['changes'] = [];
+      const filesChanged: RefactorResult['filesChanged'] = [];
       let generatedFunctionName: string | null = null;
       let functionDeclarationLine: number | null = null;
       let functionColumn: number | null = null;
@@ -134,7 +129,7 @@ This might indicate:
         const fileChanges = {
           file: fileEdit.fileName.split('/').pop() || fileEdit.fileName,
           path: fileEdit.fileName,
-          edits: [] as RefactorResult['changes'][0]['edits']
+          edits: [] as RefactorResult['filesChanged'][0]['edits']
         };
 
         // Sort changes in reverse order
@@ -173,8 +168,7 @@ This might indicate:
         if (!validated.preview) {
           await writeFile(fileEdit.fileName, updatedContent);
         }
-        filesChanged.push(fileEdit.fileName);
-        changes.push(fileChanges);
+        filesChanged.push(fileChanges);
 
         if (!generatedFunctionName && fileEdit.fileName === validated.filePath) {
           const functionMatch = updatedContent.match(/function\s+(\w+)\s*\(/);
@@ -194,7 +188,6 @@ This might indicate:
           success: true,
           message: `Preview: Would extract function${validated.functionName ? ` "${validated.functionName}"` : ''}`,
           filesChanged,
-          changes,
           preview: {
             filesAffected: filesChanged.length,
             estimatedTime: '< 1s',
@@ -241,7 +234,6 @@ This might indicate:
         success: true,
         message: 'Extracted function',
         filesChanged,
-        changes,
         nextActions: [
           'organize_imports - Clean up imports if needed',
           'infer_return_type - Add explicit return type to the extracted function'
@@ -257,7 +249,6 @@ Try:
   2. Ensure TypeScript can parse the selected code
   3. Verify the selection doesn't span multiple scopes incorrectly`,
         filesChanged: [],
-        changes: []
       };
     }
   }

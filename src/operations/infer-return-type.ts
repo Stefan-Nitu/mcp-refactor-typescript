@@ -77,7 +77,6 @@ Try:
   2. Ensure the function doesn't already have a return type
   3. Verify TypeScript can infer the return type from the implementation`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -94,7 +93,6 @@ Available refactorings: ${refactors.map(r => r.name).join(', ')}
 
 Try a different location or use one of the available refactorings`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -112,7 +110,6 @@ Try:
   2. Ensure the function has a return statement
   3. Verify TypeScript can analyze the function body`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -136,12 +133,10 @@ Try:
   2. Ensure TypeScript can analyze the function's return values
   3. Verify the function body is complete and type-checkable`,
           filesChanged: [],
-          changes: []
         };
       }
 
-      const filesChanged: string[] = [];
-      const changes: RefactorResult['changes'] = [];
+      const filesChanged: RefactorResult['filesChanged'] = [];
 
       for (const fileEdit of edits.edits) {
         const fileContent = await readFile(fileEdit.fileName, 'utf8');
@@ -150,7 +145,7 @@ Try:
         const fileChanges = {
           file: fileEdit.fileName.split('/').pop() || fileEdit.fileName,
           path: fileEdit.fileName,
-          edits: [] as RefactorResult['changes'][0]['edits']
+          edits: [] as RefactorResult['filesChanged'][0]['edits']
         };
 
         const sortedChanges = [...fileEdit.textChanges].sort((a: TSTextChange, b: TSTextChange) => {
@@ -188,8 +183,7 @@ Try:
         if (!validated.preview) {
           await writeFile(fileEdit.fileName, updatedContent);
         }
-        filesChanged.push(fileEdit.fileName);
-        changes.push(fileChanges);
+        filesChanged.push(fileChanges);
       }
 
       // Return preview if requested
@@ -198,7 +192,6 @@ Try:
           success: true,
           message: 'Preview: Would infer return type',
           filesChanged,
-          changes,
           preview: {
             filesAffected: filesChanged.length,
             estimatedTime: '< 1s',
@@ -211,7 +204,6 @@ Try:
         success: true,
         message: 'Inferred return type successfully',
         filesChanged,
-        changes,
         nextActions: [
           'organize_imports - Add any missing type imports'
         ]
@@ -233,7 +225,6 @@ Try:
   2. Ensure TypeScript can parse the function
   3. Verify the function has a determinable return type`,
         filesChanged: [],
-        changes: []
       };
     }
   }

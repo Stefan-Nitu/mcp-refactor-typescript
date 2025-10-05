@@ -29,8 +29,7 @@ export class RefactorModuleOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      const allFilesChanged: string[] = [];
-      const allChanges: RefactorResult['changes'] = [];
+      const allFilesChanged: RefactorResult['filesChanged'] = [];
       const steps: string[] = [];
 
       // Step 1: Move file
@@ -47,7 +46,6 @@ export class RefactorModuleOperation {
 
       steps.push(`✓ Moved file to ${validated.destinationPath}`);
       allFilesChanged.push(...moveResult.filesChanged);
-      allChanges.push(...moveResult.changes);
 
       if (validated.preview) {
         return {
@@ -56,7 +54,6 @@ export class RefactorModuleOperation {
 ${steps.join('\n')}
 Next steps: organize imports, fix errors`,
           filesChanged: allFilesChanged,
-          changes: allChanges,
           preview: {
             filesAffected: moveResult.preview!.filesAffected,
             estimatedTime: '< 2s',
@@ -67,16 +64,15 @@ Next steps: organize imports, fix errors`,
 
       // Step 2: Organize imports for all affected files
       const organizeOp = new OrganizeImportsOperation(this.tsServer);
-      const uniqueFiles = [...new Set(allFilesChanged)];
+      const uniqueFiles = [...new Set(allFilesChanged.map(f => f.path))];
 
       for (const file of uniqueFiles) {
         const organizeResult = await organizeOp.execute({ filePath: file });
         if (organizeResult.success && organizeResult.filesChanged.length > 0) {
           steps.push(`✓ Organized imports in ${file.split('/').pop()}`);
-          allChanges.push(...organizeResult.changes);
-          // Add to filesChanged if not already there
+          // Add to filesChanged if not already there (based on path)
           for (const changed of organizeResult.filesChanged) {
-            if (!allFilesChanged.includes(changed)) {
+            if (!allFilesChanged.find(f => f.path === changed.path)) {
               allFilesChanged.push(changed);
             }
           }
@@ -90,10 +86,9 @@ Next steps: organize imports, fix errors`,
         const fixResult = await fixOp.execute({ filePath: file });
         if (fixResult.success && fixResult.filesChanged.length > 0) {
           steps.push(`✓ Fixed errors in ${file.split('/').pop()}`);
-          allChanges.push(...fixResult.changes);
-          // Add to filesChanged if not already there
+          // Add to filesChanged if not already there (based on path)
           for (const changed of fixResult.filesChanged) {
-            if (!allFilesChanged.includes(changed)) {
+            if (!allFilesChanged.find(f => f.path === changed.path)) {
               allFilesChanged.push(changed);
             }
           }
@@ -104,8 +99,7 @@ Next steps: organize imports, fix errors`,
         success: true,
         message: `Refactored module successfully:
 ${steps.join('\n')}`,
-        filesChanged: [...new Set(allFilesChanged)],
-        changes: allChanges
+        filesChanged: allFilesChanged
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -120,7 +114,6 @@ Try:
   2. Check destination path is valid
   3. Verify TypeScript project is configured correctly`,
         filesChanged: [],
-        changes: []
       };
     }
   }

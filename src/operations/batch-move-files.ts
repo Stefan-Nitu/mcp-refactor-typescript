@@ -49,8 +49,7 @@ export class BatchMoveFilesOperation {
       const projectFullyLoaded = this.tsServer.isProjectLoaded();
       const scanTimedOut = this.tsServer.didLastScanTimeout();
 
-      const allFilesChanged: string[] = [];
-      const allChanges: RefactorResult['changes'] = [];
+      const allFilesChanged: RefactorResult['filesChanged'] = [];
       let successCount = 0;
       const errors: string[] = [];
 
@@ -64,10 +63,12 @@ export class BatchMoveFilesOperation {
           if (result.success) {
             successCount++;
             if (result.filesChanged) {
-              allFilesChanged.push(...result.filesChanged.filter(f => !allFilesChanged.includes(f)));
-            }
-            if (result.changes) {
-              allChanges.push(...result.changes);
+              // Add files that aren't already in the list (based on path)
+              for (const fileChange of result.filesChanged) {
+                if (!allFilesChanged.find(f => f.path === fileChange.path)) {
+                  allFilesChanged.push(fileChange);
+                }
+              }
             }
           } else {
             errors.push(`${fileName}: ${result.message}`);
@@ -88,7 +89,6 @@ Try:
   2. Ensure target folder is writable
   3. Verify no filename conflicts in destination`,
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -109,7 +109,6 @@ Try:
           success: true,
           message: `Preview: Would move ${successCount} file(s) to ${basename(validated.targetFolder)}${warningMessage}`,
           filesChanged: allFilesChanged,
-          changes: allChanges,
           preview: {
             filesAffected: successCount,
             estimatedTime: '< 2s',
@@ -126,7 +125,6 @@ Try:
         success: true,
         message: message + warningMessage,
         filesChanged: allFilesChanged,
-        changes: allChanges,
         nextActions: [
           'organize_imports - Clean up all import statements',
           'fix_all - Fix any errors from the moves'
@@ -145,7 +143,6 @@ Try:
   2. Check that target folder path is valid
   3. Verify you have write permissions`,
         filesChanged: [],
-        changes: []
       };
     }
   }

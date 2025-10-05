@@ -23,14 +23,12 @@ export class RestartTsServerOperation {
         success: true,
         message: 'TypeScript server restarted successfully',
         filesChanged: [],
-        changes: []
       };
     } catch (error) {
       return {
         success: false,
         message: `Failed to restart TypeScript server: ${error instanceof Error ? error.message : String(error)}`,
         filesChanged: [],
-        changes: []
       };
     }
   }

@@ -42,7 +42,6 @@ export class FixAllOperation {
           success: true,
           message: 'No fixes needed',
           filesChanged: [],
-          changes: []
         };
       }
 
@@ -52,7 +51,7 @@ export class FixAllOperation {
       const fileChanges = {
         file: validated.filePath.split('/').pop() || validated.filePath,
         path: validated.filePath,
-        edits: [] as RefactorResult['changes'][0]['edits']
+        edits: [] as RefactorResult['filesChanged'][0]['edits']
       };
 
       interface ChangeWithSpan { span: { start: number; length: number }; newText: string }
@@ -88,8 +87,7 @@ export class FixAllOperation {
         return {
           success: true,
           message: `Preview: Would apply ${result.length} fix(es)`,
-          filesChanged: [validated.filePath],
-          changes: [fileChanges],
+          filesChanged: [fileChanges],
           preview: {
             filesAffected: 1,
             estimatedTime: '< 1s',
@@ -104,8 +102,7 @@ export class FixAllOperation {
       return {
         success: true,
         message: `Applied ${result.length} fix(es)`,
-        filesChanged: [validated.filePath],
-        changes: [fileChanges],
+        filesChanged: [fileChanges],
         nextActions: [
           'organize_imports - Clean up imports after fixes'
         ]
@@ -120,7 +117,6 @@ Try:
   2. Check that TypeScript can compile the file
   3. Some errors may not be auto-fixable`,
         filesChanged: [],
-        changes: []
       };
     }
   }
