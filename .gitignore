@@ -17,6 +17,7 @@ dist/
 .claude/
 .mcp.json
 mcp.json
+proxy.config.json
 
 # Logs
 logs/
