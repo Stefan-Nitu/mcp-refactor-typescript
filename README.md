@@ -1,4 +1,4 @@
-# MCP Refactor Server
+# MCP Refactor TypeScript
 
 A Model Context Protocol (MCP) server that provides comprehensive TypeScript/JavaScript refactoring capabilities powered by the TypeScript compiler. Perform complex code transformations with compiler-grade accuracy and type-safety.
 
@@ -35,9 +35,9 @@ Add to your Claude Desktop configuration file:
 ```json
 {
   "mcpServers": {
-    "mcp-refactor": {
+    "mcp-refactor-typescript": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-refactor/dist/index.js"]
+      "args": ["/absolute/path/to/mcp-refactor-typescript/dist/index.js"]
     }
   }
 }
@@ -172,7 +172,7 @@ All imports update automatically, all files move together or not at all.
 ### Project Structure
 
 ```
-mcp-refactor/
+mcp-refactor-typescript/
 ├── src/
 │   ├── index.ts                     # MCP server entry point
 │   ├── operations/                  # Refactoring operations

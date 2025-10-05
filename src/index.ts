@@ -11,7 +11,7 @@ import { OperationRegistry } from './operations/registry.js';
 import { logger } from './utils/logger.js';
 
 const server = new McpServer({
-  name: 'mcp-refactor',
+  name: 'mcp-refactor-typescript',
   version: '2.0.0'
 });
 

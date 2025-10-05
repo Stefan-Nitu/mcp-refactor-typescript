@@ -1,11 +1,11 @@
 {
-  "name": "mcp-refactor",
+  "name": "mcp-refactor-typescript",
   "version": "0.1.0",
-  "description": "MCP server for TypeScript code refactoring using Language Server Protocol",
+  "description": "MCP server for TypeScript/JavaScript code refactoring using TypeScript Language Server",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "mcp-refactor": "dist/index.js"
+    "mcp-refactor-typescript": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
