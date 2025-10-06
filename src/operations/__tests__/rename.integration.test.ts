@@ -22,6 +22,34 @@ describe('rename', () => {
   afterEach(() => cleanupTestCase(testServer));
 
   describe('single file rename', () => {
+    it('should rename using text-based API (line + text)', async () => {
+      // Arrange
+      const filePath = join(testDir, 'src', 'simple-text.ts');
+      const content = `export function calculateSum(a: number, b: number): number {
+  return a + b;
+}
+
+const result = calculateSum(1, 2);
+console.error(result);`;
+
+      await writeFile(filePath, content, 'utf-8');
+
+      // Act - rename using text instead of column
+      const response = await operation!.execute({
+        filePath,
+        line: 1,
+        text: 'calculateSum',
+        newName: 'computeSum'
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(response.filesChanged).toHaveLength(1);
+      const fileContent = await readFile(filePath, 'utf-8');
+      expect(fileContent).toContain('computeSum');
+      expect(fileContent).not.toContain('calculateSum');
+    });
+
     it('should rename a function within a single file', async () => {
       // Arrange
       const filePath = join(testDir, 'src', 'math.ts');
@@ -42,7 +70,7 @@ console.error(result);`;
       const response = await operation!.execute({
         filePath,
         line: 1,
-        column: 17,
+        text: 'calculateSum',
         newName: 'computeSum'
       });
 
@@ -95,7 +123,7 @@ console.error(result);`;
       const response = await operation!.execute({
         filePath,
         line: 8,
-        column: 5,
+        text: 'getName',
         newName: 'getDisplayName'
       });
 
@@ -126,20 +154,20 @@ export { myLongVariableName };`;
 
       await writeFile(filePath, content, 'utf-8');
 
-      // Act - rename from beginning of identifier
+      // Act - rename using text-based API
       const response1 = await operation!.execute({
         filePath,
         line: 1,
-        column: 7,
+        text: 'myLongVariableName',
         newName: 'shortName'
       });
 
-      // Act - rename from middle of identifier (on new file)
+      // Act - rename again (on new file)
       await writeFile(filePath, content, 'utf-8');
       const response2 = await operation!.execute({
         filePath,
         line: 1,
-        column: 15,
+        text: 'myLongVariableName',
         newName: 'shortName'
       });
 
@@ -176,7 +204,7 @@ export function wrapper(input: string) {
       const response = await operation!.execute({
         filePath: libPath,
         line: 1,
-        column: 17,
+        text: 'processData',
         newName: 'transformData'
       });
 
@@ -231,7 +259,7 @@ export class UserService {
       const response = await operation!.execute({
         filePath: userPath,
         line: 8,
-        column: 3,
+        text: 'getName',
         newName: 'getFullName'
       });
 
@@ -250,7 +278,7 @@ export class UserService {
       const response = await operation!.execute({
         filePath: '/nonexistent/file.ts',
         line: 1,
-        column: 1,
+        text: 'anything',
         newName: 'newName'
       });
 
@@ -265,11 +293,11 @@ export class UserService {
       const content = `const x = 1;`;
       await writeFile(filePath, content, 'utf-8');
 
-      // Act - position out of bounds
+      // Act - text not found on line
       const response = await operation!.execute({
         filePath,
         line: 1,
-        column: 100,
+        text: 'nonexistent',
         newName: 'newName'
       });
 
@@ -287,7 +315,7 @@ export class UserService {
       const response = await operation!.execute({
         filePath,
         line: 1,
-        column: 7,
+        text: 'validName',
         newName: '123invalid'
       });
 
@@ -310,7 +338,7 @@ console.error(oldName);`;
       const response = await operation!.execute({
         filePath,
         line: 1,
-        column: 7,
+        text: 'oldName',
         newName: 'newName'
       });
 
@@ -333,7 +361,7 @@ export function   oldFunction   (x: number): number {
       const response = await operation!.execute({
         filePath,
         line: 2,
-        column: 20,
+        text: 'oldFunction',
         newName: 'newFunction'
       });
 
@@ -358,7 +386,7 @@ const result = oldName();`;
       const response = await operation!.execute({
         filePath,
         line: 1,
-        column: 17,
+        text: 'oldName',
         newName: 'newName',
         preview: true
       });
@@ -395,7 +423,7 @@ const result = oldName();`;
       const response = await operation!.execute({
         filePath,
         line: 1,
-        column: 17,
+        text: 'oldName',
         newName: 'newName',
         preview: false
       });

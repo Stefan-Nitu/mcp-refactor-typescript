@@ -10,7 +10,7 @@ import type { TSRenameLoc, TSRenameResponse } from '../language-servers/typescri
 export const renameSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
-  column: z.number().int().positive('Column must be a positive integer'),
+  text: z.string().min(1, 'Text cannot be empty'),
   newName: z.string().min(1, 'New name cannot be empty'),
   preview: z.boolean().optional()
 });
@@ -21,6 +21,38 @@ export class RenameOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = renameSchema.parse(input);
+
+      // Convert text to column position
+      const fileContent = await readFile(validated.filePath, 'utf8');
+      const lines = fileContent.split('\n');
+      const lineIndex = validated.line - 1;
+
+      if (lineIndex < 0 || lineIndex >= lines.length) {
+        return {
+          success: false,
+          message: `Line ${validated.line} is out of range (file has ${lines.length} lines)`,
+          filesChanged: []
+        };
+      }
+
+      const lineContent = lines[lineIndex];
+      const textIndex = lineContent.indexOf(validated.text);
+
+      if (textIndex === -1) {
+        return {
+          success: false,
+          message: `Text "${validated.text}" not found on line ${validated.line}
+
+Line content: ${lineContent}
+
+Try:
+  1. Check the text matches exactly (case-sensitive)
+  2. Ensure you're on the correct line`,
+          filesChanged: []
+        };
+      }
+
+      const column = textIndex + 1;
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -39,7 +71,7 @@ export class RenameOperation {
       const renameInfo = await this.tsServer.sendRequest('rename', {
         file: validated.filePath,
         line: validated.line,
-        offset: validated.column,
+        offset: column,
         findInComments: false,
         findInStrings: false
       }) as TSRenameResponse | null;
@@ -47,10 +79,10 @@ export class RenameOperation {
       if (!renameInfo?.locs) {
         return {
           success: false,
-          message: `Cannot rename: No symbol found at ${validated.filePath}:${validated.line}:${validated.column}
+          message: `Cannot rename: No symbol found for "${validated.text}" at ${validated.filePath}:${validated.line}
 
 Try:
-  1. Check the cursor position is on a valid identifier
+  1. Check that the text is a valid identifier
   2. Use find_references to verify the symbol exists
   3. Ensure the file is saved and TypeScript can analyze it`,
           filesChanged: [],
@@ -150,12 +182,19 @@ Try:
       description: `Rename across ALL files + update imports/exports automatically. TypeScript-aware renaming catches dynamic imports, re-exports, and type references that text search misses. Completes in <1s vs 5-10min manual search/replace with risk of missed references.
 
 Example: Rename 'calculateSum' to 'computeSum'
+  Input: { filePath, line: 1, text: "calculateSum", newName: "computeSum" }
   ✓ Updates function declaration
   ✓ Updates all call sites: calculateSum(1, 2) → computeSum(1, 2)
   ✓ Updates all imports across files
   ✓ Updates all exports and re-exports
   ✓ Processes all references instantly`,
-      inputSchema: renameSchema.shape
+      inputSchema: {
+        filePath: z.string().min(1, 'File path cannot be empty'),
+        line: z.number().int().positive('Line must be a positive integer'),
+        text: z.string().min(1, 'Text cannot be empty'),
+        newName: z.string().min(1, 'New name cannot be empty'),
+        preview: z.boolean().optional()
+      }
     };
   }
 }
