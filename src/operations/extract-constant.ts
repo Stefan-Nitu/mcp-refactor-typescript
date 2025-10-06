@@ -5,6 +5,7 @@ import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc,
 import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { Operation } from './registry.js';
+import { RefactoringProcessor } from './refactoring-processor.js';
 
 const extractConstantSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -32,7 +33,10 @@ const extractConstantSchema = z.object({
 );
 
 export class ExtractConstantOperation implements Operation {
-  constructor(private tsServer: TypeScriptServer) {}
+  constructor(
+    private tsServer: TypeScriptServer,
+    private processor: RefactoringProcessor = new RefactoringProcessor('const')
+  ) {}
 
   private detectIndentation(lines: string[], targetLine: number): string {
     // Look at surrounding lines to detect indentation
@@ -260,7 +264,6 @@ Try:
           let newText = change.newText;
 
           // Fix indentation if this change contains a const declaration
-          // TypeScript might insert it with wrong indentation
           if (newText.includes('const ')) {
             const textLines = newText.split('\n');
             const constLineIndex = textLines.findIndex(l => l.includes('const '));
@@ -303,14 +306,13 @@ Try:
         }
         filesChanged.push(fileChanges);
 
+        // Extract generated constant name after processing all changes
         if (!generatedConstantName && fileEdit.fileName === filePath) {
-          const constMatch = updatedContent.match(/const\s+(\w+)\s*=/);
-          if (constMatch) {
-            generatedConstantName = constMatch[1];
-            const lineIndex = updatedContent.split('\n').findIndex(line => line.includes(`const ${generatedConstantName}`));
-            constantDeclarationLine = lineIndex + 1;
-            const declarationLine = updatedContent.split('\n')[lineIndex];
-            constantColumn = declarationLine.indexOf(generatedConstantName) + 1;
+          const declaration = this.processor.findDeclaration(sortedChanges);
+          if (declaration) {
+            generatedConstantName = declaration.name;
+            constantDeclarationLine = declaration.line;
+            constantColumn = declaration.column;
           }
         }
       }
@@ -359,6 +361,9 @@ Try:
             }
 
             await writeFile(fileLoc.file, lines.join('\n'));
+
+            // Update filesChanged to reflect the rename in the response
+            this.processor.updateFilesChangedAfterRename(filesChanged, generatedConstantName, constantName, fileLoc.file);
           }
         }
       }

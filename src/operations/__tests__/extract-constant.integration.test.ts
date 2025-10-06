@@ -153,6 +153,79 @@ describe('extractConstant', () => {
     expect(content).toContain('PI * radius');
   });
 
+  it('should extract multiple constants sequentially with correct custom names', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'multiple-extracts.ts');
+    await writeFile(filePath, `function calculateTotal(quantity: number) {
+  const price = quantity * 29.99;
+  const tax = price * 0.15;
+  return price + tax;
+}`, 'utf-8');
+
+    // Act - Extract first constant using text API
+    const response1 = await operation!.execute({
+      filePath,
+      line: 2,
+      text: '29.99',
+      constantName: 'UNIT_PRICE'
+    });
+
+    // Assert first extraction succeeded
+    expect(response1.success).toBe(true);
+    let content = await readFile(filePath, 'utf-8');
+    expect(content).toContain('const UNIT_PRICE = 29.99');
+    expect(content).toContain('quantity * UNIT_PRICE');
+
+    // Act - Extract second constant using text API
+    // Note: Line number shifted from 3 to 4 after first extraction added a line
+    const response2 = await operation!.execute({
+      filePath,
+      line: 4,
+      text: '0.15',
+      constantName: 'TAX_RATE'
+    });
+
+    // Assert second extraction succeeded and both constants have correct names
+    expect(response2.success).toBe(true);
+    content = await readFile(filePath, 'utf-8');
+    expect(content).toContain('const UNIT_PRICE = 29.99');
+    expect(content).toContain('const TAX_RATE = 0.15');
+    expect(content).toContain('quantity * UNIT_PRICE');
+    expect(content).toContain('price * TAX_RATE');
+    expect(content).not.toContain('newLocal');
+  });
+
+  it('should include final renamed constant name in JSON response', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'json-response.ts');
+    await writeFile(filePath, `function calculateArea(radius: number) {
+  return 3.14159 * radius * radius;
+}`, 'utf-8');
+
+    // Act - extract with custom constant name
+    const response = await operation!.execute({
+      filePath,
+      line: 2,
+      text: '3.14159',
+      constantName: 'PI'
+    });
+
+    // Assert - filesChanged should reflect the final state after rename
+    expect(response.success).toBe(true);
+    expect(response.filesChanged).toBeDefined();
+    expect(response.filesChanged!.length).toBeGreaterThan(0);
+
+    // Find the edit that replaces the extracted code with the constant reference
+    const callSiteEdit = response.filesChanged![0].edits.find(
+      edit => edit.old === '3.14159'
+    );
+
+    expect(callSiteEdit).toBeDefined();
+    // Should show the custom name, not the generated name
+    expect(callSiteEdit!.new).toContain('PI');
+    expect(callSiteEdit!.new).not.toContain('newLocal');
+  });
+
   it('should return error when selection is not extractable', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'invalid.ts');

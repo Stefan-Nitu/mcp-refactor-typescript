@@ -4,6 +4,7 @@ import { RefactorResult, TypeScriptServer } from '../language-servers/typescript
 import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc, TSRenameResponse, TSTextChange } from '../language-servers/typescript/tsserver-types.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { Operation } from './registry.js';
+import { RefactoringProcessor } from './refactoring-processor.js';
 
 const extractVariableSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -28,7 +29,30 @@ const extractVariableSchema = z.object({
 );
 
 export class ExtractVariableOperation implements Operation {
-  constructor(private tsServer: TypeScriptServer) {}
+  constructor(
+    private tsServer: TypeScriptServer,
+    private processor: RefactoringProcessor = new RefactoringProcessor('const')
+  ) {}
+
+  private detectIndentation(lines: string[], targetLine: number): string {
+    // Look at surrounding lines to detect indentation
+    for (let i = targetLine; i < Math.min(targetLine + 3, lines.length); i++) {
+      const line = lines[i];
+      if (line.trim().length > 0) {
+        const match = line.match(/^(\s*)/);
+        if (match) return match[1];
+      }
+    }
+    // Look backwards if no indent found ahead
+    for (let i = targetLine - 1; i >= Math.max(0, targetLine - 3); i--) {
+      const line = lines[i];
+      if (line.trim().length > 0) {
+        const match = line.match(/^(\s*)/);
+        if (match) return match[1];
+      }
+    }
+    return '';
+  }
 
   getSchema() {
     return {
@@ -222,21 +246,40 @@ This might indicate:
           const startOffset = change.start.offset - 1;
           const endOffset = change.end.offset - 1;
 
+          let newText = change.newText;
+
+          // Fix indentation if this change contains a const declaration
+          if (newText.includes('const ')) {
+            const textLines = newText.split('\n');
+            const constLineIndex = textLines.findIndex(l => l.includes('const '));
+
+            if (constLineIndex !== -1) {
+              const constLine = textLines[constLineIndex];
+              const insertedIndent = constLine.match(/^(\s*)/)?.[1] || '';
+              const existingIndent = this.detectIndentation(fileContent.split('\n'), startLine);
+
+              if (insertedIndent !== existingIndent) {
+                textLines[constLineIndex] = constLine.replace(/^\s*/, existingIndent);
+                newText = textLines.join('\n');
+              }
+            }
+          }
+
           fileChanges.edits.push({
             line: change.start.line,
             old: lines[startLine].substring(startOffset, endOffset),
-            new: change.newText
+            new: newText
           });
 
           if (startLine === endLine) {
             lines[startLine] =
               lines[startLine].substring(0, startOffset) +
-              change.newText +
+              newText +
               lines[startLine].substring(endOffset);
           } else {
             const before = lines[startLine].substring(0, startOffset);
             const after = lines[endLine].substring(endOffset);
-            lines.splice(startLine, endLine - startLine + 1, before + change.newText + after);
+            lines.splice(startLine, endLine - startLine + 1, before + newText + after);
           }
         }
 
@@ -249,13 +292,11 @@ This might indicate:
         filesChanged.push(fileChanges);
 
         if (!generatedVariableName && fileEdit.fileName === filePath) {
-          const constMatch = updatedContent.match(/const\s+(\w+)\s*=/);
-          if (constMatch) {
-            generatedVariableName = constMatch[1];
-            const lineIndex = updatedContent.split('\n').findIndex(line => line.includes(`const ${generatedVariableName}`));
-            variableDeclarationLine = lineIndex + 1;
-            const declarationLine = updatedContent.split('\n')[lineIndex];
-            variableColumn = declarationLine.indexOf(generatedVariableName) + 1;
+          const declaration = this.processor.findDeclaration(sortedChanges);
+          if (declaration) {
+            generatedVariableName = declaration.name;
+            variableDeclarationLine = declaration.line;
+            variableColumn = declaration.column;
           }
         }
       }
@@ -304,6 +345,9 @@ This might indicate:
             }
 
             await writeFile(fileLoc.file, lines.join('\n'));
+
+            // Update filesChanged to reflect the rename in the response
+            this.processor.updateFilesChangedAfterRename(filesChanged, generatedVariableName, variableName, fileLoc.file);
           }
         }
       }

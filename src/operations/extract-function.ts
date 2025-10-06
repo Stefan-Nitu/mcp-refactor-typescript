@@ -6,6 +6,7 @@ import { readFile, writeFile } from 'fs/promises';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc, TSRenameResponse, TSTextChange } from '../language-servers/typescript/tsserver-types.js';
+import { RefactoringProcessor } from './refactoring-processor.js';
 
 export const extractFunctionSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -36,7 +37,10 @@ export const extractFunctionSchema = z.object({
 );
 
 export class ExtractFunctionOperation {
-  constructor(private tsServer: TypeScriptServer) {}
+  constructor(
+    private tsServer: TypeScriptServer,
+    private processor: RefactoringProcessor = new RefactoringProcessor('function')
+  ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
@@ -158,10 +162,10 @@ This might happen if:
 
       const edits = await this.tsServer.sendRequest<TSRefactorEditInfo>('getEditsForRefactor', {
         file: validated.filePath,
-        startLine: validated.startLine,
-        startOffset: validated.startColumn,
-        endLine: validated.endLine,
-        endOffset: validated.endColumn,
+        startLine,
+        startOffset: startColumn,
+        endLine,
+        endOffset: endColumn,
         refactor: extractRefactor.name,
         action: extractAction.name
       });
@@ -181,8 +185,6 @@ This might indicate:
 
       const filesChanged: RefactorResult['filesChanged'] = [];
       let generatedFunctionName: string | null = null;
-      let functionDeclarationLine: number | null = null;
-      let functionColumn: number | null = null;
 
       // Apply edits
       for (const fileEdit of edits.edits) {
@@ -234,13 +236,9 @@ This might indicate:
         filesChanged.push(fileChanges);
 
         if (!generatedFunctionName && fileEdit.fileName === validated.filePath) {
-          const functionMatch = updatedContent.match(/function\s+(\w+)\s*\(/);
-          if (functionMatch) {
-            generatedFunctionName = functionMatch[1];
-            const lineIndex = updatedContent.split('\n').findIndex(line => line.includes(`function ${generatedFunctionName}`));
-            functionDeclarationLine = lineIndex + 1;
-            const declarationLine = updatedContent.split('\n')[lineIndex];
-            functionColumn = declarationLine.indexOf(generatedFunctionName) + 1;
+          const declaration = this.processor.findDeclaration(sortedChanges);
+          if (declaration) {
+            generatedFunctionName = declaration.name;
           }
         }
       }
@@ -259,12 +257,43 @@ This might indicate:
         };
       }
 
-      if (validated.functionName && generatedFunctionName && generatedFunctionName !== validated.functionName && functionDeclarationLine && functionColumn) {
+      if (validated.functionName && generatedFunctionName && generatedFunctionName !== validated.functionName) {
+        // Re-read file to find function location after edits were applied
+        const updatedFileContent = await readFile(validated.filePath, 'utf8');
+        const updatedLines = updatedFileContent.split('\n');
+
+        // Find the function declaration in the updated file
+        let functionLine: number | null = null;
+        let functionColumn: number | null = null;
+
+        for (let i = 0; i < updatedLines.length; i++) {
+          const line = updatedLines[i];
+          const match = line.match(new RegExp(`function\\s+${generatedFunctionName}\\s*\\(`));
+          if (match) {
+            functionLine = i + 1; // 1-indexed
+            functionColumn = line.indexOf(generatedFunctionName) + 1; // 1-indexed
+            break;
+          }
+        }
+
+        if (!functionLine || !functionColumn) {
+          // Function not found in updated file - skip rename
+          return {
+            success: true,
+            message: 'Extracted function',
+            filesChanged,
+            nextActions: [
+              'organize_imports - Clean up imports if needed',
+              'infer_return_type - Add explicit return type to the extracted function'
+            ]
+          };
+        }
+
         await this.tsServer.openFile(validated.filePath);
 
         const renameResult = await this.tsServer.sendRequest('rename', {
           file: validated.filePath,
-          line: functionDeclarationLine,
+          line: functionLine,
           offset: functionColumn,
           findInComments: false,
           findInStrings: false
@@ -289,6 +318,9 @@ This might indicate:
             }
 
             await writeFile(fileLoc.file, lines.join('\n'));
+
+            // Update filesChanged to reflect the rename in the response
+            this.processor.updateFilesChangedAfterRename(filesChanged, generatedFunctionName, validated.functionName, fileLoc.file);
           }
         }
       }
@@ -322,9 +354,7 @@ Try:
       description: `Extract code blocks into functions with auto-detected parameters, return types, dependencies, and your custom name. TypeScript analyzes data flow to determine what needs to be passed in vs returned. Impossible to do correctly by hand - would require manual analysis of closures, mutations, and control flow.
 
 Example: Extract "const result = x + y;" with name "addNumbers"
-  Input:
-    const x = 10; const y = 20;
-    const result = x + y;
+  Input: { filePath, line: 2, text: "x + y", functionName: "addNumbers" }
   Output:
     function addNumbers() { return x + y; }
     const result = addNumbers();
@@ -334,10 +364,12 @@ Example: Extract "const result = x + y;" with name "addNumbers"
   ✓ Replaces selection with function call`,
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
-        startLine: z.number().int().positive('Start line must be a positive integer'),
-        startColumn: z.number().int().positive('Start column must be a positive integer'),
-        endLine: z.number().int().positive('End line must be a positive integer'),
-        endColumn: z.number().int().positive('End column must be a positive integer'),
+        line: z.number().int().positive().optional().describe('Line number where the text appears'),
+        text: z.string().optional().describe('Exact text to extract from the line'),
+        startLine: z.number().int().positive().optional().describe('Precise start line (alternative to line+text)'),
+        startColumn: z.number().int().nonnegative().optional().describe('Precise start column'),
+        endLine: z.number().int().positive().optional().describe('Precise end line'),
+        endColumn: z.number().int().nonnegative().optional().describe('Precise end column'),
         functionName: z.string().optional()
       }
     };
