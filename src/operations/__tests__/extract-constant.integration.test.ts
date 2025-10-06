@@ -29,13 +29,11 @@ describe('extractConstant', () => {
   return area;
 }`, 'utf-8');
 
-    // Act - Select just "3.14159"
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 2,
-      startColumn: 16,
-      endLine: 2,
-      endColumn: 23
+      line: 2,
+      text: '3.14159'
     });
 
     // Assert
@@ -52,13 +50,11 @@ describe('extractConstant', () => {
   return "https://api.example.com/v1";
 }`, 'utf-8');
 
-    // Act - Select the string
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 2,
-      startColumn: 10,
-      endLine: 2,
-      endColumn: 38
+      line: 2,
+      text: '"https://api.example.com/v1"'
     });
 
     // Assert
@@ -75,13 +71,11 @@ describe('extractConstant', () => {
   return circumference;
 }`, 'utf-8');
 
-    // Act - Extract "3.14159" with custom name "PI"
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 2,
-      startColumn: 28,
-      endLine: 2,
-      endColumn: 35,
+      line: 2,
+      text: '3.14159',
       constantName: 'PI'
     });
 
@@ -100,15 +94,11 @@ describe('extractConstant', () => {
   return tax;
 }`, 'utf-8');
 
-    // Act - Extract "0.15" as TAX_RATE
-    // Line: "  const tax = quantity * 0.15;"
-    // Column 26 is start of "0.15", column 30 is end
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 2,
-      startColumn: 26,
-      endLine: 2,
-      endColumn: 30,
+      line: 2,
+      text: '0.15',
       constantName: 'TAX_RATE'
     });
 
@@ -231,13 +221,11 @@ describe('extractConstant', () => {
     const filePath = join(testDir, 'src', 'invalid.ts');
     await writeFile(filePath, `const x = 1;`, 'utf-8');
 
-    // Act - Try to extract a variable name
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 1,
-      startColumn: 7,
-      endLine: 1,
-      endColumn: 8
+      line: 1,
+      text: 'x'
     });
 
     // Assert

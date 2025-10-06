@@ -28,13 +28,11 @@ describe('extractVariable', () => {
   return (a + b) * 2;
 }`, 'utf-8');
 
-    // Act - Select the expression "(a + b) * 2"
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 2,
-      startColumn: 10,
-      endLine: 2,
-      endColumn: 21
+      line: 2,
+      text: '(a + b) * 2'
     });
 
     // Assert
@@ -50,13 +48,11 @@ describe('extractVariable', () => {
   return (a + b) * 2;
 }`, 'utf-8');
 
-    // Act - Extract "(a + b) * 2" with custom name "doubled"
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 2,
-      startColumn: 10,
-      endLine: 2,
-      endColumn: 21,
+      line: 2,
+      text: '(a + b) * 2',
       variableName: 'doubled'
     });
 
@@ -175,13 +171,11 @@ describe('extractVariable', () => {
     const filePath = join(testDir, 'src', 'invalid.ts');
     await writeFile(filePath, `const x = 1;`, 'utf-8');
 
-    // Act - Try to extract a variable name
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 1,
-      startColumn: 7,
-      endLine: 1,
-      endColumn: 8
+      line: 1,
+      text: 'x'
     });
 
     // Assert

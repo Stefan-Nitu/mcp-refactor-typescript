@@ -33,13 +33,11 @@ describe('extractFunction', () => {
 
     await writeFile(filePath, code, 'utf-8');
 
-    // Act - extract line 4 (const result = x + y;)
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 4,
-      startColumn: 3,
-      endLine: 4,
-      endColumn: 23,
+      line: 4,
+      text: 'const result = x + y;',
       functionName: 'addNumbers'
     });
 
@@ -58,13 +56,11 @@ describe('extractFunction', () => {
 
     await writeFile(filePath, code, 'utf-8');
 
-    // Act - extract line 2 with custom name
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 2,
-      startColumn: 3,
-      endLine: 2,
-      endColumn: 19,
+      line: 2,
+      text: 'const x = 1 + 2;',
       functionName: 'addNumbers'
     });
 
@@ -87,10 +83,8 @@ describe('extractFunction', () => {
     // Act - Extract first function
     const response1 = await operation!.execute({
       filePath,
-      startLine: 2,
-      startColumn: 15,
-      endLine: 2,
-      endColumn: 20,
+      line: 2,
+      text: 'x + y',
       functionName: 'addNums'
     });
 
@@ -103,10 +97,8 @@ describe('extractFunction', () => {
     // Act - Extract second function (line shifts after first extraction)
     const response2 = await operation!.execute({
       filePath,
-      startLine: 3,
-      startColumn: 16,
-      endLine: 3,
-      endColumn: 21,
+      line: 3,
+      text: 'x - y',
       functionName: 'subtractNums'
     });
 
@@ -176,14 +168,12 @@ describe('extractFunction', () => {
 
     await writeFile(filePath, code, 'utf-8');
 
-    // Act - extract the discount calculation block with custom name
+    // Act - extract the discount calculation expression with custom name
     const response = await operation!.execute({
       filePath,
-      startLine: 7,
-      startColumn: 3,
-      endLine: 12,
-      endColumn: 4,
-      functionName: 'calculateDiscount'
+      line: 9,
+      text: 'subtotal * 0.15',
+      functionName: 'calculatePremiumDiscount'
     });
 
     // Assert
@@ -191,11 +181,11 @@ describe('extractFunction', () => {
     const content = await readFile(filePath, 'utf-8');
 
     // Function should have the custom name, NOT "newFunction"
-    expect(content).toContain('function calculateDiscount');
+    expect(content).toContain('function calculatePremiumDiscount');
     expect(content).not.toContain('function newFunction');
 
     // Call site should use the custom name
-    expect(content).toMatch(/let discount = calculateDiscount\(/);
+    expect(content).toMatch(/calculatePremiumDiscount\(/);
   });
 
   it('should handle when extraction is not possible', async () => {
@@ -205,13 +195,11 @@ describe('extractFunction', () => {
 
     await writeFile(filePath, code, 'utf-8');
 
-    // Act - try to extract part of const declaration
+    // Act
     const response = await operation!.execute({
       filePath,
-      startLine: 1,
-      startColumn: 1,
-      endLine: 1,
-      endColumn: 5,
+      line: 1,
+      text: 'const',
       functionName: 'extracted'
     });
 
