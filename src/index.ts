@@ -9,10 +9,17 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { OperationRegistry } from './operations/registry.js';
 import { logger } from './utils/logger.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
 
 const server = new McpServer({
   name: 'mcp-refactor-typescript',
-  version: '1.0.1'
+  version: packageJson.version
 });
 
 const registry = new OperationRegistry();
