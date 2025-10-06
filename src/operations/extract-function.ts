@@ -10,31 +10,11 @@ import { RefactoringProcessor } from './refactoring-processor.js';
 
 export const extractFunctionSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
-  line: z.number().int().positive().optional(),
-  text: z.string().optional(),
-  startLine: z.number().int().positive().optional(),
-  startColumn: z.number().int().positive().optional(),
-  endLine: z.number().int().positive().optional(),
-  endColumn: z.number().int().positive().optional(),
+  line: z.number().int().positive('Line must be a positive integer'),
+  text: z.string().min(1, 'Text cannot be empty'),
   functionName: z.string().optional(),
   preview: z.boolean().optional()
-}).refine(
-  (data) => {
-    const hasSimplified = data.line !== undefined && data.text !== undefined;
-    const hasPrecise = data.startLine !== undefined && data.startColumn !== undefined &&
-                       data.endLine !== undefined && data.endColumn !== undefined;
-    if (!hasSimplified && !hasPrecise) {
-      return false;
-    }
-    if (hasPrecise && data.endLine! < data.startLine!) {
-      return false;
-    }
-    return true;
-  },
-  {
-    message: 'Must provide either (line + text) or (startLine + startColumn + endLine + endColumn), and endLine >= startLine'
-  }
-);
+});
 
 export class ExtractFunctionOperation {
   constructor(
@@ -45,54 +25,42 @@ export class ExtractFunctionOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = extractFunctionSchema.parse(input);
-      let { startLine, startColumn, endLine, endColumn } = validated;
+      const { filePath, line, text, functionName } = validated;
 
-      // Handle simplified API: convert line + text to column positions
-      if (validated.line !== undefined && validated.text !== undefined) {
-        const fileContent = await readFile(validated.filePath, 'utf8');
-        const lines = fileContent.split('\n');
-        const lineIndex = validated.line - 1;
+      // Convert text to column positions
+      const fileContent = await readFile(filePath, 'utf8');
+      const lines = fileContent.split('\n');
+      const lineIndex = line - 1;
 
-        if (lineIndex < 0 || lineIndex >= lines.length) {
-          return {
-            success: false,
-            message: `Line ${validated.line} is out of range (file has ${lines.length} lines)`,
-            filesChanged: []
-          };
-        }
+      if (lineIndex < 0 || lineIndex >= lines.length) {
+        return {
+          success: false,
+          message: `Line ${line} is out of range (file has ${lines.length} lines)`,
+          filesChanged: []
+        };
+      }
 
-        const lineContent = lines[lineIndex];
-        const textIndex = lineContent.indexOf(validated.text);
+      const lineContent = lines[lineIndex];
+      const textIndex = lineContent.indexOf(text);
 
-        if (textIndex === -1) {
-          return {
-            success: false,
-            message: `Text "${validated.text}" not found on line ${validated.line}
+      if (textIndex === -1) {
+        return {
+          success: false,
+          message: `Text "${text}" not found on line ${line}
 
 Line content: ${lineContent}
 
 Try:
   1. Check the text matches exactly (case-sensitive)
-  2. Ensure you're on the correct line
-  3. Use the precise column API if the text appears multiple times`,
-            filesChanged: []
-          };
-        }
-
-        startLine = validated.line;
-        startColumn = textIndex + 1;
-        endLine = validated.line;
-        endColumn = textIndex + validated.text.length + 1;
-      }
-
-      if (startLine === undefined || startColumn === undefined ||
-          endLine === undefined || endColumn === undefined) {
-        return {
-          success: false,
-          message: 'Internal error: column positions not properly set',
+  2. Ensure you're on the correct line`,
           filesChanged: []
         };
       }
+
+      const startLine = line;
+      const startColumn = textIndex + 1;
+      const endLine = line;
+      const endColumn = textIndex + text.length + 1;
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -101,10 +69,10 @@ Try:
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      await this.tsServer.openFile(validated.filePath);
+      await this.tsServer.openFile(filePath);
 
       const refactors = await this.tsServer.sendRequest('getApplicableRefactors', {
-        file: validated.filePath,
+        file: filePath,
         startLine,
         startOffset: startColumn,
         endLine,
@@ -114,7 +82,7 @@ Try:
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
-          message: `Cannot extract function: No extractable code at ${validated.filePath}:${validated.startLine}:${validated.startColumn}-${validated.endLine}:${validated.endColumn}
+          message: `Cannot extract function: No extractable code for "${text}" at ${filePath}:${line}
 
 Try:
   1. Select a valid statement or expression (not just whitespace)
@@ -247,7 +215,7 @@ This might indicate:
       if (validated.preview) {
         return {
           success: true,
-          message: `Preview: Would extract function${validated.functionName ? ` "${validated.functionName}"` : ''}`,
+          message: `Preview: Would extract function${functionName ? ` "${functionName}"` : ''}`,
           filesChanged,
           preview: {
             filesAffected: filesChanged.length,
@@ -257,9 +225,9 @@ This might indicate:
         };
       }
 
-      if (validated.functionName && generatedFunctionName && generatedFunctionName !== validated.functionName) {
+      if (functionName && generatedFunctionName && generatedFunctionName !== functionName) {
         // Re-read file to find function location after edits were applied
-        const updatedFileContent = await readFile(validated.filePath, 'utf8');
+        const updatedFileContent = await readFile(filePath, 'utf8');
         const updatedLines = updatedFileContent.split('\n');
 
         // Find the function declaration in the updated file
@@ -313,14 +281,14 @@ This might indicate:
               const line = lines[lineIndex];
               lines[lineIndex] =
                 line.substring(0, edit.start.offset - 1) +
-                validated.functionName +
+                functionName +
                 line.substring(edit.end.offset - 1);
             }
 
             await writeFile(fileLoc.file, lines.join('\n'));
 
             // Update filesChanged to reflect the rename in the response
-            this.processor.updateFilesChangedAfterRename(filesChanged, generatedFunctionName, validated.functionName, fileLoc.file);
+            this.processor.updateFilesChangedAfterRename(filesChanged, generatedFunctionName, functionName, fileLoc.file);
           }
         }
       }
@@ -364,12 +332,8 @@ Example: Extract "const result = x + y;" with name "addNumbers"
   ✓ Replaces selection with function call`,
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
-        line: z.number().int().positive().optional().describe('Line number where the text appears'),
-        text: z.string().optional().describe('Exact text to extract from the line'),
-        startLine: z.number().int().positive().optional().describe('Precise start line (alternative to line+text)'),
-        startColumn: z.number().int().nonnegative().optional().describe('Precise start column'),
-        endLine: z.number().int().positive().optional().describe('Precise end line'),
-        endColumn: z.number().int().nonnegative().optional().describe('Precise end column'),
+        line: z.number().int().positive('Line must be a positive integer'),
+        text: z.string().min(1, 'Text cannot be empty'),
         functionName: z.string().optional()
       }
     };

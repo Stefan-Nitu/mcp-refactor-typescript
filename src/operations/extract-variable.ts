@@ -8,25 +8,11 @@ import { RefactoringProcessor } from './refactoring-processor.js';
 
 const extractVariableSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
-  line: z.number().int().positive().optional(),
-  text: z.string().optional(),
-  startLine: z.number().int().positive().optional(),
-  startColumn: z.number().int().nonnegative().optional(),
-  endLine: z.number().int().positive().optional(),
-  endColumn: z.number().int().nonnegative().optional(),
+  line: z.number().int().positive('Line must be a positive integer'),
+  text: z.string().min(1, 'Text cannot be empty'),
   variableName: z.string().optional(),
   preview: z.boolean().optional()
-}).refine(
-  (data) => {
-    const hasSimplified = data.line !== undefined && data.text !== undefined;
-    const hasPrecise = data.startLine !== undefined && data.startColumn !== undefined &&
-                       data.endLine !== undefined && data.endColumn !== undefined;
-    return hasSimplified || hasPrecise;
-  },
-  {
-    message: 'Must provide either (line + text) or (startLine + startColumn + endLine + endColumn)'
-  }
-);
+});
 
 export class ExtractVariableOperation implements Operation {
   constructor(
@@ -69,12 +55,8 @@ Example: Extract expression with custom name "doubled"
   ✓ const/let determined by usage`,
       inputSchema: {
         filePath: z.string().min(1, 'File path cannot be empty'),
-        line: z.number().int().positive().optional().describe('Line number where the text appears'),
-        text: z.string().optional().describe('Exact text to extract from the line'),
-        startLine: z.number().int().positive().optional().describe('Precise start line (alternative to line+text)'),
-        startColumn: z.number().int().nonnegative().optional().describe('Precise start column'),
-        endLine: z.number().int().positive().optional().describe('Precise end line'),
-        endColumn: z.number().int().nonnegative().optional().describe('Precise end column'),
+        line: z.number().int().positive('Line must be a positive integer'),
+        text: z.string().min(1, 'Text cannot be empty'),
         variableName: z.string().optional()
       }
     };
@@ -83,54 +65,42 @@ Example: Extract expression with custom name "doubled"
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = extractVariableSchema.parse(input);
-      let { filePath, startLine, startColumn, endLine, endColumn, variableName } = validated;
+      const { filePath, line, text, variableName } = validated;
 
-      // Handle simplified API: convert line + text to column positions
-      if (validated.line !== undefined && validated.text !== undefined) {
-        const fileContent = await readFile(validated.filePath, 'utf8');
-        const lines = fileContent.split('\n');
-        const lineIndex = validated.line - 1;
+      // Convert text to column positions
+      const fileContent = await readFile(filePath, 'utf8');
+      const lines = fileContent.split('\n');
+      const lineIndex = line - 1;
 
-        if (lineIndex < 0 || lineIndex >= lines.length) {
-          return {
-            success: false,
-            message: `Line ${validated.line} is out of range (file has ${lines.length} lines)`,
-            filesChanged: []
-          };
-        }
+      if (lineIndex < 0 || lineIndex >= lines.length) {
+        return {
+          success: false,
+          message: `Line ${line} is out of range (file has ${lines.length} lines)`,
+          filesChanged: []
+        };
+      }
 
-        const lineContent = lines[lineIndex];
-        const textIndex = lineContent.indexOf(validated.text);
+      const lineContent = lines[lineIndex];
+      const textIndex = lineContent.indexOf(text);
 
-        if (textIndex === -1) {
-          return {
-            success: false,
-            message: `Text "${validated.text}" not found on line ${validated.line}
+      if (textIndex === -1) {
+        return {
+          success: false,
+          message: `Text "${text}" not found on line ${line}
 
 Line content: ${lineContent}
 
 Try:
   1. Check the text matches exactly (case-sensitive)
-  2. Ensure you're on the correct line
-  3. Use the precise column API if the text appears multiple times`,
-            filesChanged: []
-          };
-        }
-
-        startLine = validated.line;
-        startColumn = textIndex + 1;
-        endLine = validated.line;
-        endColumn = textIndex + validated.text.length + 1;
-      }
-
-      if (startLine === undefined || startColumn === undefined ||
-          endLine === undefined || endColumn === undefined) {
-        return {
-          success: false,
-          message: 'Internal error: column positions not properly set',
+  2. Ensure you're on the correct line`,
           filesChanged: []
         };
       }
+
+      const startLine = line;
+      const startColumn = textIndex + 1;
+      const endLine = line;
+      const endColumn = textIndex + text.length + 1;
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
