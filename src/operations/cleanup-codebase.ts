@@ -21,6 +21,13 @@ const cleanupCodebaseSchema = z.object({
     .describe(
       'Starting files your app runs from (regex patterns). Examples: ["src/main\\\\.ts$"]. Defaults to main/index/app/server files'
     ),
+  deleteUnusedFiles: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe(
+      'Delete files with no used exports (default: false). When false, only removes unused exports within files.'
+    ),
   preview: z.boolean().optional()
 });
 
@@ -59,46 +66,122 @@ Try:
         validated.entrypoints?.join('|') || `${defaultEntrypoints}|${testFilePatterns}`;
 
       if (validated.preview) {
-        return {
-          success: true,
-          message: `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)
-  ✓ Remove unused exports (using tsr)
-  ✓ Organize imports on changed files`,
-          filesChanged: [],
-          preview: {
-            filesAffected: tsFiles.length,
-            estimatedTime: `< ${Math.max(2, Math.ceil(tsFiles.length / 10))}s`,
-            command: 'Run again with preview: false to apply changes'
+        if (validated.deleteUnusedFiles) {
+          try {
+            const result = await execAsync(`npx tsr --recursive '${entrypoints}'`, {
+              cwd: validated.directory,
+              maxBuffer: 10 * 1024 * 1024,
+              timeout: 60000
+            });
+
+            const output = result.stdout || '';
+            const lines = output.trim().split('\n').filter(l => l.trim().length > 0);
+
+            let previewMessage = `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)\n\n`;
+
+            if (lines.length === 0 || output.includes('No unused')) {
+              previewMessage += 'No unused exports or files found!\n- All exports are used\n- No files would be deleted';
+            } else {
+              previewMessage += `TSR would make changes:\n${lines.slice(0, 20).join('\n')}`;
+              if (lines.length > 20) {
+                previewMessage += `\n... and ${lines.length - 20} more changes`;
+              }
+              previewMessage += '\n\nWill also organize imports in affected files';
+            }
+
+            return {
+              success: true,
+              message: previewMessage,
+              filesChanged: [],
+              preview: {
+                filesAffected: lines.length,
+                estimatedTime: `< ${Math.max(2, Math.ceil(tsFiles.length / 10))}s`,
+                command: 'Run again with preview: false to apply changes'
+              }
+            };
+          } catch (error: unknown) {
+            const execError = error as { code?: number; stdout?: string; stderr?: string };
+
+            // tsr exits with code 1 when it finds changes, which is expected
+            if (execError.code === 1 && execError.stderr) {
+              const output = execError.stderr;
+              const lines = output.trim().split('\n').filter(l => l.trim().length > 0);
+
+              let previewMessage = `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)\n\n`;
+
+              if (output.includes('No unused')) {
+                previewMessage += 'No unused exports or files found!\n- All exports are used\n- No files would be deleted';
+              } else {
+                previewMessage += `TSR would make changes:\n${lines.slice(0, 20).join('\n')}`;
+                if (lines.length > 20) {
+                  previewMessage += `\n... and ${lines.length - 20} more changes`;
+                }
+                previewMessage += '\n\nWill also organize imports in affected files';
+              }
+
+              return {
+                success: true,
+                message: previewMessage,
+                filesChanged: [],
+                preview: {
+                  filesAffected: lines.length,
+                  estimatedTime: `< ${Math.max(2, Math.ceil(tsFiles.length / 10))}s`,
+                  command: 'Run again with preview: false to apply changes'
+                }
+              };
+            }
+
+            return {
+              success: false,
+              message: `Preview failed: ${execError.stderr || execError.stdout || 'tsr error'}\n\nTry:\n  1. Ensure tsr is installed (npm install tsr)\n  2. Check tsconfig.json is valid\n  3. Verify entry point patterns match files`,
+              filesChanged: []
+            };
           }
-        };
+        } else {
+          return {
+            success: true,
+            message: `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)\n\nOrganize imports only\nTo remove unused exports/files, set deleteUnusedFiles: true`,
+            filesChanged: [],
+            preview: {
+              filesAffected: tsFiles.length,
+              estimatedTime: `< ${Math.max(2, Math.ceil(tsFiles.length / 10))}s`,
+              command: 'Run again with preview: false to apply changes'
+            }
+          };
+        }
       }
 
       const steps: string[] = [];
       const filesChanged: RefactorResult['filesChanged'] = [];
 
-      try {
-        await execAsync(`npx tsr --write --recursive '${entrypoints}'`, {
-          cwd: validated.directory,
-          maxBuffer: 10 * 1024 * 1024,
-          timeout: 60000
-        });
-        steps.push('✓ Removed unused exports (tsr)');
-      } catch (error: unknown) {
-        const execError = error as { code?: number; stdout?: string; stderr?: string; killed?: boolean };
+      // Only run tsr if deleteUnusedFiles is true
+      if (validated.deleteUnusedFiles) {
+        try {
+          await execAsync(`npx tsr --write --recursive '${entrypoints}'`, {
+            cwd: validated.directory,
+            maxBuffer: 10 * 1024 * 1024,
+            timeout: 60000
+          });
+          steps.push('Removed unused exports and files (tsr)');
+        } catch (error: unknown) {
+          const execError = error as { code?: number; stdout?: string; stderr?: string; killed?: boolean };
 
-        if (execError.killed) {
-          return {
-            success: false,
-            message: 'tsr timed out after 60 seconds - project may be too large',
-            filesChanged: []
-          };
-        }
+          if (execError.killed) {
+            return {
+              success: false,
+              message: 'tsr timed out after 60 seconds - project may be too large',
+              filesChanged: []
+            };
+          }
 
-        if (execError.code === 1) {
-          steps.push('✓ Removed unused exports (tsr)');
-        } else {
-          throw error;
+          if (execError.code === 1) {
+            steps.push('Removed unused exports and files (tsr)');
+          } else {
+            throw error;
+          }
         }
+      } else {
+        steps.push('Skipped unused export removal (deleteUnusedFiles: false)');
       }
 
       const organizeOp = new OrganizeImportsOperation(this.tsServer);
@@ -170,18 +253,28 @@ Try:
   getSchema() {
     return {
       title: 'Cleanup Codebase',
-      description: `Clean entire codebase: remove unused exports + organize imports.
+      description: `Clean entire codebase: organize imports and optionally remove unused exports/files.
+
+Safety First (Default Behavior):
+  By default, only organizes imports WITHOUT deleting files or exports.
+  Set deleteUnusedFiles: true for aggressive cleanup.
 
 What are entry points?
   Entry points are the "main" files your app starts from (like main.ts or server.ts).
-  The tool follows imports from these files to find what's actually used. Everything else is removed.
+  When deleteUnusedFiles is true, the tool follows imports from these files to find what's actually used.
 
-Example: Cleanup src/ directory
+Example: Safe cleanup (organizes imports only)
   Input: { directory: "src" }
-  ✓ Removes unused exports
-  ✓ Organizes imports in all files
-  ✓ Preserves test files automatically
-  ✓ Skips node_modules and hidden directories
+  - Organizes imports in all files
+  - Preserves all files and exports
+  - Skips node_modules and hidden directories
+
+Example: Aggressive cleanup (removes unused code)
+  Input: { directory: "src", deleteUnusedFiles: true }
+  - Removes unused exports using tsr
+  - Deletes files with no used exports
+  - Organizes imports in remaining files
+  WARNING: This will delete files! Use preview mode first.
 
 Entry points default to: main/index/app/server files + all test files
 Customize with: { entrypoints: ["src/custom\\\\.ts$"] }

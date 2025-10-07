@@ -54,7 +54,7 @@ describe('Rename Operation Business Logic', () => {
       const response = await operation.execute({
         filePath: '/test/file.ts',
         line: 1,
-        column: 17,
+        text: 'oldName',
         newName: 'newName'
       });
 
@@ -81,7 +81,7 @@ describe('Rename Operation Business Logic', () => {
       const response = await operation.execute({
         filePath: '/test/file.ts',
         line: 1,
-        column: 17,
+        text: 'oldName',
         newName: 'newName'
       });
 
@@ -108,7 +108,7 @@ describe('Rename Operation Business Logic', () => {
       const response = await operation.execute({
         filePath: '/test/file.ts',
         line: 1,
-        column: 17,
+        text: 'oldName',
         newName: 'newName',
         preview: true
       });

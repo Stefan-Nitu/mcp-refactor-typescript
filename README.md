@@ -12,12 +12,10 @@ A Model Context Protocol (MCP) server that provides comprehensive TypeScript/Jav
 MCP Refactor TypeScript exposes TypeScript's powerful refactoring engine through the Model Context Protocol, enabling AI assistants and other MCP clients to perform sophisticated code transformations that would be impossible or error-prone to do manually.
 
 **Key Features:**
-- ✅ **15 Production-Ready Refactoring Tools** - All operations fully implemented and tested
-- 🎯 **Type-Aware Refactoring** - Uses TypeScript's compiler for accurate, safe transformations
-- 🚀 **Cross-File Support** - Automatically updates imports, exports, and references across your entire codebase
-- ⚡ **Fast** - Operations complete in <2s even for large codebases
-- 🔒 **Safe** - Preview mode for all destructive operations
-- 📝 **Detailed Reporting** - See exactly what changed with file paths and line numbers
+- **Type-Aware Refactoring** - Uses TypeScript's compiler for accurate, safe transformations
+- **Cross-File Support** - Automatically updates imports, exports, and references across your entire codebase
+- **Safe** - Preview mode for all destructive operations
+- **Detailed Reporting** - See exactly what changed with file paths and line numbers
 
 ## Installation
 
@@ -249,9 +247,9 @@ npm run lint
 
 ### Test Coverage
 
-- **97 integration tests** covering all operations
-- **Unit tests** for validation, error handling, and edge cases
-- **E2E tests** for server startup and initialization
+- Integration tests covering all operations
+- Unit tests for validation, error handling, and edge cases
+- E2E tests for server startup and initialization
 - All tests use real TypeScript compiler (no mocks)
 
 ### Requirements

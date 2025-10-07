@@ -14,7 +14,7 @@ describe('Schema Validation', () => {
       const result = renameSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        column: 5,
+        text: 'oldName',
         newName: 'newVariableName'
       });
       expect(result.success).toBe(true);
@@ -23,7 +23,7 @@ describe('Schema Validation', () => {
     it('should reject missing filePath', () => {
       const result = renameSchema.safeParse({
         line: 10,
-        column: 5,
+        text: 'oldName',
         newName: 'newName'
       });
       expect(result.success).toBe(false);
@@ -36,7 +36,7 @@ describe('Schema Validation', () => {
       const result = renameSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: '10',
-        column: 5,
+        text: 'oldName',
         newName: 'newName'
       });
       expect(result.success).toBe(false);
@@ -46,7 +46,7 @@ describe('Schema Validation', () => {
       const result = renameSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        column: 5,
+        text: 'oldName',
         newName: ''
       });
       expect(result.success).toBe(false);
@@ -56,7 +56,7 @@ describe('Schema Validation', () => {
       const result = renameSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: -1,
-        column: 5,
+        text: 'oldName',
         newName: 'newName'
       });
       expect(result.success).toBe(false);
@@ -205,10 +205,8 @@ describe('Schema Validation', () => {
     it('should validate correct input', () => {
       const result = extractFunctionSchema.safeParse({
         filePath: '/path/to/file.ts',
-        startLine: 10,
-        startColumn: 5,
-        endLine: 15,
-        endColumn: 10
+        line: 10,
+        text: 'codeToExtract'
       });
       expect(result.success).toBe(true);
     });
@@ -216,22 +214,18 @@ describe('Schema Validation', () => {
     it('should accept optional functionName', () => {
       const result = extractFunctionSchema.safeParse({
         filePath: '/path/to/file.ts',
-        startLine: 10,
-        startColumn: 5,
-        endLine: 15,
-        endColumn: 10,
+        line: 10,
+        text: 'codeToExtract',
         functionName: 'myFunction'
       });
       expect(result.success).toBe(true);
     });
 
-    it('should reject when endLine < startLine', () => {
+    it('should reject empty text', () => {
       const result = extractFunctionSchema.safeParse({
         filePath: '/path/to/file.ts',
-        startLine: 15,
-        startColumn: 5,
-        endLine: 10,
-        endColumn: 10
+        line: 10,
+        text: ''
       });
       expect(result.success).toBe(false);
     });
@@ -239,10 +233,8 @@ describe('Schema Validation', () => {
     it('should reject negative positions', () => {
       const result = extractFunctionSchema.safeParse({
         filePath: '/path/to/file.ts',
-        startLine: -1,
-        startColumn: 5,
-        endLine: 15,
-        endColumn: 10
+        line: -1,
+        text: 'codeToExtract'
       });
       expect(result.success).toBe(false);
     });
