@@ -137,7 +137,8 @@ export function unusedFunc() {
     // Act
     const response = await operation!.execute({
       directory: join(testDir, 'src'),
-      entrypoints: ['main\\.ts$']
+      entrypoints: ['main\\.ts$'],
+      deleteUnusedFiles: true
     });
 
     // Assert
