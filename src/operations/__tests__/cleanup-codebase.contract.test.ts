@@ -210,4 +210,58 @@ describe('CleanupCodebase tsr contract tests', () => {
       expect((error as { killed?: boolean }).killed).toBe(true);
     }
   });
+
+  it('handles tsr output in stdout when exit code is 1', async () => {
+    // Arrange
+    const mockExec = vi.mocked(exec);
+    const tsrError = Object.assign(new Error('Command failed'), {
+      code: 1,
+      stdout: 'export foo.ts:1:0 "unused"\n✖ remove 1 export',
+      stderr: ''
+    });
+
+    mockExec.mockImplementation((_cmd, _opts, callback) => {
+      if (typeof callback === 'function') {
+        callback(tsrError, tsrError.stdout, tsrError.stderr);
+      }
+      return {} as ChildProcess;
+    });
+
+    // Act & Assert
+    try {
+      await execAsync(`npx tsr --recursive 'main\\.ts$'`, { cwd: '/test' });
+      expect.fail('Should throw when tsr exits with code 1');
+    } catch (error) {
+      // Assert: we correctly receive the error with exit code 1 and stdout
+      expect((error as { code?: number; stdout?: string }).code).toBe(1);
+      expect((error as { code?: number; stdout?: string }).stdout).toContain('unused');
+    }
+  });
+
+  it('handles tsr output in stderr when exit code is 1', async () => {
+    // Arrange
+    const mockExec = vi.mocked(exec);
+    const tsrError = Object.assign(new Error('Command failed'), {
+      code: 1,
+      stdout: '',
+      stderr: 'export bar.ts:2:0 "unused"\n✖ remove 1 export'
+    });
+
+    mockExec.mockImplementation((_cmd, _opts, callback) => {
+      if (typeof callback === 'function') {
+        callback(tsrError, tsrError.stdout, tsrError.stderr);
+      }
+      return {} as ChildProcess;
+    });
+
+    // Act & Assert
+    try {
+      await execAsync(`npx tsr --recursive 'main\\.ts$'`, { cwd: '/test' });
+      expect.fail('Should throw when tsr exits with code 1');
+    } catch (error) {
+      // Assert: we correctly receive the error with exit code 1 and stderr
+      expect((error as { code?: number; stderr?: string }).code).toBe(1);
+      expect((error as { code?: number; stderr?: string }).stderr).toContain('unused');
+    }
+  });
 });

@@ -103,8 +103,8 @@ Try:
             const execError = error as { code?: number; stdout?: string; stderr?: string };
 
             // tsr exits with code 1 when it finds changes, which is expected
-            if (execError.code === 1 && execError.stderr) {
-              const output = execError.stderr;
+            if (execError.code === 1 && (execError.stderr || execError.stdout)) {
+              const output = execError.stderr || execError.stdout || '';
               const lines = output.trim().split('\n').filter(l => l.trim().length > 0);
 
               let previewMessage = `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)\n\n`;
