@@ -94,3 +94,20 @@ export interface TSReferencesResponse {
   symbolDisplayString: string;
   refs: TSReferenceEntry[];
 }
+
+export interface TSDiagnostic {
+  start?: number;
+  length?: number;
+  startLocation?: TSPosition;
+  endLocation?: TSPosition;
+  message: string;
+  code: number;
+  category: string;
+  source?: string;
+  reportsUnnecessary?: boolean;
+}
+
+export interface TSCombinedCodeFix {
+  changes: TSFileEdit[];
+  commands?: unknown[];
+}

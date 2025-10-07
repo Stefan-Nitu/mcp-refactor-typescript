@@ -35,8 +35,16 @@ console.error(x);
     const response = await operation!.execute({ filePath });
 
     // Assert
+    console.log('Response:', JSON.stringify(response, null, 2));
     expect(response.success).toBe(true);
-    expect(response.message).toContain('Removed unused code');
+    expect(response.message).toContain('Removed');
+
+    // Verify unused variable was actually removed
+    const { readFile: read } = await import('fs/promises');
+    const content = await read(filePath, 'utf-8');
+    expect(content).not.toContain('const y');
+    expect(content).toContain('const x = 42');
+    expect(content).toContain('console.error(x)');
   });
 
   it('should report when no unused code found', async () => {
@@ -68,5 +76,12 @@ export const value = 42;
 
     // Assert
     expect(response.success).toBe(true);
+
+    // Verify imports were actually removed
+    const { readFile: read } = await import('fs/promises');
+    const content = await read(filePath, 'utf-8');
+    expect(content).not.toContain('readFile');
+    expect(content).not.toContain('writeFile');
+    expect(content).toContain('export const value = 42');
   });
 });

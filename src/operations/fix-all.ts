@@ -5,7 +5,13 @@
 import { readFile, writeFile } from 'fs/promises';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import type { TSCodeFixAction } from '../language-servers/typescript/tsserver-types.js';
+import type {
+  TSDiagnostic,
+  TSCodeFixAction,
+  TSCombinedCodeFix,
+  TSFileEdit,
+  TSTextChange
+} from '../language-servers/typescript/tsserver-types.js';
 
 export const fixAllSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -28,25 +34,79 @@ export class FixAllOperation {
 
       await this.tsServer.openFile(validated.filePath);
 
-      const result = await this.tsServer.sendRequest<TSCodeFixAction[]>('getCodeFixes', {
+      const diagnosticsResult = await this.tsServer.sendRequest<TSDiagnostic[]>('semanticDiagnosticsSync', {
         file: validated.filePath,
-        startLine: 1,
-        startOffset: 1,
-        endLine: 99999,
-        endOffset: 1,
-        errorCodes: []
+        includeLinePosition: true
       });
 
-      if (!result || result.length === 0) {
+      if (!diagnosticsResult || diagnosticsResult.length === 0) {
         return {
           success: true,
           message: 'No fixes needed',
-          filesChanged: [],
+          filesChanged: []
+        };
+      }
+
+      const fixIdToApply = new Set<string>();
+
+      for (const diagnostic of diagnosticsResult) {
+        const startLine = diagnostic.startLocation?.line ?? 1;
+        const startOffset = diagnostic.startLocation?.offset ?? 1;
+        const endLine = diagnostic.endLocation?.line ?? startLine;
+        const endOffset = diagnostic.endLocation?.offset ?? startOffset;
+
+        const fixes = await this.tsServer.sendRequest<TSCodeFixAction[]>('getCodeFixes', {
+          file: validated.filePath,
+          startLine,
+          endLine,
+          startOffset,
+          endOffset,
+          errorCodes: [diagnostic.code]
+        });
+
+        if (fixes && fixes.length > 0) {
+          for (const fix of fixes) {
+            if (fix.fixId) {
+              fixIdToApply.add(fix.fixId);
+            }
+          }
+        }
+      }
+
+      if (fixIdToApply.size === 0) {
+        return {
+          success: true,
+          message: 'No auto-fixable errors found',
+          filesChanged: []
+        };
+      }
+
+      let allChanges: TSFileEdit[] = [];
+
+      for (const fixId of fixIdToApply) {
+        const combinedFix = await this.tsServer.sendRequest<TSCombinedCodeFix>('getCombinedCodeFix', {
+          scope: {
+            type: 'file',
+            args: { file: validated.filePath }
+          },
+          fixId
+        });
+
+        if (combinedFix?.changes) {
+          allChanges = allChanges.concat(combinedFix.changes);
+        }
+      }
+
+      if (allChanges.length === 0) {
+        return {
+          success: true,
+          message: 'No fixes applied',
+          filesChanged: []
         };
       }
 
       const fileContent = await readFile(validated.filePath, 'utf8');
-      let updatedContent = fileContent;
+      const lines = fileContent.split('\n');
 
       const fileChanges = {
         file: validated.filePath.split('/').pop() || validated.filePath,
@@ -54,39 +114,48 @@ export class FixAllOperation {
         edits: [] as RefactorResult['filesChanged'][0]['edits']
       };
 
-      interface ChangeWithSpan { span: { start: number; length: number }; newText: string }
-      const allChanges: ChangeWithSpan[] = [];
-
-      for (const fix of result) {
-        for (const change of fix.changes) {
-          if (change.textChanges) {
-            for (const textChange of change.textChanges as unknown as ChangeWithSpan[]) {
-              allChanges.push(textChange);
-            }
-          }
+      const allTextChanges: TSTextChange[] = [];
+      for (const fileEdit of allChanges) {
+        if (fileEdit.fileName === validated.filePath) {
+          allTextChanges.push(...fileEdit.textChanges);
         }
       }
 
-      allChanges.sort((a, b) => b.span.start - a.span.start);
+      const sortedChanges = [...allTextChanges].sort((a, b) => {
+        if (b.start.line !== a.start.line) return b.start.line - a.start.line;
+        return b.start.offset - a.start.offset;
+      });
 
-      for (const change of allChanges) {
+      for (const change of sortedChanges) {
+        const startLine = change.start.line - 1;
+        const endLine = change.end.line - 1;
+        const startOffset = change.start.offset - 1;
+        const endOffset = change.end.offset - 1;
+
         fileChanges.edits.push({
-          line: 0,
-          old: fileContent.substring(change.span.start, change.span.start + change.span.length),
+          line: change.start.line,
+          old: lines[startLine]?.substring(startOffset, endOffset) || '',
           new: change.newText
         });
 
-        updatedContent =
-          updatedContent.substring(0, change.span.start) +
-          change.newText +
-          updatedContent.substring(change.span.start + change.span.length);
+        if (startLine === endLine) {
+          lines[startLine] =
+            lines[startLine].substring(0, startOffset) +
+            change.newText +
+            lines[startLine].substring(endOffset);
+        } else {
+          const before = lines[startLine].substring(0, startOffset);
+          const after = lines[endLine].substring(endOffset);
+          lines.splice(startLine, endLine - startLine + 1, before + change.newText + after);
+        }
       }
 
-      // Return preview if requested
+      const updatedContent = lines.join('\n');
+
       if (validated.preview) {
         return {
           success: true,
-          message: `Preview: Would apply ${result.length} fix(es)`,
+          message: `Preview: Would apply ${sortedChanges.length} fix(es)`,
           filesChanged: [fileChanges],
           preview: {
             filesAffected: 1,
@@ -96,12 +165,11 @@ export class FixAllOperation {
         };
       }
 
-      // Only write if not in preview mode
       await writeFile(validated.filePath, updatedContent);
 
       return {
         success: true,
-        message: `Applied ${result.length} fix(es)`,
+        message: `Applied ${sortedChanges.length} fix(es)`,
         filesChanged: [fileChanges],
         nextActions: [
           'organize_imports - Clean up imports after fixes'
@@ -116,7 +184,7 @@ Try:
   1. Ensure the file exists and is a valid TypeScript file
   2. Check that TypeScript can compile the file
   3. Some errors may not be auto-fixable`,
-        filesChanged: [],
+        filesChanged: []
       };
     }
   }
