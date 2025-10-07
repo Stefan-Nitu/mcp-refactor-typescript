@@ -5,7 +5,7 @@
 
 import type { TSTextChange } from '../language-servers/typescript/tsserver-types.js';
 
-export type DeclarationType = 'const' | 'function';
+type DeclarationType = 'const' | 'function';
 
 interface DeclarationConfig {
   readonly pattern: RegExp;
@@ -16,7 +16,7 @@ const DECLARATION_CONFIGS: Record<DeclarationType, DeclarationConfig> = {
   function: { pattern: /function\s+(\w+)\s*\(/ }
 };
 
-export interface DeclarationInfo {
+interface DeclarationInfo {
   name: string;
   line: number;
   column: number;
