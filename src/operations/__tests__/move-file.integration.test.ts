@@ -91,4 +91,57 @@ describe('moveFile', () => {
     expect(existsSync(newFilePath)).toBe(true);
     expect(existsSync(filePath)).toBe(false);
   });
+
+  it('should work with relative file paths', async () => {
+    // Arrange
+    const absoluteSourcePath = join(testDir, 'src', 'relative-source.ts');
+    const absoluteDestPath = join(testDir, 'src', 'helpers', 'relative-dest.ts');
+    const mainPath = join(testDir, 'src', 'main.ts');
+
+    await writeFile(absoluteSourcePath, 'export function relFunc() { return 42; }', 'utf-8');
+    await writeFile(mainPath, `import { relFunc } from './relative-source.js';\nconsole.error(relFunc());`, 'utf-8');
+
+    const relativeSourcePath = absoluteSourcePath.replace(process.cwd() + '/', '');
+    const relativeDestPath = absoluteDestPath.replace(process.cwd() + '/', '');
+
+    // Act
+    const response = await operation!.execute({
+      sourcePath: relativeSourcePath,
+      destinationPath: relativeDestPath
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(existsSync(absoluteDestPath)).toBe(true);
+    expect(existsSync(absoluteSourcePath)).toBe(false);
+
+    const mainContent = await readFile(mainPath, 'utf-8');
+    expect(mainContent).toContain('./helpers/relative-dest.js');
+    expect(mainContent).not.toContain('./relative-source.js');
+  });
+
+  it('should work with absolute file paths', async () => {
+    // Arrange
+    const absoluteSourcePath = join(testDir, 'src', 'absolute-source.ts');
+    const absoluteDestPath = join(testDir, 'src', 'helpers', 'absolute-dest.ts');
+    const mainPath = join(testDir, 'src', 'main.ts');
+
+    await writeFile(absoluteSourcePath, 'export function absFunc() { return 42; }', 'utf-8');
+    await writeFile(mainPath, `import { absFunc } from './absolute-source.js';\nconsole.error(absFunc());`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      sourcePath: absoluteSourcePath,
+      destinationPath: absoluteDestPath
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(existsSync(absoluteDestPath)).toBe(true);
+    expect(existsSync(absoluteSourcePath)).toBe(false);
+
+    const mainContent = await readFile(mainPath, 'utf-8');
+    expect(mainContent).toContain('./helpers/absolute-dest.js');
+    expect(mainContent).not.toContain('./absolute-source.js');
+  });
 });

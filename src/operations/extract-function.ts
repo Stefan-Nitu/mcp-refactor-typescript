@@ -3,6 +3,7 @@
  */
 
 import { readFile, writeFile } from 'fs/promises';
+import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc, TSRenameResponse, TSTextChange } from '../language-servers/typescript/tsserver-types.js';
@@ -25,7 +26,8 @@ export class ExtractFunctionOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = extractFunctionSchema.parse(input);
-      const { filePath, line, text, functionName } = validated;
+      const { line, text, functionName } = validated;
+      const filePath = resolve(validated.filePath);
 
       // Convert text to column positions
       const fileContent = await readFile(filePath, 'utf8');
@@ -129,7 +131,7 @@ This might happen if:
       }
 
       const edits = await this.tsServer.sendRequest<TSRefactorEditInfo>('getEditsForRefactor', {
-        file: validated.filePath,
+        file: filePath,
         startLine,
         startOffset: startColumn,
         endLine,
@@ -203,7 +205,7 @@ This might indicate:
         }
         filesChanged.push(fileChanges);
 
-        if (!generatedFunctionName && fileEdit.fileName === validated.filePath) {
+        if (!generatedFunctionName && fileEdit.fileName === filePath) {
           const declaration = this.processor.findDeclaration(sortedChanges);
           if (declaration) {
             generatedFunctionName = declaration.name;
@@ -257,10 +259,10 @@ This might indicate:
           };
         }
 
-        await this.tsServer.openFile(validated.filePath);
+        await this.tsServer.openFile(filePath);
 
         const renameResult = await this.tsServer.sendRequest('rename', {
-          file: validated.filePath,
+          file: filePath,
           line: functionLine,
           offset: functionColumn,
           findInComments: false,

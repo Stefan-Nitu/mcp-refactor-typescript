@@ -2,6 +2,7 @@
  * Find references operation handler
  */
 
+import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSReferenceEntry, TSReferencesResponse } from '../language-servers/typescript/tsserver-types.js';
@@ -18,6 +19,7 @@ export class FindReferencesOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = findReferencesSchema.parse(input);
+      const filePath = resolve(validated.filePath);
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -26,10 +28,10 @@ export class FindReferencesOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      await this.tsServer.openFile(validated.filePath);
+      await this.tsServer.openFile(filePath);
 
       const references = await this.tsServer.sendRequest<TSReferencesResponse>('references', {
-        file: validated.filePath,
+        file: filePath,
         line: validated.line,
         offset: validated.column
       });

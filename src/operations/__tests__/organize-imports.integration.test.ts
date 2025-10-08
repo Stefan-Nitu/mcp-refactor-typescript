@@ -68,4 +68,38 @@ console.error('hello');
     expect(response.success).toBe(true);
     expect(response.message).toBe('Organized imports');
   });
+
+  it('should work with relative file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'relative-test.ts');
+    await writeFile(absolutePath, `import { z } from 'unused';
+import { c, a, b } from 'used';
+export const x: a = null as any;`, 'utf-8');
+
+    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: relativePath
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+  });
+
+  it('should work with absolute file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'absolute-test.ts');
+    await writeFile(absolutePath, `import { z } from 'unused';
+import { c, a, b } from 'used';
+export const x: a = null as any;`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: absolutePath
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+  });
 });

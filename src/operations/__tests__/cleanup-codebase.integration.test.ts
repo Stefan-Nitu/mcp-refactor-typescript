@@ -217,4 +217,62 @@ export const c = 3;`, 'utf-8');
     // file1 should NOT be in filesChanged (was already clean)
     expect(response.filesChanged.every(f => f.path !== file1Path)).toBe(true);
   });
+
+  it('should work with relative directory path', async () => {
+    // Arrange
+    const srcDir = join(testDir, 'src');
+    const file1Path = join(srcDir, 'rel-file1.ts');
+
+    await writeFile(file1Path, `import { c, a, b } from './utils.js';
+
+const x = a + b + c;
+console.error(x);`, 'utf-8');
+
+    await writeFile(join(srcDir, 'utils.ts'), `export const a = 1;
+export const b = 2;
+export const c = 3;`, 'utf-8');
+
+    const relativeSrcDir = srcDir.replace(process.cwd() + '/', '');
+
+    // Act
+    const response = await operation!.execute({
+      directory: relativeSrcDir
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(response.message).toContain('Cleanup completed');
+
+    const file1Content = await readFile(file1Path, 'utf-8');
+    const file1FirstLine = file1Content.split('\n')[0];
+    expect(file1FirstLine).toContain('{ a, b, c }');
+  });
+
+  it('should work with absolute directory path', async () => {
+    // Arrange
+    const srcDir = join(testDir, 'src');
+    const file1Path = join(srcDir, 'abs-file1.ts');
+
+    await writeFile(file1Path, `import { c, a, b } from './utils.js';
+
+const x = a + b + c;
+console.error(x);`, 'utf-8');
+
+    await writeFile(join(srcDir, 'utils.ts'), `export const a = 1;
+export const b = 2;
+export const c = 3;`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      directory: srcDir
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(response.message).toContain('Cleanup completed');
+
+    const file1Content = await readFile(file1Path, 'utf-8');
+    const file1FirstLine = file1Content.split('\n')[0];
+    expect(file1FirstLine).toContain('{ a, b, c }');
+  });
 });

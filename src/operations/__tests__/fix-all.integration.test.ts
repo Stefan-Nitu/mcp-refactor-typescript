@@ -69,4 +69,34 @@ export const value = 42;
     // Assert
     expect(response.success).toBe(true);
   });
+
+  it('should work with relative file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'relative-test.ts');
+    await writeFile(absolutePath, `export const x = 42;`, 'utf-8');
+
+    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: relativePath
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+  });
+
+  it('should work with absolute file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'absolute-test.ts');
+    await writeFile(absolutePath, `export const x = 42;`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: absolutePath
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+  });
 });

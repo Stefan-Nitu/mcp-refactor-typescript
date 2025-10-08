@@ -4,7 +4,7 @@
 
 import { exec } from 'child_process';
 import { readdir } from 'fs/promises';
-import { extname, join } from 'path';
+import { extname, join, resolve } from 'path';
 import { promisify } from 'util';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
@@ -37,6 +37,7 @@ export class CleanupCodebaseOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = cleanupCodebaseSchema.parse(input);
+      const directory = resolve(validated.directory);
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -45,12 +46,12 @@ export class CleanupCodebaseOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      const tsFiles = await this.findTypeScriptFiles(validated.directory);
+      const tsFiles = await this.findTypeScriptFiles(directory);
 
       if (tsFiles.length === 0) {
         return {
           success: false,
-          message: `No TypeScript files found in ${validated.directory}
+          message: `No TypeScript files found in ${directory}
 
 Try:
   1. Check the directory path is correct
@@ -69,7 +70,7 @@ Try:
         if (validated.deleteUnusedFiles) {
           try {
             const result = await execAsync(`npx tsr --recursive '${entrypoints}'`, {
-              cwd: validated.directory,
+              cwd: directory,
               maxBuffer: 10 * 1024 * 1024,
               timeout: 60000
             });
@@ -158,7 +159,7 @@ Try:
       if (validated.deleteUnusedFiles) {
         try {
           await execAsync(`npx tsr --write --recursive '${entrypoints}'`, {
-            cwd: validated.directory,
+            cwd: directory,
             maxBuffer: 10 * 1024 * 1024,
             timeout: 60000
           });

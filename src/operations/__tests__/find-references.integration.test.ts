@@ -85,4 +85,42 @@ const another = calculateSum(3, 4);`, 'utf-8');
     expect(response.message).toContain('Found 1 reference');
     expect(response.message).toContain('unused.ts');
   });
+
+  it('should work with relative file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'relative-test.ts');
+    await writeFile(absolutePath, `export function testFunc() {
+  return 42;
+}`, 'utf-8');
+
+    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: relativePath,
+      line: 1,
+      column: 25
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+  });
+
+  it('should work with absolute file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'absolute-test.ts');
+    await writeFile(absolutePath, `export function testFunc() {
+  return 42;
+}`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: absolutePath,
+      line: 1,
+      column: 25
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+  });
 });

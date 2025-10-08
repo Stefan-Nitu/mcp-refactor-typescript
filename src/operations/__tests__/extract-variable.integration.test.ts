@@ -182,4 +182,42 @@ describe('extractVariable', () => {
     expect(response.success).toBe(false);
     expect(response.message).toContain('Cannot extract variable');
   });
+
+  it('should work with relative file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'relative-test.ts');
+    await writeFile(absolutePath, `export function main() {
+  return (5 + 3) * 2;
+}`, 'utf-8');
+
+    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: relativePath,
+      line: 2,
+      text: '5 + 3'
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+  });
+
+  it('should work with absolute file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'absolute-test.ts');
+    await writeFile(absolutePath, `export function main() {
+  return (7 + 2) * 2;
+}`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: absolutePath,
+      line: 2,
+      text: '7 + 2'
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+  });
 });

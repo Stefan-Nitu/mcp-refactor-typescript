@@ -3,6 +3,7 @@
  */
 
 import { readFile, writeFile } from 'fs/promises';
+import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSRenameLoc, TSRenameResponse } from '../language-servers/typescript/tsserver-types.js';
@@ -22,8 +23,11 @@ export class RenameOperation {
     try {
       const validated = renameSchema.parse(input);
 
+      // Normalize relative paths to absolute
+      const absoluteFilePath = resolve(validated.filePath);
+
       // Convert text to column position
-      const fileContent = await readFile(validated.filePath, 'utf8');
+      const fileContent = await readFile(absoluteFilePath, 'utf8');
       const lines = fileContent.split('\n');
       const lineIndex = validated.line - 1;
 
@@ -61,15 +65,15 @@ Try:
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      await this.tsServer.openFile(validated.filePath);
+      await this.tsServer.openFile(absoluteFilePath);
 
-      await this.tsServer.discoverAndOpenImportingFiles(validated.filePath);
+      await this.tsServer.discoverAndOpenImportingFiles(absoluteFilePath);
 
       const projectFullyLoaded = this.tsServer.isProjectLoaded();
       const scanTimedOut = this.tsServer.didLastScanTimeout();
 
       const renameInfo = await this.tsServer.sendRequest('rename', {
-        file: validated.filePath,
+        file: absoluteFilePath,
         line: validated.line,
         offset: column,
         findInComments: false,
@@ -79,7 +83,7 @@ Try:
       if (!renameInfo?.locs) {
         return {
           success: false,
-          message: `Cannot rename: No symbol found for "${validated.text}" at ${validated.filePath}:${validated.line}
+          message: `Cannot rename: No symbol found for "${validated.text}" at ${absoluteFilePath}:${validated.line}
 
 Try:
   1. Check that the text is a valid identifier

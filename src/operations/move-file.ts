@@ -2,6 +2,7 @@
  * Move file operation handler
  */
 
+import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { MoveFileHelper } from './move-file-helper.js';
@@ -22,6 +23,8 @@ export class MoveFileOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = moveFileSchema.parse(input);
+      const sourcePath = resolve(validated.sourcePath);
+      const destinationPath = resolve(validated.destinationPath);
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -30,17 +33,17 @@ export class MoveFileOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      await this.tsServer.openFile(validated.sourcePath);
+      await this.tsServer.openFile(sourcePath);
 
       try {
-        await this.tsServer.discoverAndOpenImportingFiles(validated.sourcePath);
+        await this.tsServer.discoverAndOpenImportingFiles(sourcePath);
       } catch {
         // Continue if file references discovery fails
       }
 
       const projectFullyLoaded = this.tsServer.isProjectLoaded();
       const scanTimedOut = this.tsServer.didLastScanTimeout();
-      const result = await this.helper.performMove(validated.sourcePath, validated.destinationPath, validated.preview);
+      const result = await this.helper.performMove(sourcePath, destinationPath, validated.preview);
 
       let warningMessage = '';
       if (!projectFullyLoaded) {

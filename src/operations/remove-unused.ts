@@ -3,6 +3,7 @@
  */
 
 import { readFile, writeFile } from 'fs/promises';
+import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type {
@@ -23,6 +24,7 @@ export class RemoveUnusedOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = removeUnusedSchema.parse(input);
+      const filePath = resolve(validated.filePath);
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -31,10 +33,10 @@ export class RemoveUnusedOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      await this.tsServer.openFile(validated.filePath);
+      await this.tsServer.openFile(filePath);
 
       const diagnosticsResult = await this.tsServer.sendRequest<TSDiagnostic[]>('suggestionDiagnosticsSync', {
-        file: validated.filePath,
+        file: filePath,
         includeLinePosition: true
       });
 
@@ -67,7 +69,7 @@ export class RemoveUnusedOperation {
         const organizeResult = await this.tsServer.sendRequest<Array<{ fileName: string; textChanges: TSTextChange[] }>>('organizeImports', {
           scope: {
             type: 'file',
-            args: { file: validated.filePath }
+            args: { file: filePath }
           },
           skipDestructiveCodeActions: false,
           mode: 'RemoveUnused'
@@ -75,7 +77,7 @@ export class RemoveUnusedOperation {
 
         if (organizeResult && organizeResult.length > 0) {
           allChanges.push({
-            fileName: validated.filePath,
+            fileName: filePath,
             textChanges: organizeResult[0].textChanges
           });
         }
@@ -85,7 +87,7 @@ export class RemoveUnusedOperation {
         const combinedFix = await this.tsServer.sendRequest<TSCombinedCodeFix>('getCombinedCodeFix', {
           scope: {
             type: 'file',
-            args: { file: validated.filePath }
+            args: { file: filePath }
           },
           fixId: 'unusedIdentifier_delete'
         });
@@ -103,18 +105,18 @@ export class RemoveUnusedOperation {
         };
       }
 
-      const fileContent = await readFile(validated.filePath, 'utf8');
+      const fileContent = await readFile(filePath, 'utf8');
       const lines = fileContent.split('\n');
 
       const fileChanges = {
-        file: validated.filePath.split('/').pop() || validated.filePath,
-        path: validated.filePath,
+        file: filePath.split('/').pop() || filePath,
+        path: filePath,
         edits: [] as RefactorResult['filesChanged'][0]['edits']
       };
 
       const allTextChanges: TSTextChange[] = [];
       for (const fileEdit of allChanges) {
-        if (fileEdit.fileName === validated.filePath) {
+        if (fileEdit.fileName === filePath) {
           allTextChanges.push(...fileEdit.textChanges);
         }
       }
@@ -163,7 +165,7 @@ export class RemoveUnusedOperation {
         };
       }
 
-      await writeFile(validated.filePath, updatedContent);
+      await writeFile(filePath, updatedContent);
 
       return {
         success: true,

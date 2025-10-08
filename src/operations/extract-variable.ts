@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { readFile, writeFile } from 'fs/promises';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
@@ -65,7 +66,8 @@ Example: Extract expression with custom name "doubled"
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = extractVariableSchema.parse(input);
-      const { filePath, line, text, variableName } = validated;
+      const { line, text, variableName } = validated;
+      const filePath = resolve(validated.filePath);
 
       // Convert text to column positions
       const fileContent = await readFile(filePath, 'utf8');

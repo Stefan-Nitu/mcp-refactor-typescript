@@ -101,4 +101,71 @@ console.error(result);`, 'utf-8');
     expect(response.success).toBe(false);
     expect(response.message).toContain('Move file failed');
   });
+
+  it('should work with relative file paths', async () => {
+    // Arrange
+    const absoluteSourcePath = join(testDir, 'src', 'rel-service.ts');
+    const absoluteDestPath = join(testDir, 'src', 'new', 'rel-service.ts');
+    const mainPath = join(testDir, 'src', 'main.ts');
+
+    await writeFile(absoluteSourcePath, `export function relHelper() {
+  return 42;
+}`, 'utf-8');
+
+    await writeFile(mainPath, `import { relHelper } from './rel-service.js';
+
+const result = relHelper();
+console.error(result);`, 'utf-8');
+
+    const relativeSourcePath = absoluteSourcePath.replace(process.cwd() + '/', '');
+    const relativeDestPath = absoluteDestPath.replace(process.cwd() + '/', '');
+
+    // Act
+    const response = await operation!.execute({
+      sourcePath: relativeSourcePath,
+      destinationPath: relativeDestPath
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(response.message).toContain('Refactored module successfully');
+
+    const movedContent = await readFile(absoluteDestPath, 'utf-8');
+    expect(movedContent).toContain('relHelper');
+
+    const mainContent = await readFile(mainPath, 'utf-8');
+    expect(mainContent).toContain('relHelper');
+  });
+
+  it('should work with absolute file paths', async () => {
+    // Arrange
+    const absoluteSourcePath = join(testDir, 'src', 'abs-service.ts');
+    const absoluteDestPath = join(testDir, 'src', 'new', 'abs-service.ts');
+    const mainPath = join(testDir, 'src', 'main.ts');
+
+    await writeFile(absoluteSourcePath, `export function absHelper() {
+  return 42;
+}`, 'utf-8');
+
+    await writeFile(mainPath, `import { absHelper } from './abs-service.js';
+
+const result = absHelper();
+console.error(result);`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      sourcePath: absoluteSourcePath,
+      destinationPath: absoluteDestPath
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(response.message).toContain('Refactored module successfully');
+
+    const movedContent = await readFile(absoluteDestPath, 'utf-8');
+    expect(movedContent).toContain('absHelper');
+
+    const mainContent = await readFile(mainPath, 'utf-8');
+    expect(mainContent).toContain('absHelper');
+  });
 });

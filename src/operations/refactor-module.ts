@@ -2,6 +2,7 @@
  * Refactor module operation - combines move_file + organize_imports + fix_all
  */
 
+import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
@@ -21,6 +22,8 @@ export class RefactorModuleOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = refactorModuleSchema.parse(input);
+      const sourcePath = resolve(validated.sourcePath);
+      const destinationPath = resolve(validated.destinationPath);
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -35,8 +38,8 @@ export class RefactorModuleOperation {
       // Step 1: Move file
       const moveOp = new MoveFileOperation(this.tsServer);
       const moveResult = await moveOp.execute({
-        sourcePath: validated.sourcePath,
-        destinationPath: validated.destinationPath,
+        sourcePath,
+        destinationPath,
         preview: validated.preview
       });
 
@@ -44,7 +47,7 @@ export class RefactorModuleOperation {
         return moveResult;
       }
 
-      steps.push(`✓ Moved file to ${validated.destinationPath}`);
+      steps.push(`✓ Moved file to ${destinationPath}`);
       allFilesChanged.push(...moveResult.filesChanged);
 
       if (validated.preview) {

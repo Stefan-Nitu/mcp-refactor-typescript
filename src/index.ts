@@ -90,16 +90,30 @@ async function main() {
 
   const transport = new StdioServerTransport();
 
-  process.on('SIGINT', async () => {
+  const cleanup = async () => {
     logger.info('Shutting down...');
     await registry.shutdown();
     process.exit(0);
+  };
+
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+
+  // Handle stdin close (when MCP client disconnects)
+  process.stdin.on('end', () => {
+    logger.info('stdin closed, shutting down...');
+    cleanup().catch(err => {
+      logger.error({ err }, 'Error during cleanup');
+      process.exit(1);
+    });
   });
 
-  process.on('SIGTERM', async () => {
-    logger.info('Shutting down...');
-    await registry.shutdown();
-    process.exit(0);
+  process.stdin.on('close', () => {
+    logger.info('stdin pipe closed, shutting down...');
+    cleanup().catch(err => {
+      logger.error({ err }, 'Error during cleanup');
+      process.exit(1);
+    });
   });
 
   await server.connect(transport);

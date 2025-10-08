@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { readFile, writeFile } from 'fs/promises';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
@@ -44,7 +45,8 @@ Example: Add return type to function
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = inferReturnTypeSchema.parse(input);
-      const { filePath, line, column } = validated;
+      const { line, column } = validated;
+      const filePath = resolve(validated.filePath);
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());

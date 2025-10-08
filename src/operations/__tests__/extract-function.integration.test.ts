@@ -207,4 +207,46 @@ describe('extractFunction', () => {
     expect(response.success).toBe(false);
     expect(response.message).toContain('Cannot extract function');
   });
+
+  it('should work with relative file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'relative-test.ts');
+    await writeFile(absolutePath, `export function main() {
+  const result = 1 + 2;
+  return result;
+}`, 'utf-8');
+
+    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: relativePath,
+      line: 2,
+      text: '1 + 2'
+    });
+
+    // Assert - May not be available, but should not crash with "undefined"
+    expect(response.message).not.toContain('undefined');
+    expect(response).toBeDefined();
+  });
+
+  it('should work with absolute file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'absolute-test.ts');
+    await writeFile(absolutePath, `export function main() {
+  const result = 3 + 4;
+  return result;
+}`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: absolutePath,
+      line: 2,
+      text: '3 + 4'
+    });
+
+    // Assert - May not be available, but should not crash with "undefined"
+    expect(response.message).not.toContain('undefined');
+    expect(response).toBeDefined();
+  });
 });

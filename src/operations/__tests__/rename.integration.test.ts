@@ -273,6 +273,71 @@ export class UserService {
   });
 
   describe('error handling', () => {
+    it('should work with relative file paths', async () => {
+      // Arrange
+      const absolutePath = join(testDir, 'src', 'relative-test.ts');
+      const content = `export function oldName() { return 42; }`;
+      await writeFile(absolutePath, content, 'utf-8');
+
+      // Get actual relative path from process.cwd() to the file
+      const relativePath = absolutePath.replace(process.cwd() + '/', '');
+
+      // Act - Use relative path (simulates MCP client behavior)
+      const response = await operation!.execute({
+        filePath: relativePath,
+        line: 1,
+        text: 'oldName',
+        newName: 'newName'
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(response.filesChanged).toHaveLength(1);
+      expect(response.filesChanged[0].edits).toEqual([
+        expect.objectContaining({
+          line: 1,
+          old: 'oldName',
+          new: 'newName'
+        })
+      ]);
+
+      // Verify file was renamed
+      const fileContent = await readFile(absolutePath, 'utf-8');
+      expect(fileContent).toContain('newName');
+      expect(fileContent).not.toContain('oldName');
+    });
+
+    it('should work with absolute file paths', async () => {
+      // Arrange
+      const absolutePath = join(testDir, 'src', 'absolute-test.ts');
+      const content = `export function oldName() { return 42; }`;
+      await writeFile(absolutePath, content, 'utf-8');
+
+      // Act - Use absolute path
+      const response = await operation!.execute({
+        filePath: absolutePath,
+        line: 1,
+        text: 'oldName',
+        newName: 'newName'
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(response.filesChanged).toHaveLength(1);
+      expect(response.filesChanged[0].edits).toEqual([
+        expect.objectContaining({
+          line: 1,
+          old: 'oldName',
+          new: 'newName'
+        })
+      ]);
+
+      // Verify file was renamed
+      const fileContent = await readFile(absolutePath, 'utf-8');
+      expect(fileContent).toContain('newName');
+      expect(fileContent).not.toContain('oldName');
+    });
+
     it('should return error when file does not exist', async () => {
       // Act
       const response = await operation!.execute({

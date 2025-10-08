@@ -3,6 +3,7 @@
  */
 
 import { readFile, writeFile } from 'fs/promises';
+import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type {
@@ -24,6 +25,7 @@ export class FixAllOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = fixAllSchema.parse(input);
+      const filePath = resolve(validated.filePath);
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -32,10 +34,10 @@ export class FixAllOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      await this.tsServer.openFile(validated.filePath);
+      await this.tsServer.openFile(filePath);
 
       const diagnosticsResult = await this.tsServer.sendRequest<TSDiagnostic[]>('semanticDiagnosticsSync', {
-        file: validated.filePath,
+        file: filePath,
         includeLinePosition: true
       });
 
@@ -56,7 +58,7 @@ export class FixAllOperation {
         const endOffset = diagnostic.endLocation?.offset ?? startOffset;
 
         const fixes = await this.tsServer.sendRequest<TSCodeFixAction[]>('getCodeFixes', {
-          file: validated.filePath,
+          file: filePath,
           startLine,
           endLine,
           startOffset,
@@ -87,7 +89,7 @@ export class FixAllOperation {
         const combinedFix = await this.tsServer.sendRequest<TSCombinedCodeFix>('getCombinedCodeFix', {
           scope: {
             type: 'file',
-            args: { file: validated.filePath }
+            args: { file: filePath }
           },
           fixId
         });
@@ -105,18 +107,18 @@ export class FixAllOperation {
         };
       }
 
-      const fileContent = await readFile(validated.filePath, 'utf8');
+      const fileContent = await readFile(filePath, 'utf8');
       const lines = fileContent.split('\n');
 
       const fileChanges = {
-        file: validated.filePath.split('/').pop() || validated.filePath,
-        path: validated.filePath,
+        file: filePath.split('/').pop() || filePath,
+        path: filePath,
         edits: [] as RefactorResult['filesChanged'][0]['edits']
       };
 
       const allTextChanges: TSTextChange[] = [];
       for (const fileEdit of allChanges) {
-        if (fileEdit.fileName === validated.filePath) {
+        if (fileEdit.fileName === filePath) {
           allTextChanges.push(...fileEdit.textChanges);
         }
       }
@@ -165,7 +167,7 @@ export class FixAllOperation {
         };
       }
 
-      await writeFile(validated.filePath, updatedContent);
+      await writeFile(filePath, updatedContent);
 
       return {
         success: true,

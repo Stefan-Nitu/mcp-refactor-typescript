@@ -1,4 +1,5 @@
 import { readFile, writeFile } from 'fs/promises';
+import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc, TSRenameResponse, TSTextChange } from '../language-servers/typescript/tsserver-types.js';
@@ -66,7 +67,8 @@ Example: Extract 3.14159 with custom name "PI"
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = extractConstantSchema.parse(input);
-      const { filePath, line, text, constantName } = validated;
+      const { line, text, constantName } = validated;
+      const filePath = resolve(validated.filePath);
 
       // Convert text to column positions
       const fileContent = await readFile(filePath, 'utf8');

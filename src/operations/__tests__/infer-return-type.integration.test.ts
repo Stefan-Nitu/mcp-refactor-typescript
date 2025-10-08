@@ -84,4 +84,44 @@ describe('inferReturnType', () => {
     expect(response.success).toBe(false);
     expect(response.message).toContain('Cannot infer return type');
   });
+
+  it('should work with relative file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'relative-test.ts');
+    await writeFile(absolutePath, `export function test() {
+  return 42;
+}`, 'utf-8');
+
+    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: relativePath,
+      line: 1,
+      column: 25
+    });
+
+    // Assert - May not be available, but should not crash with "undefined"
+    expect(response.message).not.toContain('undefined');
+    expect(response).toBeDefined();
+  });
+
+  it('should work with absolute file paths', async () => {
+    // Arrange
+    const absolutePath = join(testDir, 'src', 'absolute-test.ts');
+    await writeFile(absolutePath, `export function test() {
+  return 99;
+}`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: absolutePath,
+      line: 1,
+      column: 25
+    });
+
+    // Assert - May not be available, but should not crash with "undefined"
+    expect(response.message).not.toContain('undefined');
+    expect(response).toBeDefined();
+  });
 });

@@ -122,9 +122,29 @@ export class TypeScriptServer {
       return;
     }
 
-    this.process.kill();
-    this.process = null;
-    this.running = false;
+    return new Promise<void>((resolve) => {
+      if (!this.process) {
+        resolve();
+        return;
+      }
+
+      this.process.once('exit', () => {
+        this.process = null;
+        this.running = false;
+        logger.debug('TSServer process exited');
+        resolve();
+      });
+
+      this.process.kill('SIGTERM');
+
+      // Force kill after 2 seconds if graceful shutdown fails
+      setTimeout(() => {
+        if (this.process) {
+          logger.warn('TSServer did not exit gracefully, force killing');
+          this.process.kill('SIGKILL');
+        }
+      }, 2000);
+    });
   }
 
   private handleData(data: string): void {

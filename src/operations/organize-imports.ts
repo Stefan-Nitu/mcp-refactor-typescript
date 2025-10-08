@@ -3,6 +3,7 @@
  */
 
 import { readFile, writeFile } from 'fs/promises';
+import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSOrganizeImportsResponse } from '../language-servers/typescript/tsserver-types.js';
@@ -18,6 +19,7 @@ export class OrganizeImportsOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = organizeImportsSchema.parse(input);
+      const filePath = resolve(validated.filePath);
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -26,12 +28,12 @@ export class OrganizeImportsOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      await this.tsServer.openFile(validated.filePath);
+      await this.tsServer.openFile(filePath);
 
       const result = await this.tsServer.sendRequest<TSOrganizeImportsResponse[]>('organizeImports', {
         scope: {
           type: 'file',
-          args: { file: validated.filePath }
+          args: { file: filePath }
         }
       });
 
@@ -43,12 +45,12 @@ export class OrganizeImportsOperation {
         };
       }
 
-      const fileContent = await readFile(validated.filePath, 'utf8');
+      const fileContent = await readFile(filePath, 'utf8');
       const lines = fileContent.split('\n');
 
       const fileChanges = {
-        file: validated.filePath.split('/').pop() || validated.filePath,
-        path: validated.filePath,
+        file: filePath.split('/').pop() || filePath,
+        path: filePath,
         edits: [] as RefactorResult['filesChanged'][0]['edits']
       };
 
@@ -99,7 +101,7 @@ export class OrganizeImportsOperation {
       }
 
       // Only write if not in preview mode
-      await writeFile(validated.filePath, updatedContent);
+      await writeFile(filePath, updatedContent);
 
       return {
         success: true,

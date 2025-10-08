@@ -3,7 +3,7 @@
  */
 
 import { mkdir } from 'fs/promises';
-import { basename, join } from 'path';
+import { basename, join, resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { logger } from '../utils/logger.js';
@@ -26,6 +26,8 @@ export class BatchMoveFilesOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = batchMoveFilesSchema.parse(input);
+      const files = validated.files.map(f => resolve(f));
+      const targetFolder = resolve(validated.targetFolder);
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -34,14 +36,14 @@ export class BatchMoveFilesOperation {
       const loadingResult = await this.tsServer.checkProjectLoaded();
       if (loadingResult) return loadingResult;
 
-      await mkdir(validated.targetFolder, { recursive: true });
+      await mkdir(targetFolder, { recursive: true });
 
-      for (const sourceFile of validated.files) {
+      for (const sourceFile of files) {
         await this.tsServer.openFile(sourceFile);
       }
 
       try {
-        await this.tsServer.discoverAndOpenImportingFiles(validated.files);
+        await this.tsServer.discoverAndOpenImportingFiles(files);
       } catch (error) {
         logger.debug({ error }, 'Error discovering importing files');
       }
@@ -53,9 +55,9 @@ export class BatchMoveFilesOperation {
       let successCount = 0;
       const errors: string[] = [];
 
-      for (const sourceFile of validated.files) {
+      for (const sourceFile of files) {
         const fileName = basename(sourceFile);
-        const destinationPath = join(validated.targetFolder, fileName);
+        const destinationPath = join(targetFolder, fileName);
 
         try {
           const result = await this.helper.performMove(sourceFile, destinationPath, validated.preview);
