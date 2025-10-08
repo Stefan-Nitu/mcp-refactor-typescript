@@ -32,7 +32,7 @@ describe('inferReturnType', () => {
     const response = await operation!.execute({
       filePath,
       line: 1,
-      column: 10
+      text: 'add'
     });
 
     // Assert
@@ -56,7 +56,7 @@ describe('inferReturnType', () => {
     const response = await operation!.execute({
       filePath,
       line: 1,
-      column: 10
+      text: 'getUser'
     });
 
     // Assert
@@ -77,7 +77,7 @@ describe('inferReturnType', () => {
     const response = await operation!.execute({
       filePath,
       line: 1,
-      column: 10
+      text: 'divide'
     });
 
     // Assert
@@ -98,7 +98,7 @@ describe('inferReturnType', () => {
     const response = await operation!.execute({
       filePath: relativePath,
       line: 1,
-      column: 25
+      text: 'test'
     });
 
     // Assert - May not be available, but should not crash with "undefined"
@@ -117,7 +117,7 @@ describe('inferReturnType', () => {
     const response = await operation!.execute({
       filePath: absolutePath,
       line: 1,
-      column: 25
+      text: 'test'
     });
 
     // Assert - May not be available, but should not crash with "undefined"

@@ -3,6 +3,8 @@ import { batchMoveFilesSchema } from '../batch-move-files.js';
 import { extractFunctionSchema } from '../extract-function.js';
 import { findReferencesSchema } from '../find-references.js';
 import { fixAllSchema } from '../fix-all.js';
+import { inferReturnTypeSchema } from '../infer-return-type.js';
+import { inlineVariableSchema } from '../inline-variable.js';
 import { moveFileSchema } from '../move-file.js';
 import { organizeImportsSchema } from '../organize-imports.js';
 import { removeUnusedSchema } from '../remove-unused.js';
@@ -179,7 +181,7 @@ describe('Schema Validation', () => {
       const result = findReferencesSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        column: 5
+        text: 'identifier'
       });
       expect(result.success).toBe(true);
     });
@@ -195,7 +197,16 @@ describe('Schema Validation', () => {
       const result = findReferencesSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: -1,
-        column: 5
+        text: 'identifier'
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject empty text', () => {
+      const result = findReferencesSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 10,
+        text: ''
       });
       expect(result.success).toBe(false);
     });
@@ -235,6 +246,84 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: -1,
         text: 'codeToExtract'
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('inlineVariableSchema', () => {
+    it('should validate correct input', () => {
+      const result = inlineVariableSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 10,
+        text: 'variableName'
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept optional preview', () => {
+      const result = inlineVariableSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 10,
+        text: 'variableName',
+        preview: true
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject empty text', () => {
+      const result = inlineVariableSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 10,
+        text: ''
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject negative positions', () => {
+      const result = inlineVariableSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: -1,
+        text: 'variableName'
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('inferReturnTypeSchema', () => {
+    it('should validate correct input', () => {
+      const result = inferReturnTypeSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 10,
+        text: 'functionName'
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept optional preview', () => {
+      const result = inferReturnTypeSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 10,
+        text: 'functionName',
+        preview: true
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject empty text', () => {
+      const result = inferReturnTypeSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 10,
+        text: ''
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject negative positions', () => {
+      const result = inferReturnTypeSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: -1,
+        text: 'functionName'
       });
       expect(result.success).toBe(false);
     });

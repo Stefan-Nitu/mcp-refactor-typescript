@@ -33,7 +33,7 @@ describe('inlineVariable', () => {
     const response = await operation!.execute({
       filePath,
       line: 2,
-      column: 9
+      text: 'multiplier'
     });
 
     // Assert
@@ -55,7 +55,7 @@ describe('inlineVariable', () => {
     const response = await operation!.execute({
       filePath,
       line: 2,
-      column: 9
+      text: 'pi'
     });
 
     // Assert
@@ -82,7 +82,7 @@ function getValue() {
     const response = await operation!.execute({
       filePath,
       line: 2,
-      column: 9
+      text: 'x'
     });
 
     // Assert
@@ -108,7 +108,7 @@ function getValue() {
     const response = await operation!.execute({
       filePath: relativePath,
       line: 2,
-      column: 9
+      text: 'x'
     });
 
     // Assert - May succeed or fail depending on TypeScript version
@@ -127,7 +127,7 @@ function getValue() {
     const response = await operation!.execute({
       filePath: absolutePath,
       line: 2,
-      column: 9
+      text: 'x'
     });
 
     // Assert - May succeed or fail depending on TypeScript version

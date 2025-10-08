@@ -35,7 +35,7 @@ const another = helper();`, 'utf-8');
     const response = await operation!.execute({
       filePath: utilsPath,
       line: 1,
-      column: 17  // on "helper"
+      text: 'helper'
     });
 
     // Assert
@@ -59,7 +59,7 @@ const another = calculateSum(3, 4);`, 'utf-8');
     const response = await operation!.execute({
       filePath,
       line: 1,
-      column: 10  // on "calculateSum"
+      text: 'calculateSum'
     });
 
     // Assert
@@ -77,7 +77,7 @@ const another = calculateSum(3, 4);`, 'utf-8');
     const response = await operation!.execute({
       filePath,
       line: 1,
-      column: 10
+      text: 'unused'
     });
 
     // Assert
@@ -99,7 +99,7 @@ const another = calculateSum(3, 4);`, 'utf-8');
     const response = await operation!.execute({
       filePath: relativePath,
       line: 1,
-      column: 25
+      text: 'testFunc'
     });
 
     // Assert
@@ -117,10 +117,42 @@ const another = calculateSum(3, 4);`, 'utf-8');
     const response = await operation!.execute({
       filePath: absolutePath,
       line: 1,
-      column: 25
+      text: 'testFunc'
     });
 
     // Assert
     expect(response.success).toBe(true);
+  });
+
+  it('should find all references across multiple importing files', async () => {
+    // Arrange - Create 3 files: utils.ts exports add(), fileA.ts and fileB.ts both use it
+    const utilsPath = join(testDir, 'src', 'utils.ts');
+    const fileAPath = join(testDir, 'src', 'fileA.ts');
+    const fileBPath = join(testDir, 'src', 'fileB.ts');
+
+    await writeFile(utilsPath, 'export function add(a: number, b: number) { return a + b; }', 'utf-8');
+    await writeFile(fileAPath, `import { add } from './utils.js';
+const result = add(1, 2);`, 'utf-8');
+    await writeFile(fileBPath, `import { add } from './utils.js';
+const total = add(3, 4);`, 'utf-8');
+
+    // Act - Call find-references from fileA (NOT from the declaration in utils.ts)
+    const response = await operation!.execute({
+      filePath: fileAPath,
+      line: 2,
+      text: 'add'
+    });
+
+    // Assert - Should find ALL 5 references:
+    // 1. Declaration in utils.ts
+    // 2. Import in fileA.ts
+    // 3. Usage in fileA.ts
+    // 4. Import in fileB.ts
+    // 5. Usage in fileB.ts
+    expect(response.success).toBe(true);
+    expect(response.message).toContain('Found 5 reference(s) in 3 file(s)');
+    expect(response.message).toContain('utils.ts');
+    expect(response.message).toContain('fileA.ts');
+    expect(response.message).toContain('fileB.ts');
   });
 });

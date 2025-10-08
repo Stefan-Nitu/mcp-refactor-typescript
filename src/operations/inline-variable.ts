@@ -7,10 +7,10 @@ import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { Operation } from './registry.js';
 
-const inlineVariableSchema = z.object({
+export const inlineVariableSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
-  column: z.number().int().positive('Column must be a positive integer'),
+  text: z.string().min(1, 'Text cannot be empty'),
   preview: z.boolean().optional()
 });
 
@@ -31,19 +31,47 @@ Example: Inline const multiplier
   ✓ Replaces all usages
   ✓ Removes variable declaration
   ✓ Preserves type safety`,
-      inputSchema: {
-        filePath: z.string().min(1, 'File path cannot be empty'),
-        line: z.number().int().positive('Line must be a positive integer'),
-        column: z.number().int().positive('Column must be a positive integer')
-      }
+      inputSchema: inlineVariableSchema.shape
     };
   }
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = inlineVariableSchema.parse(input);
-      const { line, column } = validated;
       const filePath = resolve(validated.filePath);
+
+      // Convert text to column position
+      const fileContent = await readFile(filePath, 'utf8');
+      const lines = fileContent.split('\n');
+      const lineIndex = validated.line - 1;
+
+      if (lineIndex < 0 || lineIndex >= lines.length) {
+        return {
+          success: false,
+          message: `Line ${validated.line} is out of range (file has ${lines.length} lines)`,
+          filesChanged: []
+        };
+      }
+
+      const lineContent = lines[lineIndex];
+      const textIndex = lineContent.indexOf(validated.text);
+
+      if (textIndex === -1) {
+        return {
+          success: false,
+          message: `Text "${validated.text}" not found on line ${validated.line}
+
+Line content: ${lineContent}
+
+Try:
+  1. Check the text matches exactly (case-sensitive)
+  2. Ensure you're on the correct line`,
+          filesChanged: []
+        };
+      }
+
+      const line = validated.line;
+      const column = textIndex + 1;
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
