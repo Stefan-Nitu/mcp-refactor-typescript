@@ -6,6 +6,7 @@ import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { MoveFileHelper } from './move-file-helper.js';
+import { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const moveFileSchema = z.object({
   sourcePath: z.string().min(1, 'Source path cannot be empty'),
@@ -16,7 +17,9 @@ export const moveFileSchema = z.object({
 export class MoveFileOperation {
   private helper: MoveFileHelper;
 
-  constructor(private tsServer: TypeScriptServer) {
+  constructor(private tsServer: TypeScriptServer,
+    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+  ) {
     this.helper = new MoveFileHelper(tsServer);
   }
 
@@ -26,12 +29,8 @@ export class MoveFileOperation {
       const sourcePath = resolve(validated.sourcePath);
       const destinationPath = resolve(validated.destinationPath);
 
-      if (!this.tsServer.isRunning()) {
-        await this.tsServer.start(process.cwd());
-      }
-
-      const loadingResult = await this.tsServer.checkProjectLoaded();
-      if (loadingResult) return loadingResult;
+      const guardResult = await this.tsServerGuard.ensureReady();
+      if (guardResult) return guardResult;
 
       await this.tsServer.openFile(sourcePath);
 

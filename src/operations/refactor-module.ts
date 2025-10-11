@@ -9,6 +9,7 @@ import { formatValidationError } from '../utils/validation-error.js';
 import { FixAllOperation } from './fix-all.js';
 import { MoveFileOperation } from './move-file.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
+import { TSServerGuard } from './shared/tsserver-guard.js';
 
 const refactorModuleSchema = z.object({
   sourcePath: z.string().min(1, 'Source path cannot be empty'),
@@ -17,7 +18,9 @@ const refactorModuleSchema = z.object({
 });
 
 export class RefactorModuleOperation {
-  constructor(private tsServer: TypeScriptServer) {}
+  constructor(private tsServer: TypeScriptServer,
+    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+  ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
@@ -25,12 +28,8 @@ export class RefactorModuleOperation {
       const sourcePath = resolve(validated.sourcePath);
       const destinationPath = resolve(validated.destinationPath);
 
-      if (!this.tsServer.isRunning()) {
-        await this.tsServer.start(process.cwd());
-      }
-
-      const loadingResult = await this.tsServer.checkProjectLoaded();
-      if (loadingResult) return loadingResult;
+      const guardResult = await this.tsServerGuard.ensureReady();
+      if (guardResult) return guardResult;
 
       const allFilesChanged: RefactorResult['filesChanged'] = [];
       const steps: string[] = [];

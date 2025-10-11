@@ -7,6 +7,7 @@ import { Operation } from './registry.js';
 import { EditApplicator } from './shared/edit-applicator.js';
 import { FileOperations } from './shared/file-operations.js';
 import { TextPositionConverter } from './shared/text-position-converter.js';
+import { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const inferReturnTypeSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -20,7 +21,8 @@ export class InferReturnTypeOperation implements Operation {
     private tsServer: TypeScriptServer,
     private fileOps: FileOperations = new FileOperations(),
     private textConverter: TextPositionConverter = new TextPositionConverter(),
-    private editApplicator: EditApplicator = new EditApplicator()
+    private editApplicator: EditApplicator = new EditApplicator(),
+    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
   ) {}
 
 
@@ -43,12 +45,8 @@ export class InferReturnTypeOperation implements Operation {
 
       const column = positionResult.startColumn;
 
-      if (!this.tsServer.isRunning()) {
-        await this.tsServer.start(process.cwd());
-      }
-
-      const loadingResult = await this.tsServer.checkProjectLoaded();
-      if (loadingResult) return loadingResult;
+      const guardResult = await this.tsServerGuard.ensureReady();
+      if (guardResult) return guardResult;
 
       await this.tsServer.openFile(filePath);
 

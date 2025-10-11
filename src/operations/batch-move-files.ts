@@ -9,6 +9,7 @@ import { RefactorResult, TypeScriptServer } from '../language-servers/typescript
 import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { MoveFileHelper } from './move-file-helper.js';
+import { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const batchMoveFilesSchema = z.object({
   files: z.array(z.string().min(1)).min(1, 'At least one file must be provided'),
@@ -19,7 +20,9 @@ export const batchMoveFilesSchema = z.object({
 export class BatchMoveFilesOperation {
   private helper: MoveFileHelper;
 
-  constructor(private tsServer: TypeScriptServer) {
+  constructor(private tsServer: TypeScriptServer,
+    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+  ) {
     this.helper = new MoveFileHelper(tsServer);
   }
 
@@ -29,12 +32,8 @@ export class BatchMoveFilesOperation {
       const files = validated.files.map(f => resolve(f));
       const targetFolder = resolve(validated.targetFolder);
 
-      if (!this.tsServer.isRunning()) {
-        await this.tsServer.start(process.cwd());
-      }
-
-      const loadingResult = await this.tsServer.checkProjectLoaded();
-      if (loadingResult) return loadingResult;
+      const guardResult = await this.tsServerGuard.ensureReady();
+      if (guardResult) return guardResult;
 
       await mkdir(targetFolder, { recursive: true });
 

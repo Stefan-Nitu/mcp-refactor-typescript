@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
+import { TSServerGuard } from './shared/tsserver-guard.js';
 
 const execAsync = promisify(exec);
 
@@ -32,19 +33,17 @@ const cleanupCodebaseSchema = z.object({
 });
 
 export class CleanupCodebaseOperation {
-  constructor(private tsServer: TypeScriptServer) {}
+  constructor(private tsServer: TypeScriptServer,
+    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+  ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = cleanupCodebaseSchema.parse(input);
       const directory = resolve(validated.directory);
 
-      if (!this.tsServer.isRunning()) {
-        await this.tsServer.start(process.cwd());
-      }
-
-      const loadingResult = await this.tsServer.checkProjectLoaded();
-      if (loadingResult) return loadingResult;
+      const guardResult = await this.tsServerGuard.ensureReady();
+      if (guardResult) return guardResult;
 
       const tsFiles = await this.findTypeScriptFiles(directory);
 

@@ -13,6 +13,7 @@ import type {
 } from '../language-servers/typescript/tsserver-types.js';
 import { EditApplicator } from './shared/edit-applicator.js';
 import { FileOperations } from './shared/file-operations.js';
+import { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const fixAllSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -23,7 +24,8 @@ export class FixAllOperation {
   constructor(
     private tsServer: TypeScriptServer,
     private fileOps: FileOperations = new FileOperations(),
-    private editApplicator: EditApplicator = new EditApplicator()
+    private editApplicator: EditApplicator = new EditApplicator(),
+    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -31,12 +33,8 @@ export class FixAllOperation {
       const validated = fixAllSchema.parse(input);
       const filePath = this.fileOps.resolvePath(validated.filePath);
 
-      if (!this.tsServer.isRunning()) {
-        await this.tsServer.start(process.cwd());
-      }
-
-      const loadingResult = await this.tsServer.checkProjectLoaded();
-      if (loadingResult) return loadingResult;
+      const guardResult = await this.tsServerGuard.ensureReady();
+      if (guardResult) return guardResult;
 
       await this.tsServer.openFile(filePath);
 
