@@ -23,26 +23,6 @@ export class InferReturnTypeOperation implements Operation {
     private editApplicator: EditApplicator = new EditApplicator()
   ) {}
 
-  getSchema() {
-    return {
-      title: 'Infer Return Type',
-      description: `Generate perfect return type annotations automatically, even for complex nested object types and union types. TypeScript compiler infers the exact type - no guessing, no mistakes. Essential for improving type safety without manual type construction.
-
-Example: Add return type to function
-  Input:
-    function add(a: number, b: number) {
-      return a + b;
-    }
-  Output:
-    function add(a: number, b: number): number {
-      return a + b;
-    }
-  ✓ Infers exact type (works for complex objects too)
-  ✓ Adds annotation automatically
-  ✓ No manual type writing needed`,
-      inputSchema: inferReturnTypeSchema.shape
-    };
-  }
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {

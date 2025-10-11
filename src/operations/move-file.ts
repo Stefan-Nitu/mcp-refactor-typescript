@@ -78,20 +78,4 @@ Try:
     return await this.helper.performMove(sourcePath, destinationPath, preview);
   }
 
-  getSchema() {
-    return {
-      title: 'Move File',
-      description: `Move file + auto-update ALL import paths across entire codebase. Zero manual import fixing. Handles ES6 imports, CommonJS requires, dynamic imports, re-exports, and type-only imports. Completes in <2s vs 15-30min manually updating imports across dozens of files.
-
-Example: Move src/utils.ts → src/helpers/utils.ts
-  Input:
-    main.ts: import { helper } from './utils.js';
-  ✓ Moves the file
-  ✓ Updates import in main.ts:
-    import { helper } from './utils.js' → './helpers/utils.js'
-  ✓ Updates all other files that import it
-  ✓ Handles ES6, CommonJS, dynamic imports`,
-      inputSchema: moveFileSchema.shape
-    };
-  }
 }

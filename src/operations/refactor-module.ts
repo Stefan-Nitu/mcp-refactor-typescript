@@ -121,17 +121,4 @@ Try:
     }
   }
 
-  getSchema() {
-    return {
-      title: 'Refactor Module',
-      description: `Complete module refactoring workflow: move file + organize imports + fix errors automatically. Perfect for restructuring code without breaking anything. Combines 3 operations in one atomic action.
-
-Example: Move src/old/service.ts → src/new/service.ts
-  ✓ Moves the file and updates all imports
-  ✓ Organizes imports in all affected files
-  ✓ Fixes any TypeScript errors introduced by the move
-  ✓ Complete refactoring in < 2s`,
-      inputSchema: refactorModuleSchema.shape
-    };
-  }
 }

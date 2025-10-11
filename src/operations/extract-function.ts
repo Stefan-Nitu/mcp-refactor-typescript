@@ -260,26 +260,4 @@ Try:
     }
   }
 
-  getSchema() {
-    return {
-      title: 'Extract Function',
-      description: `Extract code blocks into functions with auto-detected parameters, return types, dependencies, and your custom name. TypeScript analyzes data flow to determine what needs to be passed in vs returned. Impossible to do correctly by hand - would require manual analysis of closures, mutations, and control flow.
-
-Example: Extract "const result = x + y;" with name "addNumbers"
-  Input: { filePath, line: 2, text: "x + y", functionName: "addNumbers" }
-  Output:
-    function addNumbers() { return x + y; }
-    const result = addNumbers();
-  ✓ Auto-detects parameters needed (x, y)
-  ✓ Infers return type
-  ✓ Applies custom name
-  ✓ Replaces selection with function call`,
-      inputSchema: {
-        filePath: z.string().min(1, 'File path cannot be empty'),
-        line: z.number().int().positive('Line must be a positive integer'),
-        text: z.string().min(1, 'Text cannot be empty'),
-        functionName: z.string().optional()
-      }
-    };
-  }
 }

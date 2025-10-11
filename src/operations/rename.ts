@@ -147,25 +147,4 @@ Try:
     }
   }
 
-  getSchema() {
-    return {
-      title: 'Rename Symbol',
-      description: `Rename across ALL files + update imports/exports automatically. TypeScript-aware renaming catches dynamic imports, re-exports, and type references that text search misses. Completes in <1s vs 5-10min manual search/replace with risk of missed references.
-
-Example: Rename 'calculateSum' to 'computeSum'
-  Input: { filePath, line: 1, text: "calculateSum", newName: "computeSum" }
-  ✓ Updates function declaration
-  ✓ Updates all call sites: calculateSum(1, 2) → computeSum(1, 2)
-  ✓ Updates all imports across files
-  ✓ Updates all exports and re-exports
-  ✓ Processes all references instantly`,
-      inputSchema: {
-        filePath: z.string().min(1, 'File path cannot be empty'),
-        line: z.number().int().positive('Line must be a positive integer'),
-        text: z.string().min(1, 'Text cannot be empty'),
-        newName: z.string().min(1, 'New name cannot be empty'),
-        preview: z.boolean().optional()
-      }
-    };
-  }
 }

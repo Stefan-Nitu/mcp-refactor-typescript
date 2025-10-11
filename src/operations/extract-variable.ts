@@ -27,27 +27,6 @@ export class ExtractVariableOperation implements Operation {
     private indentDetector: IndentationDetector = new IndentationDetector()
   ) {}
 
-  getSchema() {
-    return {
-      title: 'Extract Variable',
-      description: `Extract complex expressions to local variables with type inference and your custom name. Reduces code duplication and improves readability. Auto-determines proper const/let based on usage patterns.
-
-Example: Extract expression with custom name "doubled"
-  Input: { filePath, line: 2, text: "(a + b) * 2", variableName: "doubled" }
-  Output:
-    const doubled = (a + b) * 2;
-    return doubled;
-  ✓ Custom name applied (or auto-generated if not provided)
-  ✓ Type automatically inferred
-  ✓ const/let determined by usage`,
-      inputSchema: {
-        filePath: z.string().min(1, 'File path cannot be empty'),
-        line: z.number().int().positive('Line must be a positive integer'),
-        text: z.string().min(1, 'Text cannot be empty'),
-        variableName: z.string().optional()
-      }
-    };
-  }
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {

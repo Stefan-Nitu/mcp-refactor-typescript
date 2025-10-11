@@ -251,37 +251,4 @@ Try:
     return files;
   }
 
-  getSchema() {
-    return {
-      title: 'Cleanup Codebase',
-      description: `Clean entire codebase: organize imports and optionally remove unused exports/files.
-
-Safety First (Default Behavior):
-  By default, only organizes imports WITHOUT deleting files or exports.
-  Set deleteUnusedFiles: true for aggressive cleanup.
-
-What are entry points?
-  Entry points are the "main" files your app starts from (like main.ts or server.ts).
-  When deleteUnusedFiles is true, the tool follows imports from these files to find what's actually used.
-
-Example: Safe cleanup (organizes imports only)
-  Input: { directory: "src" }
-  - Organizes imports in all files
-  - Preserves all files and exports
-  - Skips node_modules and hidden directories
-
-Example: Aggressive cleanup (removes unused code)
-  Input: { directory: "src", deleteUnusedFiles: true }
-  - Removes unused exports using tsr
-  - Deletes files with no used exports
-  - Organizes imports in remaining files
-  WARNING: This will delete files! Use preview mode first.
-
-Entry points default to: main/index/app/server files + all test files
-Customize with: { entrypoints: ["src/custom\\\\.ts$"] }
-
-Note: Test files are automatically preserved by including them as entrypoints.`,
-      inputSchema: cleanupCodebaseSchema.shape
-    };
-  }
 }

@@ -28,27 +28,6 @@ export class ExtractConstantOperation implements Operation {
     private indentDetector: IndentationDetector = new IndentationDetector()
   ) {}
 
-  getSchema() {
-    return {
-      title: 'Extract Constant',
-      description: `Extract magic numbers and string literals to named constants with proper scope. Auto-detects optimal scope (module/function/block) and applies your custom name. Makes code more maintainable and eliminates duplicate literal values.
-
-Example: Extract 3.14159 with custom name "PI"
-  Input: { filePath, line: 2, text: "3.14159", constantName: "PI" }
-  Output:
-    const PI = 3.14159;
-    const area = PI * radius * radius;
-  ✓ Custom name applied (or auto-generated if not provided)
-  ✓ Proper scope detection
-  ✓ All usages updated`,
-      inputSchema: {
-        filePath: z.string().min(1, 'File path cannot be empty'),
-        line: z.number().int().positive('Line must be a positive integer'),
-        text: z.string().min(1, 'Text cannot be empty'),
-        constantName: z.string().optional()
-      }
-    };
-  }
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {

@@ -154,23 +154,4 @@ Try:
     }
   }
 
-  getSchema() {
-    return {
-      title: 'Remove Unused',
-      description: `Safely remove ALL unused vars/imports with zero risk of breaking code. Type-aware analysis distinguishes between truly unused code and legitimate unused imports (like side-effect imports or type-only imports used in JSDoc). Never accidentally removes needed code.
-
-Example: Clean up unused code
-  Input:
-    const x = 42;
-    const y = 100;  // unused
-    console.error(x);
-  Output:
-    const x = 42;
-    console.error(x);
-  ✓ Removes unused variables
-  ✓ Removes unused imports
-  ✓ Preserves side-effect code`,
-      inputSchema: removeUnusedSchema.shape
-    };
-  }
 }
