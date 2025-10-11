@@ -88,27 +88,45 @@ npx @modelcontextprotocol/inspector mcp-refactor-typescript
 
 Open http://localhost:5173 to explore available tools and test refactoring operations.
 
-## Available Tools
+## Available Tools (v2.0)
 
-All tools return JSON responses with detailed information about what changed:
+The server exposes **4 grouped tools** with **14 operations** total. Each tool has a specific domain and uses the `operation` parameter to specify the action.
 
-| Tool | Description | Key Features |
-|------|-------------|--------------|
-| **rename** | Rename symbols across all files | Type-aware, updates imports/exports |
-| **move_file** | Move files and update imports | Zero manual import fixing |
-| **batch_move_files** | Move multiple files at once | Atomic operation, perfect for restructuring |
-| **organize_imports** | Sort and remove unused imports | Preserves side-effects, type-only imports |
-| **fix_all** | Auto-fix TypeScript errors | Compiler-grade fixes |
-| **remove_unused** | Remove unused code | Safe, distinguishes side-effect code |
-| **find_references** | Find all usages | Catches dynamic imports, JSDoc |
-| **extract_function** | Extract code to function | Auto-detects parameters, return type |
-| **extract_constant** | Extract literals to constants | Auto-detects optimal scope |
-| **extract_variable** | Extract expressions to variables | Type inference, const/let detection |
-| **inline_variable** | Inline variable values | Type-safe, handles scope correctly |
-| **infer_return_type** | Add return type annotations | Perfect for complex types |
-| **refactor_module** | Complete module refactoring | Move + organize + fix in one step |
-| **cleanup_codebase** | Clean entire codebase | Remove unused exports + organize imports |
-| **restart_tsserver** | Restart TypeScript server | Refresh after config changes |
+### Tool Groups
+
+| Tool | Operations | Use When |
+|------|-----------|----------|
+| **file_operations** | `rename`, `move`, `batch_move` | Renaming symbols, moving files, reorganizing code structure |
+| **code_quality** | `organize_imports`, `fix_all`, `remove_unused` | Before commits, after refactoring, cleanup tasks |
+| **refactoring** | `extract_function`, `extract_constant`, `extract_variable`, `infer_return_type` | Reducing duplication, improving structure, extracting logic |
+| **workspace** | `find_references`, `refactor_module`, `cleanup_codebase`, `restart_tsserver` | Understanding impact, large-scale refactoring, TypeScript issues |
+
+### Operations Reference
+
+| Operation | Tool | Description |
+|-----------|------|-------------|
+| **rename** | file_operations | Rename symbols across all files with automatic import/export updates |
+| **move** | file_operations | Move files with automatic import path updates |
+| **batch_move** | file_operations | Move multiple files atomically |
+| **organize_imports** | code_quality | Sort and remove unused imports (preserves side-effects) |
+| **fix_all** | code_quality | Apply all available TypeScript quick fixes |
+| **remove_unused** | code_quality | Remove unused variables and imports safely |
+| **extract_function** | refactoring | Extract code to function with auto-detected parameters/types |
+| **extract_constant** | refactoring | Extract magic numbers/strings to named constants |
+| **extract_variable** | refactoring | Extract expressions to local variables |
+| **infer_return_type** | refactoring | Add return type annotations automatically |
+| **find_references** | workspace | Find all usages with type-aware analysis |
+| **refactor_module** | workspace | Complete workflow: move + organize + fix |
+| **cleanup_codebase** | workspace | Clean entire codebase (organize + optionally delete unused) |
+| **restart_tsserver** | workspace | Restart TypeScript server for fresh project state |
+
+### Operations Catalog Resource
+
+Detailed documentation is available via the MCP resource `operations://catalog`:
+- Full examples for each operation
+- Best practices and tips
+- Common workflow patterns
+- Troubleshooting guides
 
 ## Response Format
 
@@ -116,7 +134,8 @@ All tools return structured JSON:
 
 ```json
 {
-  "tool": "operation_name",
+  "tool": "file_operations",
+  "operation": "rename",
   "status": "success" | "error",
   "message": "Human-readable summary",
   "data": {
@@ -145,6 +164,61 @@ All tools return structured JSON:
     "organize_imports - Clean up import statements",
     "fix_all - Fix any type errors"
   ]
+}
+```
+
+## Example Usage
+
+### Rename a symbol
+```json
+{
+  "tool": "file_operations",
+  "params": {
+    "operation": "rename",
+    "filePath": "src/user.ts",
+    "line": 10,
+    "text": "getUser",
+    "newName": "getUserProfile",
+    "preview": false
+  }
+}
+```
+
+### Organize imports
+```json
+{
+  "tool": "code_quality",
+  "params": {
+    "operation": "organize_imports",
+    "filePath": "src/index.ts"
+  }
+}
+```
+
+### Extract function
+```json
+{
+  "tool": "refactoring",
+  "params": {
+    "operation": "extract_function",
+    "filePath": "src/calculate.ts",
+    "line": 15,
+    "text": "x + y",
+    "functionName": "addNumbers"
+  }
+}
+```
+
+### Find references
+```json
+{
+  "tool": "workspace",
+  "params": {
+    "operation": "find_references",
+    "filePath": "src/utils.ts",
+    "line": 5,
+    "text": "helper"
+  }
 }
 ```
 

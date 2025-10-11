@@ -9,6 +9,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { OperationRegistry } from './operations/registry.js';
 import { logger } from './utils/logger.js';
+import { groupedTools } from './tools/grouped-tools.js';
+import { operationsCatalog } from './resources/operations-catalog.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -24,18 +26,41 @@ const server = new McpServer({
 
 const registry = new OperationRegistry();
 
-// Register each operation as a separate MCP tool
-for (const [name, operation] of registry.getAllOperations()) {
-  const schema = operation.getSchema();
+// Register operations catalog as MCP resource
+server.registerResource(
+  'operations-catalog',
+  'operations://catalog',
+  {
+    title: 'Operations Catalog',
+    description: 'Detailed documentation for all refactoring operations with examples',
+    mimeType: 'text/markdown'
+  },
+  async () => ({
+    contents: [{
+      uri: 'operations://catalog',
+      mimeType: 'text/markdown',
+      text: operationsCatalog
+    }]
+  })
+);
+
+// Register grouped tools (v2.0)
+for (const tool of groupedTools) {
   server.registerTool(
-    name,
-    schema,
-    async (args) => {
+    tool.name,
+    {
+      title: tool.title,
+      description: tool.description,
+      inputSchema: tool.inputSchema.shape,
+      annotations: tool.annotations
+    },
+    async (args: Record<string, unknown>) => {
       try {
-        const result = await operation.execute(args);
+        const result = await tool.execute(args, registry);
 
         const response = {
-          tool: name,
+          tool: tool.name,
+          operation: args.operation,
           status: result.success ? 'success' : 'error',
           message: result.message,
           data: {
@@ -52,7 +77,8 @@ for (const [name, operation] of registry.getAllOperations()) {
       } catch (error) {
         if (error instanceof z.ZodError) {
           const response = {
-            tool: name,
+            tool: tool.name,
+            operation: args.operation,
             status: 'error',
             message: 'Invalid input',
             errors: error.errors.map(e => ({
@@ -69,7 +95,8 @@ for (const [name, operation] of registry.getAllOperations()) {
         }
 
         const response = {
-          tool: name,
+          tool: tool.name,
+          operation: args.operation,
           status: 'error',
           message: error instanceof Error ? error.message : String(error)
         };
