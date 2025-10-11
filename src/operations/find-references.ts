@@ -2,11 +2,11 @@
  * Find references operation handler
  */
 
-import { readFile } from 'fs/promises';
-import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSReferenceEntry, TSReferencesResponse } from '../language-servers/typescript/tsserver-types.js';
+import { FileOperations } from './shared/file-operations.js';
+import { TextPositionConverter } from './shared/text-position-converter.js';
 
 export const findReferencesSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -15,44 +15,29 @@ export const findReferencesSchema = z.object({
 });
 
 export class FindReferencesOperation {
-  constructor(private tsServer: TypeScriptServer) {}
+  constructor(
+    private tsServer: TypeScriptServer,
+    private fileOps: FileOperations = new FileOperations(),
+    private textConverter: TextPositionConverter = new TextPositionConverter()
+  ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = findReferencesSchema.parse(input);
-      const filePath = resolve(validated.filePath);
+      const filePath = this.fileOps.resolvePath(validated.filePath);
 
-      // Convert text to column position
-      const fileContent = await readFile(filePath, 'utf8');
-      const lines = fileContent.split('\n');
-      const lineIndex = validated.line - 1;
+      const lines = await this.fileOps.readLines(filePath);
+      const positionResult = this.textConverter.findTextPosition(lines, validated.line, validated.text);
 
-      if (lineIndex < 0 || lineIndex >= lines.length) {
+      if (!positionResult.success) {
         return {
           success: false,
-          message: `Line ${validated.line} is out of range (file has ${lines.length} lines)`,
+          message: positionResult.message,
           filesChanged: []
         };
       }
 
-      const lineContent = lines[lineIndex];
-      const textIndex = lineContent.indexOf(validated.text);
-
-      if (textIndex === -1) {
-        return {
-          success: false,
-          message: `Text "${validated.text}" not found on line ${validated.line}
-
-Line content: ${lineContent}
-
-Try:
-  1. Check the text matches exactly (case-sensitive)
-  2. Ensure you're on the correct line`,
-          filesChanged: []
-        };
-      }
-
-      const column = textIndex + 1;
+      const column = positionResult.startColumn;
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());

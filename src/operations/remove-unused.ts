@@ -2,8 +2,6 @@
  * Remove unused code operation handler
  */
 
-import { readFile, writeFile } from 'fs/promises';
-import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type {
@@ -12,6 +10,8 @@ import type {
   TSTextChange,
   TSFileEdit
 } from '../language-servers/typescript/tsserver-types.js';
+import { EditApplicator } from './shared/edit-applicator.js';
+import { FileOperations } from './shared/file-operations.js';
 
 export const removeUnusedSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -19,12 +19,16 @@ export const removeUnusedSchema = z.object({
 });
 
 export class RemoveUnusedOperation {
-  constructor(private tsServer: TypeScriptServer) {}
+  constructor(
+    private tsServer: TypeScriptServer,
+    private fileOps: FileOperations = new FileOperations(),
+    private editApplicator: EditApplicator = new EditApplicator()
+  ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = removeUnusedSchema.parse(input);
-      const filePath = resolve(validated.filePath);
+      const filePath = this.fileOps.resolvePath(validated.filePath);
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -105,15 +109,6 @@ export class RemoveUnusedOperation {
         };
       }
 
-      const fileContent = await readFile(filePath, 'utf8');
-      const lines = fileContent.split('\n');
-
-      const fileChanges = {
-        file: filePath.split('/').pop() || filePath,
-        path: filePath,
-        edits: [] as RefactorResult['filesChanged'][0]['edits']
-      };
-
       const allTextChanges: TSTextChange[] = [];
       for (const fileEdit of allChanges) {
         if (fileEdit.fileName === filePath) {
@@ -121,36 +116,10 @@ export class RemoveUnusedOperation {
         }
       }
 
-      const sortedChanges = [...allTextChanges].sort((a, b) => {
-        if (b.start.line !== a.start.line) return b.start.line - a.start.line;
-        return b.start.offset - a.start.offset;
-      });
-
-      for (const change of sortedChanges) {
-        const startLine = change.start.line - 1;
-        const endLine = change.end.line - 1;
-        const startOffset = change.start.offset - 1;
-        const endOffset = change.end.offset - 1;
-
-        fileChanges.edits.push({
-          line: change.start.line,
-          old: lines[startLine]?.substring(startOffset, endOffset) || '',
-          new: change.newText
-        });
-
-        if (startLine === endLine) {
-          lines[startLine] =
-            lines[startLine].substring(0, startOffset) +
-            change.newText +
-            lines[startLine].substring(endOffset);
-        } else {
-          const before = lines[startLine].substring(0, startOffset);
-          const after = lines[endLine].substring(endOffset);
-          lines.splice(startLine, endLine - startLine + 1, before + change.newText + after);
-        }
-      }
-
-      const updatedContent = lines.join('\n');
+      const originalLines = await this.fileOps.readLines(filePath);
+      const sortedChanges = this.editApplicator.sortEdits(allTextChanges);
+      const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, filePath);
+      const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
 
       if (validated.preview) {
         return {
@@ -165,7 +134,7 @@ export class RemoveUnusedOperation {
         };
       }
 
-      await writeFile(filePath, updatedContent);
+      await this.fileOps.writeLines(filePath, updatedLines);
 
       return {
         success: true,

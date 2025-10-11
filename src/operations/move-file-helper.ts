@@ -2,13 +2,19 @@
  * Helper for performing file moves with TypeScript import updates
  */
 
-import { mkdir, readFile, rename, writeFile } from 'fs/promises';
+import { mkdir, rename } from 'fs/promises';
 import { dirname } from 'path';
 import type { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import type { TSFileEdit, TSTextChange } from '../language-servers/typescript/tsserver-types.js';
+import type { TSFileEdit } from '../language-servers/typescript/tsserver-types.js';
+import { EditApplicator } from './shared/edit-applicator.js';
+import { FileOperations } from './shared/file-operations.js';
 
 export class MoveFileHelper {
-  constructor(private tsServer: TypeScriptServer) {}
+  constructor(
+    private tsServer: TypeScriptServer,
+    private fileOps: FileOperations = new FileOperations(),
+    private editApplicator: EditApplicator = new EditApplicator()
+  ) {}
 
   async performMove(
     sourcePath: string,
@@ -50,49 +56,15 @@ export class MoveFileHelper {
     const filesChanged: RefactorResult['filesChanged'] = [];
 
     for (const fileEdit of edits) {
-      const fileContent = await readFile(fileEdit.fileName, 'utf8');
-      const lines = fileContent.split('\n');
-
-      const fileChanges = {
-        file: fileEdit.fileName.split('/').pop() || fileEdit.fileName,
-        path: fileEdit.fileName,
-        edits: [] as RefactorResult['filesChanged'][0]['edits']
-      };
-
-      const sortedChanges = [...fileEdit.textChanges].sort((a: TSTextChange, b: TSTextChange) => {
-        if (b.start.line !== a.start.line) return b.start.line - a.start.line;
-        return b.start.offset - a.start.offset;
-      });
-
-      for (const change of sortedChanges) {
-        const startLine = change.start.line - 1;
-        const endLine = change.end.line - 1;
-        const startOffset = change.start.offset - 1;
-        const endOffset = change.end.offset - 1;
-
-        fileChanges.edits.push({
-          line: change.start.line,
-          old: lines[startLine].substring(startOffset, endOffset),
-          new: change.newText
-        });
-
-        if (startLine === endLine) {
-          lines[startLine] =
-            lines[startLine].substring(0, startOffset) +
-            change.newText +
-            lines[startLine].substring(endOffset);
-        } else {
-          const before = lines[startLine].substring(0, startOffset);
-          const after = lines[endLine].substring(endOffset);
-          lines.splice(startLine, endLine - startLine + 1, before + change.newText + after);
-        }
-      }
-
-      const updatedContent = lines.join('\n');
+      const originalLines = await this.fileOps.readLines(fileEdit.fileName);
+      const sortedChanges = this.editApplicator.sortEdits(fileEdit.textChanges);
+      const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, fileEdit.fileName);
+      const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
 
       if (!preview) {
-        await writeFile(fileEdit.fileName, updatedContent);
+        await this.fileOps.writeLines(fileEdit.fileName, updatedLines);
       }
+
       filesChanged.push(fileChanges);
     }
 

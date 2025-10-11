@@ -2,11 +2,12 @@
  * Rename operation handler
  */
 
-import { readFile, writeFile } from 'fs/promises';
-import { resolve } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSRenameLoc, TSRenameResponse } from '../language-servers/typescript/tsserver-types.js';
+import { EditApplicator } from './shared/edit-applicator.js';
+import { FileOperations } from './shared/file-operations.js';
+import { TextPositionConverter } from './shared/text-position-converter.js';
 
 export const renameSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -17,46 +18,30 @@ export const renameSchema = z.object({
 });
 
 export class RenameOperation {
-  constructor(private tsServer: TypeScriptServer) {}
+  constructor(
+    private tsServer: TypeScriptServer,
+    private fileOps: FileOperations = new FileOperations(),
+    private textConverter: TextPositionConverter = new TextPositionConverter(),
+    private editApplicator: EditApplicator = new EditApplicator()
+  ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = renameSchema.parse(input);
+      const absoluteFilePath = this.fileOps.resolvePath(validated.filePath);
 
-      // Normalize relative paths to absolute
-      const absoluteFilePath = resolve(validated.filePath);
+      const lines = await this.fileOps.readLines(absoluteFilePath);
+      const positionResult = this.textConverter.findTextPosition(lines, validated.line, validated.text);
 
-      // Convert text to column position
-      const fileContent = await readFile(absoluteFilePath, 'utf8');
-      const lines = fileContent.split('\n');
-      const lineIndex = validated.line - 1;
-
-      if (lineIndex < 0 || lineIndex >= lines.length) {
+      if (!positionResult.success) {
         return {
           success: false,
-          message: `Line ${validated.line} is out of range (file has ${lines.length} lines)`,
+          message: positionResult.message,
           filesChanged: []
         };
       }
 
-      const lineContent = lines[lineIndex];
-      const textIndex = lineContent.indexOf(validated.text);
-
-      if (textIndex === -1) {
-        return {
-          success: false,
-          message: `Text "${validated.text}" not found on line ${validated.line}
-
-Line content: ${lineContent}
-
-Try:
-  1. Check the text matches exactly (case-sensitive)
-  2. Ensure you're on the correct line`,
-          filesChanged: []
-        };
-      }
-
-      const column = textIndex + 1;
+      const column = positionResult.startColumn;
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -96,40 +81,22 @@ Try:
       const filesChanged: RefactorResult['filesChanged'] = [];
 
       for (const fileLoc of renameInfo.locs) {
-        const fileContent = await readFile(fileLoc.file, 'utf8');
-        const lines = fileContent.split('\n');
+        const originalLines = await this.fileOps.readLines(fileLoc.file);
 
-        const fileChanges = {
-          file: fileLoc.file.split('/').pop() || fileLoc.file,
-          path: fileLoc.file,
-          edits: [] as RefactorResult['filesChanged'][0]['edits']
-        };
+        const renamedChanges = fileLoc.locs.map((loc: TSRenameLoc) => ({
+          start: loc.start,
+          end: loc.end,
+          newText: validated.newName
+        }));
 
-        const edits = fileLoc.locs.sort((a: TSRenameLoc, b: TSRenameLoc) =>
-          b.start.line === a.start.line ? b.start.offset - a.start.offset : b.start.line - a.start.line
-        );
-
-        for (const edit of edits) {
-          const lineIndex = edit.start.line - 1;
-          const line = lines[lineIndex];
-          const oldText = line.substring(edit.start.offset - 1, edit.end.offset - 1);
-
-          fileChanges.edits.push({
-            line: edit.start.line,
-            column: edit.start.offset,
-            old: oldText,
-            new: validated.newName
-          });
-
-          lines[lineIndex] =
-            line.substring(0, edit.start.offset - 1) +
-            validated.newName +
-            line.substring(edit.end.offset - 1);
-        }
+        const sortedChanges = this.editApplicator.sortEdits(renamedChanges);
+        const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, fileLoc.file);
+        const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
 
         if (!validated.preview) {
-          await writeFile(fileLoc.file, lines.join('\n'));
+          await this.fileOps.writeLines(fileLoc.file, updatedLines);
         }
+
         filesChanged.push(fileChanges);
       }
 

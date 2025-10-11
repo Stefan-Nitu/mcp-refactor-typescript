@@ -1,11 +1,13 @@
-import { resolve } from 'path';
-import { readFile, writeFile } from 'fs/promises';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc, TSRenameResponse, TSTextChange } from '../language-servers/typescript/tsserver-types.js';
+import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc, TSRenameResponse } from '../language-servers/typescript/tsserver-types.js';
 import { formatValidationError } from '../utils/validation-error.js';
-import { Operation } from './registry.js';
 import { RefactoringProcessor } from './refactoring-processor.js';
+import { Operation } from './registry.js';
+import { EditApplicator } from './shared/edit-applicator.js';
+import { FileOperations } from './shared/file-operations.js';
+import { IndentationDetector } from './shared/indentation-detector.js';
+import { TextPositionConverter } from './shared/text-position-converter.js';
 
 const extractVariableSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -18,28 +20,12 @@ const extractVariableSchema = z.object({
 export class ExtractVariableOperation implements Operation {
   constructor(
     private tsServer: TypeScriptServer,
-    private processor: RefactoringProcessor = new RefactoringProcessor('const')
+    private processor: RefactoringProcessor = new RefactoringProcessor('const'),
+    private fileOps: FileOperations = new FileOperations(),
+    private textConverter: TextPositionConverter = new TextPositionConverter(),
+    private editApplicator: EditApplicator = new EditApplicator(),
+    private indentDetector: IndentationDetector = new IndentationDetector()
   ) {}
-
-  private detectIndentation(lines: string[], targetLine: number): string {
-    // Look at surrounding lines to detect indentation
-    for (let i = targetLine; i < Math.min(targetLine + 3, lines.length); i++) {
-      const line = lines[i];
-      if (line.trim().length > 0) {
-        const match = line.match(/^(\s*)/);
-        if (match) return match[1];
-      }
-    }
-    // Look backwards if no indent found ahead
-    for (let i = targetLine - 1; i >= Math.max(0, targetLine - 3); i--) {
-      const line = lines[i];
-      if (line.trim().length > 0) {
-        const match = line.match(/^(\s*)/);
-        if (match) return match[1];
-      }
-    }
-    return '';
-  }
 
   getSchema() {
     return {
@@ -67,42 +53,23 @@ Example: Extract expression with custom name "doubled"
     try {
       const validated = extractVariableSchema.parse(input);
       const { line, text, variableName } = validated;
-      const filePath = resolve(validated.filePath);
+      const filePath = this.fileOps.resolvePath(validated.filePath);
 
-      // Convert text to column positions
-      const fileContent = await readFile(filePath, 'utf8');
-      const lines = fileContent.split('\n');
-      const lineIndex = line - 1;
+      const lines = await this.fileOps.readLines(filePath);
+      const positionResult = this.textConverter.findTextPosition(lines, line, text);
 
-      if (lineIndex < 0 || lineIndex >= lines.length) {
+      if (!positionResult.success) {
         return {
           success: false,
-          message: `Line ${line} is out of range (file has ${lines.length} lines)`,
+          message: positionResult.message,
           filesChanged: []
         };
       }
 
-      const lineContent = lines[lineIndex];
-      const textIndex = lineContent.indexOf(text);
-
-      if (textIndex === -1) {
-        return {
-          success: false,
-          message: `Text "${text}" not found on line ${line}
-
-Line content: ${lineContent}
-
-Try:
-  1. Check the text matches exactly (case-sensitive)
-  2. Ensure you're on the correct line`,
-          filesChanged: []
-        };
-      }
-
-      const startLine = line;
-      const startColumn = textIndex + 1;
-      const endLine = line;
-      const endColumn = textIndex + text.length + 1;
+      const startLine = positionResult.startLine;
+      const startColumn = positionResult.startColumn;
+      const endLine = positionResult.endLine;
+      const endColumn = positionResult.endColumn;
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -198,29 +165,12 @@ This might indicate:
       let variableColumn: number | null = null;
 
       for (const fileEdit of edits.edits) {
-        const fileContent = await readFile(fileEdit.fileName, 'utf8');
-        const lines = fileContent.split('\n');
+        const originalLines = await this.fileOps.readLines(fileEdit.fileName);
+        const sortedChanges = this.editApplicator.sortEdits(fileEdit.textChanges);
 
-        const fileChanges = {
-          file: fileEdit.fileName.split('/').pop() || fileEdit.fileName,
-          path: fileEdit.fileName,
-          edits: [] as RefactorResult['filesChanged'][0]['edits']
-        };
-
-        const sortedChanges = [...fileEdit.textChanges].sort((a: TSTextChange, b: TSTextChange) => {
-          if (b.start.line !== a.start.line) return b.start.line - a.start.line;
-          return b.start.offset - a.start.offset;
-        });
-
-        for (const change of sortedChanges) {
-          const startLine = change.start.line - 1;
-          const endLine = change.end.line - 1;
-          const startOffset = change.start.offset - 1;
-          const endOffset = change.end.offset - 1;
-
+        const fixedChanges = sortedChanges.map(change => {
           let newText = change.newText;
 
-          // Fix indentation if this change contains a const declaration
           if (newText.includes('const ')) {
             const textLines = newText.split('\n');
             const constLineIndex = textLines.findIndex(l => l.includes('const '));
@@ -228,7 +178,7 @@ This might indicate:
             if (constLineIndex !== -1) {
               const constLine = textLines[constLineIndex];
               const insertedIndent = constLine.match(/^(\s*)/)?.[1] || '';
-              const existingIndent = this.detectIndentation(fileContent.split('\n'), startLine);
+              const existingIndent = this.indentDetector.detect(originalLines, change.start.line - 1);
 
               if (insertedIndent !== existingIndent) {
                 textLines[constLineIndex] = constLine.replace(/^\s*/, existingIndent);
@@ -237,30 +187,16 @@ This might indicate:
             }
           }
 
-          fileChanges.edits.push({
-            line: change.start.line,
-            old: lines[startLine].substring(startOffset, endOffset),
-            new: newText
-          });
+          return { ...change, newText };
+        });
 
-          if (startLine === endLine) {
-            lines[startLine] =
-              lines[startLine].substring(0, startOffset) +
-              newText +
-              lines[startLine].substring(endOffset);
-          } else {
-            const before = lines[startLine].substring(0, startOffset);
-            const after = lines[endLine].substring(endOffset);
-            lines.splice(startLine, endLine - startLine + 1, before + newText + after);
-          }
-        }
+        const fileChanges = this.editApplicator.buildFileChanges(originalLines, fixedChanges, fileEdit.fileName);
+        const updatedLines = this.editApplicator.applyEdits(originalLines, fixedChanges);
 
-        const updatedContent = lines.join('\n');
-
-        // Only write if not in preview mode
         if (!validated.preview) {
-          await writeFile(fileEdit.fileName, updatedContent);
+          await this.fileOps.writeLines(fileEdit.fileName, updatedLines);
         }
+
         filesChanged.push(fileChanges);
 
         if (!generatedVariableName && fileEdit.fileName === filePath) {
@@ -300,25 +236,19 @@ This might indicate:
 
         if (renameResult?.locs) {
           for (const fileLoc of renameResult.locs) {
-            const fileContent = await readFile(fileLoc.file, 'utf8');
-            const lines = fileContent.split('\n');
+            const originalLines = await this.fileOps.readLines(fileLoc.file);
 
-            const edits = fileLoc.locs.sort((a: TSRenameLoc, b: TSRenameLoc) =>
-              b.start.line === a.start.line ? b.start.offset - a.start.offset : b.start.line - a.start.line
-            );
+            const renamedChanges = fileLoc.locs.map((loc: TSRenameLoc) => ({
+              start: loc.start,
+              end: loc.end,
+              newText: variableName
+            }));
 
-            for (const edit of edits) {
-              const lineIndex = edit.start.line - 1;
-              const line = lines[lineIndex];
-              lines[lineIndex] =
-                line.substring(0, edit.start.offset - 1) +
-                variableName +
-                line.substring(edit.end.offset - 1);
-            }
+            const sortedChanges = this.editApplicator.sortEdits(renamedChanges);
+            const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
 
-            await writeFile(fileLoc.file, lines.join('\n'));
+            await this.fileOps.writeLines(fileLoc.file, updatedLines);
 
-            // Update filesChanged to reflect the rename in the response
             this.processor.updateFilesChangedAfterRename(filesChanged, generatedVariableName, variableName, fileLoc.file);
           }
         }
