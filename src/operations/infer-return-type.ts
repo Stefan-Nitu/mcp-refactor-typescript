@@ -1,11 +1,12 @@
-import { resolve } from 'path';
-import { readFile, writeFile } from 'fs/promises';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSTextChange } from '../language-servers/typescript/tsserver-types.js';
+import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo } from '../language-servers/typescript/tsserver-types.js';
 import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { Operation } from './registry.js';
+import { EditApplicator } from './shared/edit-applicator.js';
+import { FileOperations } from './shared/file-operations.js';
+import { TextPositionConverter } from './shared/text-position-converter.js';
 
 export const inferReturnTypeSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
@@ -15,7 +16,12 @@ export const inferReturnTypeSchema = z.object({
 });
 
 export class InferReturnTypeOperation implements Operation {
-  constructor(private tsServer: TypeScriptServer) {}
+  constructor(
+    private tsServer: TypeScriptServer,
+    private fileOps: FileOperations = new FileOperations(),
+    private textConverter: TextPositionConverter = new TextPositionConverter(),
+    private editApplicator: EditApplicator = new EditApplicator()
+  ) {}
 
   getSchema() {
     return {
@@ -41,40 +47,21 @@ Example: Add return type to function
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = inferReturnTypeSchema.parse(input);
-      const filePath = resolve(validated.filePath);
+      const { line, text } = validated;
+      const filePath = this.fileOps.resolvePath(validated.filePath);
 
-      // Convert text to column position
-      const fileContent = await readFile(filePath, 'utf8');
-      const lines = fileContent.split('\n');
-      const lineIndex = validated.line - 1;
+      const lines = await this.fileOps.readLines(filePath);
+      const positionResult = this.textConverter.findTextPosition(lines, line, text);
 
-      if (lineIndex < 0 || lineIndex >= lines.length) {
+      if (!positionResult.success) {
         return {
           success: false,
-          message: `Line ${validated.line} is out of range (file has ${lines.length} lines)`,
+          message: positionResult.message,
           filesChanged: []
         };
       }
 
-      const lineContent = lines[lineIndex];
-      const textIndex = lineContent.indexOf(validated.text);
-
-      if (textIndex === -1) {
-        return {
-          success: false,
-          message: `Text "${validated.text}" not found on line ${validated.line}
-
-Line content: ${lineContent}
-
-Try:
-  1. Check the text matches exactly (case-sensitive)
-  2. Ensure you're on the correct line`,
-          filesChanged: []
-        };
-      }
-
-      const line = validated.line;
-      const column = textIndex + 1;
+      const column = positionResult.startColumn;
 
       if (!this.tsServer.isRunning()) {
         await this.tsServer.start(process.cwd());
@@ -169,50 +156,16 @@ Try:
       const filesChanged: RefactorResult['filesChanged'] = [];
 
       for (const fileEdit of edits.edits) {
-        const fileContent = await readFile(fileEdit.fileName, 'utf8');
-        const lines = fileContent.split('\n');
+        const originalLines = await this.fileOps.readLines(fileEdit.fileName);
+        const sortedChanges = this.editApplicator.sortEdits(fileEdit.textChanges);
 
-        const fileChanges = {
-          file: fileEdit.fileName.split('/').pop() || fileEdit.fileName,
-          path: fileEdit.fileName,
-          edits: [] as RefactorResult['filesChanged'][0]['edits']
-        };
+        const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, fileEdit.fileName);
+        const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
 
-        const sortedChanges = [...fileEdit.textChanges].sort((a: TSTextChange, b: TSTextChange) => {
-          if (b.start.line !== a.start.line) return b.start.line - a.start.line;
-          return b.start.offset - a.start.offset;
-        });
-
-        for (const change of sortedChanges) {
-          const startLine = change.start.line - 1;
-          const endLine = change.end.line - 1;
-          const startOffset = change.start.offset - 1;
-          const endOffset = change.end.offset - 1;
-
-          fileChanges.edits.push({
-            line: change.start.line,
-            old: lines[startLine].substring(startOffset, endOffset),
-            new: change.newText
-          });
-
-          if (startLine === endLine) {
-            lines[startLine] =
-              lines[startLine].substring(0, startOffset) +
-              change.newText +
-              lines[startLine].substring(endOffset);
-          } else {
-            const before = lines[startLine].substring(0, startOffset);
-            const after = lines[endLine].substring(endOffset);
-            lines.splice(startLine, endLine - startLine + 1, before + change.newText + after);
-          }
-        }
-
-        const updatedContent = lines.join('\n');
-
-        // Only write if not in preview mode
         if (!validated.preview) {
-          await writeFile(fileEdit.fileName, updatedContent);
+          await this.fileOps.writeLines(fileEdit.fileName, updatedLines);
         }
+
         filesChanged.push(fileChanges);
       }
 

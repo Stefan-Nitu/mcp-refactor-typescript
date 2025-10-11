@@ -4,7 +4,6 @@ import { extractFunctionSchema } from '../extract-function.js';
 import { findReferencesSchema } from '../find-references.js';
 import { fixAllSchema } from '../fix-all.js';
 import { inferReturnTypeSchema } from '../infer-return-type.js';
-import { inlineVariableSchema } from '../inline-variable.js';
 import { moveFileSchema } from '../move-file.js';
 import { organizeImportsSchema } from '../organize-imports.js';
 import { removeUnusedSchema } from '../remove-unused.js';
@@ -246,45 +245,6 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: -1,
         text: 'codeToExtract'
-      });
-      expect(result.success).toBe(false);
-    });
-  });
-
-  describe('inlineVariableSchema', () => {
-    it('should validate correct input', () => {
-      const result = inlineVariableSchema.safeParse({
-        filePath: '/path/to/file.ts',
-        line: 10,
-        text: 'variableName'
-      });
-      expect(result.success).toBe(true);
-    });
-
-    it('should accept optional preview', () => {
-      const result = inlineVariableSchema.safeParse({
-        filePath: '/path/to/file.ts',
-        line: 10,
-        text: 'variableName',
-        preview: true
-      });
-      expect(result.success).toBe(true);
-    });
-
-    it('should reject empty text', () => {
-      const result = inlineVariableSchema.safeParse({
-        filePath: '/path/to/file.ts',
-        line: 10,
-        text: ''
-      });
-      expect(result.success).toBe(false);
-    });
-
-    it('should reject negative positions', () => {
-      const result = inlineVariableSchema.safeParse({
-        filePath: '/path/to/file.ts',
-        line: -1,
-        text: 'variableName'
       });
       expect(result.success).toBe(false);
     });

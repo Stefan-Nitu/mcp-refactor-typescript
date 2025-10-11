@@ -13,7 +13,6 @@ import { ExtractVariableOperation } from './extract-variable.js';
 import { FindReferencesOperation } from './find-references.js';
 import { FixAllOperation } from './fix-all.js';
 import { InferReturnTypeOperation } from './infer-return-type.js';
-import { InlineVariableOperation } from './inline-variable.js';
 import { MoveFileOperation } from './move-file.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
 import { RefactorModuleOperation } from './refactor-module.js';
@@ -48,7 +47,6 @@ export class OperationRegistry {
     this.operations.set('extract_function', new ExtractFunctionOperation(this.tsServer));
     this.operations.set('extract_constant', new ExtractConstantOperation(this.tsServer));
     this.operations.set('extract_variable', new ExtractVariableOperation(this.tsServer));
-    this.operations.set('inline_variable', new InlineVariableOperation(this.tsServer));
     this.operations.set('infer_return_type', new InferReturnTypeOperation(this.tsServer));
     this.operations.set('refactor_module', new RefactorModuleOperation(this.tsServer));
     this.operations.set('cleanup_codebase', new CleanupCodebaseOperation(this.tsServer));
