@@ -181,6 +181,44 @@ export const version = getVersion();`;
   });
 
   describe('edge cases', () => {
+    it('should update mock paths in test files', async () => {
+      // Arrange
+      const oldPath = join(testDir, 'src', 'service.ts');
+      const testFilePath = join(testDir, 'src', 'service.test.ts');
+
+      const serviceContent = `export function doWork() {
+  return 'work';
+}`;
+
+      const testContent = `import { describe, it, expect, vi } from 'vitest';
+import { doWork } from './service.js';
+
+vi.mock('./service.js');
+
+describe('service', () => {
+  it('should work', () => {
+    expect(doWork()).toBe('work');
+  });
+});`;
+
+      await writeFile(oldPath, serviceContent, 'utf-8');
+      await writeFile(testFilePath, testContent, 'utf-8');
+
+      // Act
+      const response = await operation!.execute({
+        sourcePath: oldPath,
+        name: 'app-service.ts'
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+
+      const testFileContent = await readFile(testFilePath, 'utf-8');
+      expect(testFileContent).toContain("import { doWork } from './app-service.js';");
+      expect(testFileContent).toContain("vi.mock('./app-service.js');");
+      expect(testFileContent).not.toContain("vi.mock('./service.js');");
+    });
+
     it('should handle renaming file with exports but no importers', async () => {
       // Arrange
       const oldPath = join(testDir, 'src', 'no-importers.ts');

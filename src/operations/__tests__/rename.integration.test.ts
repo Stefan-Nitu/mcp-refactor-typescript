@@ -482,6 +482,49 @@ export function   oldFunction   (x: number): number {
     });
   });
 
+  it('should rename mocked function symbols in test files', async () => {
+    // Arrange
+    const servicePath = join(testDir, 'src', 'auth.ts');
+    const testPath = join(testDir, 'src', 'auth.test.ts');
+
+    const serviceContent = `export function authenticate(user: string) {
+  return user === 'admin';
+}`;
+
+    const testContent = `import { describe, it, expect, vi } from 'vitest';
+import { authenticate } from './auth.js';
+
+vi.mock('./auth.js');
+
+describe('auth', () => {
+  it('should mock authenticate', () => {
+    vi.mocked(authenticate).mockReturnValue(true);
+    expect(authenticate('user')).toBe(true);
+  });
+});`;
+
+    await writeFile(servicePath, serviceContent, 'utf-8');
+    await writeFile(testPath, testContent, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: servicePath,
+      line: 1,
+      text: 'authenticate',
+      name: 'authenticateUser'
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+
+    const testFileContent = await readFile(testPath, 'utf-8');
+    expect(testFileContent).toContain('vi.mocked(authenticateUser)');
+    expect(testFileContent).toContain('expect(authenticateUser(');
+    expect(testFileContent).toContain('import { authenticateUser }');
+    expect(testFileContent).not.toContain('vi.mocked(authenticate)');
+    expect(testFileContent).not.toContain('import { authenticate }');
+  });
+
   describe('preview mode', () => {
     it('should preview rename without writing files', async () => {
       // Arrange

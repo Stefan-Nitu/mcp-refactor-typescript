@@ -51,9 +51,11 @@ export class BatchMoveFilesOperation {
           if (result.success) {
             successCount++;
             if (result.filesChanged) {
-              // Add files that aren't already in the list (based on path)
               for (const fileChange of result.filesChanged) {
-                if (!allFilesChanged.find(f => f.path === fileChange.path)) {
+                const existingFile = allFilesChanged.find(f => f.path === fileChange.path);
+                if (existingFile) {
+                  existingFile.edits.push(...fileChange.edits);
+                } else {
                   allFilesChanged.push(fileChange);
                 }
               }

@@ -145,4 +145,45 @@ describe('moveFile', () => {
     expect(mainContent).toContain('./helpers/absolute-dest.js');
     expect(mainContent).not.toContain('./absolute-source.js');
   });
+
+  it('should update mock paths in test files when moving', async () => {
+    // Arrange
+    const apiPath = join(testDir, 'src', 'api.ts');
+    const testPath = join(testDir, 'src', 'api.test.ts');
+    const newApiPath = join(testDir, 'src', 'services', 'api.ts');
+
+    const apiContent = `export async function fetchData() {
+  return { data: 'test' };
+}`;
+
+    const testContent = `import { describe, it, expect, vi } from 'vitest';
+import { fetchData } from './api.js';
+
+vi.mock('./api.js');
+
+describe('api', () => {
+  it('should fetch data', async () => {
+    const result = await fetchData();
+    expect(result.data).toBe('test');
+  });
+});`;
+
+    await writeFile(apiPath, apiContent, 'utf-8');
+    await writeFile(testPath, testContent, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      sourcePath: apiPath,
+      destinationPath: newApiPath
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(existsSync(newApiPath)).toBe(true);
+
+    const testFileContent = await readFile(testPath, 'utf-8');
+    expect(testFileContent).toContain("import { fetchData } from './services/api.js';");
+    expect(testFileContent).toContain("vi.mock('./services/api.js');");
+    expect(testFileContent).not.toContain("vi.mock('./api.js');");
+  });
 });

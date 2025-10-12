@@ -8,12 +8,14 @@ import type { RefactorResult, TypeScriptServer } from '../../language-servers/ty
 import type { TSFileEdit } from '../../language-servers/typescript/tsserver-types.js';
 import { EditApplicator } from './edit-applicator.js';
 import { FileOperations } from './file-operations.js';
+import { StringLiteralPathUpdater } from './string-literal-path-updater.js';
 
 export class FileMover {
   constructor(
     private tsServer: TypeScriptServer,
     private fileOps: FileOperations = new FileOperations(),
-    private editApplicator: EditApplicator = new EditApplicator()
+    private editApplicator: EditApplicator = new EditApplicator(),
+    private mockUpdater: StringLiteralPathUpdater = new StringLiteralPathUpdater()
   ) {}
 
   async performMove(
@@ -54,10 +56,38 @@ export class FileMover {
     }
 
     const filesChanged: RefactorResult['filesChanged'] = [];
+    const processedFiles = new Set<string>();
 
     for (const fileEdit of edits) {
       const originalLines = await this.fileOps.readLines(fileEdit.fileName);
-      const sortedChanges = this.editApplicator.sortEdits(fileEdit.textChanges);
+      const fileContent = originalLines.join('\n');
+
+      const mockUpdates = this.mockUpdater.findMockPathUpdates(
+        fileContent,
+        fileEdit.fileName,
+        sourcePath,
+        destinationPath
+      );
+
+      const allTextChanges = [...fileEdit.textChanges];
+      for (const mockUpdate of mockUpdates) {
+        const start = {
+          line: mockUpdate.line,
+          offset: mockUpdate.column
+        };
+        const end = {
+          line: mockUpdate.line,
+          offset: mockUpdate.column + mockUpdate.old.length
+        };
+
+        allTextChanges.push({
+          start,
+          end,
+          newText: mockUpdate.new
+        });
+      }
+
+      const sortedChanges = this.editApplicator.sortEdits(allTextChanges);
       const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, fileEdit.fileName);
       const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
 
@@ -66,6 +96,7 @@ export class FileMover {
       }
 
       filesChanged.push(fileChanges);
+      processedFiles.add(fileEdit.fileName);
     }
 
     if (preview) {
