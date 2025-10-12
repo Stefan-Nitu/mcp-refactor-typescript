@@ -180,6 +180,52 @@ export { myLongVariableName };`;
   });
 
   describe('cross-file rename', () => {
+    it('should rename a class and update imports', async () => {
+      // Arrange
+      const classPath = join(testDir, 'src', 'models', 'helper.ts');
+      await mkdir(join(testDir, 'src', 'models'), { recursive: true });
+
+      const classContent = `export class MoveFileHelper {
+  performMove() {
+    return 'moved';
+  }
+}`;
+
+      const importPath = join(testDir, 'src', 'importer.ts');
+      const importContent = `import { MoveFileHelper } from './models/helper.js';
+
+export function useHelper() {
+  const helper = new MoveFileHelper();
+  return helper.performMove();
+}`;
+
+      await writeFile(classPath, classContent, 'utf-8');
+      await writeFile(importPath, importContent, 'utf-8');
+
+      // Act
+      const response = await operation!.execute({
+        filePath: classPath,
+        line: 1,
+        text: 'MoveFileHelper',
+        newName: 'FileMover'
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(response.filesChanged.length).toBeGreaterThanOrEqual(1);
+
+      // Verify class file was renamed
+      const classFileContent = await readFile(classPath, 'utf-8');
+      expect(classFileContent).toContain('FileMover');
+      expect(classFileContent).not.toContain('MoveFileHelper');
+
+      // Verify import was updated
+      const importFileContent = await readFile(importPath, 'utf-8');
+      expect(importFileContent).toContain('import { FileMover }');
+      expect(importFileContent).toContain('new FileMover()');
+      expect(importFileContent).not.toContain('MoveFileHelper');
+    });
+
     it('should rename an exported function across multiple files', async () => {
       // Arrange
       const libPath = join(testDir, 'src', 'lib.ts');

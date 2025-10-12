@@ -4,8 +4,8 @@
  */
 
 import { ChildProcess, spawn } from 'child_process';
-import { readFile, readdir } from 'fs/promises';
-import { dirname, join, resolve } from 'path';
+import { readFile } from 'fs/promises';
+import { resolve } from 'path';
 import { logger } from '../../utils/logger.js';
 
 export interface RefactorResult {
@@ -55,11 +55,7 @@ export class TypeScriptServer {
   }>();
   private messageBuffer = '';
   private projectLoaded = false;
-  private projectLoadingPromise: Promise<void> | null = null;
-  private projectUpdatePromise: Promise<void> | null = null;
-  private projectUpdateResolve: (() => void) | null = null;
   private running = false;
-  private lastScanTimedOut = false;
 
   constructor() {}
 
@@ -184,29 +180,14 @@ export class TypeScriptServer {
       if (message.event === 'projectLoadingFinish') {
         logger.debug('Project loading finished');
         this.projectLoaded = true;
-
-        if (this.projectLoadingPromise) {
-          this.projectLoadingPromise = null;
-        }
       } else if (message.event === 'projectLoadingStart') {
         logger.debug('Project loading started');
-        // Don't set projectLoaded = false here - this event fires when opening
-        // new files too, not just initial load. Setting false would cause
-        // every subsequent operation to wait 5s in checkProjectLoaded.
-        // Once the project has loaded initially, it stays loaded even during updates.
       } else if (message.event === 'projectsUpdatedInBackground') {
         logger.debug('Projects updated in background');
         this.projectLoaded = true;
-
-        if (this.projectUpdateResolve) {
-          this.projectUpdateResolve();
-          this.projectUpdateResolve = null;
-          this.projectUpdatePromise = null;
-        }
       }
     }
 
-    // Handle responses
     if (message.type === 'response' && message.request_seq) {
       const pending = this.pendingRequests.get(message.request_seq);
       if (pending) {
@@ -258,176 +239,4 @@ export class TypeScriptServer {
     return this.projectLoaded;
   }
 
-  didLastScanTimeout(): boolean {
-    return this.lastScanTimedOut;
-  }
-
-  async checkProjectLoaded(timeout = 5000): Promise<RefactorResult | null> {
-    if (this.projectLoaded) return null;
-
-    const startTime = Date.now();
-    while (Date.now() - startTime < timeout) {
-      if (this.projectLoaded) {
-        logger.info({ duration: Date.now() - startTime }, 'Project loaded');
-        return null;
-      }
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    // Project is still loading after timeout
-    return {
-      success: false,
-      message: `⏳ TypeScript is still indexing the project (waited ${timeout}ms)
-
-💡 Try:
-  1. Wait a few more seconds and try again
-  2. For large projects, indexing can take 10-30 seconds
-  3. Check that tsconfig.json is properly configured`,
-      filesChanged: []
-    };
-  }
-
-  async waitForProjectUpdate(timeout = 5000): Promise<void> {
-    if (this.projectLoaded && !this.projectUpdatePromise) {
-      return Promise.resolve();
-    }
-
-    if (this.projectUpdatePromise) {
-      return this.projectUpdatePromise;
-    }
-
-    this.projectUpdatePromise = new Promise<void>((resolve, reject) => {
-      this.projectUpdateResolve = resolve;
-
-      setTimeout(() => {
-        if (this.projectUpdateResolve) {
-          this.projectUpdateResolve = null;
-          this.projectUpdatePromise = null;
-          reject(new Error(`Project update timeout after ${timeout}ms`));
-        }
-      }, timeout);
-    });
-
-    return this.projectUpdatePromise;
-  }
-
-  private async scanTypeScriptFiles(dir: string, timeoutMs = 5000): Promise<string[]> {
-    const files: string[] = [];
-    const startTime = Date.now();
-    let timedOut = false;
-
-    const scan = async (currentDir: string): Promise<void> => {
-      if (Date.now() - startTime > timeoutMs) {
-        timedOut = true;
-        logger.debug({ elapsed: Date.now() - startTime, filesFound: files.length }, 'Filesystem scan timeout');
-        return;
-      }
-
-      try {
-        const entries = await readdir(currentDir, { withFileTypes: true });
-
-        for (const entry of entries) {
-          if (Date.now() - startTime > timeoutMs) {
-            timedOut = true;
-            break;
-          }
-
-          const fullPath = join(currentDir, entry.name);
-
-          if (entry.isDirectory()) {
-            if (entry.name === 'node_modules' || entry.name.startsWith('.') || entry.name === 'dist') {
-              continue;
-            }
-            await scan(fullPath);
-          } else if (entry.isFile() && /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
-            files.push(fullPath);
-          }
-        }
-      } catch (error) {
-        logger.debug({ dir: currentDir, error }, 'Failed to scan directory');
-      }
-    };
-
-    await scan(dir);
-    this.lastScanTimedOut = timedOut;
-
-    if (timedOut) {
-      logger.debug({ filesFound: files.length, elapsed: Date.now() - startTime }, 'Filesystem scan incomplete (timeout)');
-    } else {
-      logger.debug({ filesFound: files.length, elapsed: Date.now() - startTime }, 'Filesystem scan complete');
-    }
-
-    return files;
-  }
-
-  private async waitForFileIndexing(filePath: string, maxAttempts = 30): Promise<{ refs: Array<{ file: string }> } | null> {
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        const refs = await this.sendRequest<{
-          refs: Array<{ file: string }>;
-        }>('fileReferences', { file: filePath });
-
-        if (refs !== null) {
-          logger.debug({ attempt: i + 1, refsCount: refs.refs?.length || 0, file: filePath }, 'File indexed');
-          return refs;
-        }
-      } catch {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-    return null;
-  }
-
-  async discoverAndOpenImportingFiles(filePath: string | string[]): Promise<void> {
-    const files = Array.isArray(filePath) ? filePath : [filePath];
-    const importingFiles = new Set<string>();
-
-    for (const file of files) {
-      const refs = await this.waitForFileIndexing(file);
-
-      if (refs?.refs?.length) {
-        logger.debug({ file, importersCount: refs.refs.length }, 'Found files that reference this file');
-        refs.refs.forEach(ref => {
-          if (ref.file !== file) {
-            importingFiles.add(ref.file);
-          }
-        });
-      } else if (!refs || refs.refs.length === 0) {
-        logger.debug({ file }, 'File not indexed or has no refs, scanning for undiscovered files');
-
-        const projectInfo = await this.sendRequest<{
-          configFileName: string;
-          fileNames?: string[];
-        }>('projectInfo', {
-          file,
-          needFileNameList: true
-        });
-
-        if (!projectInfo?.configFileName) continue;
-
-        const projectRoot = dirname(projectInfo.configFileName);
-        const knownFiles = new Set(projectInfo.fileNames || []);
-        const allFiles = await this.scanTypeScriptFiles(projectRoot);
-
-        allFiles
-          .filter(f => !knownFiles.has(f) && !files.includes(f))
-          .forEach(f => importingFiles.add(f));
-      }
-    }
-
-    if (importingFiles.size > 0) {
-      logger.debug({ count: importingFiles.size }, 'Opening importing files in parallel');
-
-      await Promise.all(
-        Array.from(importingFiles).map(file =>
-          this.openFile(file).catch(error => {
-            logger.debug({ file, error }, 'Failed to open importing file');
-          })
-        )
-      );
-    }
-  }
-
 }
-
-

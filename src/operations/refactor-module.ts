@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { FixAllOperation } from './fix-all.js';
-import { MoveFileOperation } from './move-file.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
 import { TSServerGuard } from './shared/tsserver-guard.js';
 
@@ -35,7 +34,8 @@ export class RefactorModuleOperation {
       const steps: string[] = [];
 
       // Step 1: Move file
-      const moveOp = new MoveFileOperation(this.tsServer);
+      const { createMoveFileOperation } = await import('./shared/operation-factory.js');
+      const moveOp = createMoveFileOperation(this.tsServer);
       const moveResult = await moveOp.execute({
         sourcePath,
         destinationPath,

@@ -4,12 +4,12 @@
 
 import { mkdir, rename } from 'fs/promises';
 import { dirname } from 'path';
-import type { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import type { TSFileEdit } from '../language-servers/typescript/tsserver-types.js';
-import { EditApplicator } from './shared/edit-applicator.js';
-import { FileOperations } from './shared/file-operations.js';
+import type { RefactorResult, TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
+import type { TSFileEdit } from '../../language-servers/typescript/tsserver-types.js';
+import { EditApplicator } from './edit-applicator.js';
+import { FileOperations } from './file-operations.js';
 
-export class MoveFileHelper {
+export class FileMover {
   constructor(
     private tsServer: TypeScriptServer,
     private fileOps: FileOperations = new FileOperations(),

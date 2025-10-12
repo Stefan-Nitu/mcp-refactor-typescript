@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSRenameLoc, TSRenameResponse } from '../language-servers/typescript/tsserver-types.js';
 import { EditApplicator } from './shared/edit-applicator.js';
+import { FileDiscovery } from './shared/file-discovery.js';
 import { FileOperations } from './shared/file-operations.js';
 import { TextPositionConverter } from './shared/text-position-converter.js';
 import { TSServerGuard } from './shared/tsserver-guard.js';
@@ -24,7 +25,8 @@ export class RenameOperation {
     private fileOps: FileOperations = new FileOperations(),
     private textConverter: TextPositionConverter = new TextPositionConverter(),
     private editApplicator: EditApplicator = new EditApplicator(),
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer),
+    private fileDiscovery: FileDiscovery = new FileDiscovery(tsServer)
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -48,12 +50,7 @@ export class RenameOperation {
       const guardResult = await this.tsServerGuard.ensureReady();
       if (guardResult) return guardResult;
 
-      await this.tsServer.openFile(absoluteFilePath);
-
-      await this.tsServer.discoverAndOpenImportingFiles(absoluteFilePath);
-
-      const projectFullyLoaded = this.tsServer.isProjectLoaded();
-      const scanTimedOut = this.tsServer.didLastScanTimeout();
+      const projectStatus = await this.fileDiscovery.discoverRelatedFiles(absoluteFilePath);
 
       const renameInfo = await this.tsServer.sendRequest('rename', {
         file: absoluteFilePath,
@@ -98,16 +95,7 @@ Try:
         filesChanged.push(fileChanges);
       }
 
-      let warningMessage = '';
-      if (!projectFullyLoaded) {
-        warningMessage += '\n\nWarning: TypeScript is still indexing the project. Some references may have been missed.';
-      }
-      if (scanTimedOut) {
-        warningMessage += '\n\nWarning: File discovery timed out. Some files may not have been scanned. References might be incomplete.';
-      }
-      if (warningMessage) {
-        warningMessage += ' If results seem incomplete, try running the operation again.';
-      }
+      const warningMessage = this.fileDiscovery.buildWarningMessage(projectStatus, 'references');
 
       if (validated.preview) {
         return {

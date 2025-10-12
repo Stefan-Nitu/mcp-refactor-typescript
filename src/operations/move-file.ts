@@ -4,8 +4,9 @@
 
 import { resolve } from 'path';
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import { MoveFileHelper } from './move-file-helper.js';
+import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import { FileDiscovery } from './shared/file-discovery.js';
+import { FileMover } from './shared/file-mover.js';
 import { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const moveFileSchema = z.object({
@@ -15,13 +16,11 @@ export const moveFileSchema = z.object({
 });
 
 export class MoveFileOperation {
-  private helper: MoveFileHelper;
-
-  constructor(private tsServer: TypeScriptServer,
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
-  ) {
-    this.helper = new MoveFileHelper(tsServer);
-  }
+  constructor(
+    private guard: TSServerGuard,
+    private discovery: FileDiscovery,
+    private helper: FileMover
+  ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
@@ -29,31 +28,13 @@ export class MoveFileOperation {
       const sourcePath = resolve(validated.sourcePath);
       const destinationPath = resolve(validated.destinationPath);
 
-      const guardResult = await this.tsServerGuard.ensureReady();
+      const guardResult = await this.guard.ensureReady();
       if (guardResult) return guardResult;
 
-      await this.tsServer.openFile(sourcePath);
-
-      try {
-        await this.tsServer.discoverAndOpenImportingFiles(sourcePath);
-      } catch {
-        // Continue if file references discovery fails
-      }
-
-      const projectFullyLoaded = this.tsServer.isProjectLoaded();
-      const scanTimedOut = this.tsServer.didLastScanTimeout();
+      const projectStatus = await this.discovery.discoverRelatedFiles(sourcePath);
       const result = await this.helper.performMove(sourcePath, destinationPath, validated.preview);
 
-      let warningMessage = '';
-      if (!projectFullyLoaded) {
-        warningMessage += '\n\nWarning: TypeScript is still indexing the project. Some import updates may have been missed.';
-      }
-      if (scanTimedOut) {
-        warningMessage += '\n\nWarning: File discovery timed out. Some files may not have been scanned. Import updates might be incomplete.';
-      }
-      if (warningMessage) {
-        warningMessage += ' If results seem incomplete, try running the operation again.';
-      }
+      const warningMessage = this.discovery.buildWarningMessage(projectStatus, 'import updates');
 
       return {
         ...result,

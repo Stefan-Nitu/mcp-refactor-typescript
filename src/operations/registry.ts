@@ -5,7 +5,7 @@
 
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import { logger } from '../utils/logger.js';
-import { BatchMoveFilesOperation } from './batch-move-files.js';
+import { createBatchMoveFilesOperation, createMoveFileOperation } from './shared/operation-factory.js';
 import { CleanupCodebaseOperation } from './cleanup-codebase.js';
 import { ExtractConstantOperation } from './extract-constant.js';
 import { ExtractFunctionOperation } from './extract-function.js';
@@ -13,7 +13,6 @@ import { ExtractVariableOperation } from './extract-variable.js';
 import { FindReferencesOperation } from './find-references.js';
 import { FixAllOperation } from './fix-all.js';
 import { InferReturnTypeOperation } from './infer-return-type.js';
-import { MoveFileOperation } from './move-file.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
 import { RefactorModuleOperation } from './refactor-module.js';
 import { RemoveUnusedOperation } from './remove-unused.js';
@@ -35,8 +34,8 @@ export class OperationRegistry {
 
   registerOperations(): void {
     this.operations.set('rename', new RenameOperation(this.tsServer));
-    this.operations.set('move_file', new MoveFileOperation(this.tsServer));
-    this.operations.set('batch_move_files', new BatchMoveFilesOperation(this.tsServer));
+    this.operations.set('move_file', createMoveFileOperation(this.tsServer));
+    this.operations.set('batch_move_files', createBatchMoveFilesOperation(this.tsServer));
     this.operations.set('organize_imports', new OrganizeImportsOperation(this.tsServer));
     this.operations.set('fix_all', new FixAllOperation(this.tsServer));
     this.operations.set('remove_unused', new RemoveUnusedOperation(this.tsServer));

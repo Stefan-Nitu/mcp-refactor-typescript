@@ -3,7 +3,8 @@ import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { MoveFileOperation } from '../move-file.js';
+import type { MoveFileOperation } from '../move-file.js';
+import { createMoveFileOperation } from '../shared/operation-factory.js';
 import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
 
 const testDir = createTestDir();
@@ -17,7 +18,7 @@ describe('moveFile', () => {
 
   beforeEach(async () => {
     testServer = await setupTestCase(testDir, TypeScriptServer);
-    operation = new MoveFileOperation(testServer);
+    operation = createMoveFileOperation(testServer);
   });
 
   afterEach(() => cleanupTestCase(testServer));

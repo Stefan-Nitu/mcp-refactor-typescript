@@ -1,18 +1,21 @@
 /**
  * Tests for TypeScript project indexing behavior
  *
- * These tests document the expected behavior when waiting for
- * TypeScript to finish indexing files after opening them.
+ * These tests document TSServer's simple project loading state tracking.
+ * For readiness checking and waiting logic, see tsserver-guard.unit.test.ts
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../tsserver-client.js';
+import { TSServerGuard } from '../../../operations/shared/tsserver-guard.js';
 
 describe('TypeScript Project Indexing', () => {
   let tsServer: TypeScriptServer;
+  let guard: TSServerGuard;
 
   beforeEach(() => {
     tsServer = new TypeScriptServer();
+    guard = new TSServerGuard(tsServer);
   });
 
   afterEach(async () => {
@@ -21,77 +24,62 @@ describe('TypeScript Project Indexing', () => {
     }
   });
 
-  describe('waitForProjectUpdate', () => {
-    it('should return immediately if project is already loaded', async () => {
-      // Arrange
+  describe('TSServer project loaded state', () => {
+    it('should track project loading via events', async () => {
+      // Arrange & Act
       await tsServer.start(process.cwd());
-      // Wait for initial project load
-      await tsServer.checkProjectLoaded();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Assert
+      expect(tsServer.isProjectLoaded()).toBe(true);
+    });
+  });
+
+  describe('TSServerGuard readiness checking', () => {
+    it('should wait for project to load with timeout', async () => {
+      // Arrange & Act
+      const result = await guard.ensureReady(10000);
+
+      // Assert
+      expect(result).toBeNull();
+      expect(tsServer.isProjectLoaded()).toBe(true);
+    });
+
+    it('should return immediately if project already loaded', async () => {
+      // Arrange
+      await guard.ensureReady(10000);
 
       // Act
       const startTime = Date.now();
-      await tsServer.waitForProjectUpdate(5000);
+      const result = await guard.ensureReady(10000);
       const duration = Date.now() - startTime;
 
-      // Assert - should return almost immediately (< 100ms)
+      // Assert
+      expect(result).toBeNull();
       expect(duration).toBeLessThan(100);
     });
 
-    it('should wait for projectsUpdatedInBackground event after opening files', async () => {
+    it('should timeout if project takes too long to load', async () => {
       // Arrange
       await tsServer.start(process.cwd());
-      await tsServer.checkProjectLoaded();
 
-      // Act - open a file then wait for update
-      await tsServer.openFile(__filename);
+      // Act - very short timeout to force timeout
+      const result = await guard.ensureReady(1);
 
-      // Assert - should wait for event (or timeout)
-      await expect(tsServer.waitForProjectUpdate(1000)).resolves.toBeUndefined();
-    });
-
-    it('should timeout if project update takes too long', async () => {
-      // Arrange - create scenario where event won't fire
-      // TODO: How do we simulate TypeScript NOT emitting the event?
-
-      // This test documents that timeouts CAN happen and should be handled gracefully
-    });
-
-    it('should allow multiple callers to share the same wait promise', async () => {
-      // Arrange
-      await tsServer.start(process.cwd());
-      await tsServer.checkProjectLoaded();
-
-      // Act - multiple concurrent waits
-      const promises = [
-        tsServer.waitForProjectUpdate(5000),
-        tsServer.waitForProjectUpdate(5000),
-        tsServer.waitForProjectUpdate(5000)
-      ];
-
-      // Assert - all should resolve when the event fires
-      await expect(Promise.all(promises)).resolves.toBeDefined();
-    });
-
-    it('should continue listening for event even after timeout', async () => {
-      // Arrange
-      // TODO: This test documents the desired behavior:
-      // - Timeout should reject the promise to tell the user to retry
-      // - But the listener should stay active so when event fires, projectLoaded gets set
-      // - Next call will then return immediately
+      // Assert
+      expect(result).not.toBeNull();
+      expect(result?.success).toBe(false);
+      expect(result?.message).toContain('still indexing');
     });
   });
 
   describe('Integration with operations', () => {
-    it('should handle the full flow: open file -> wait -> operation', async () => {
-      // This test documents the expected flow for operations like rename/move
+    it('should handle the full flow: ensure ready -> open file -> operation', async () => {
       // Arrange
-      await tsServer.start(process.cwd());
+      await guard.ensureReady(10000);
 
       // Act
       await tsServer.openFile(__filename);
-      await tsServer.waitForProjectUpdate(5000);
-
-      // Now operation can proceed knowing TypeScript has indexed the files
       const result = await tsServer.sendRequest('projectInfo', {
         file: __filename,
         needFileNameList: false

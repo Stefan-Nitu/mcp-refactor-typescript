@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSReferenceEntry, TSReferencesResponse } from '../language-servers/typescript/tsserver-types.js';
+import { FileDiscovery } from './shared/file-discovery.js';
 import { FileOperations } from './shared/file-operations.js';
 import { TextPositionConverter } from './shared/text-position-converter.js';
 import { TSServerGuard } from './shared/tsserver-guard.js';
@@ -20,7 +21,8 @@ export class FindReferencesOperation {
     private tsServer: TypeScriptServer,
     private fileOps: FileOperations = new FileOperations(),
     private textConverter: TextPositionConverter = new TextPositionConverter(),
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer),
+    private fileDiscovery: FileDiscovery = new FileDiscovery(tsServer)
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -44,13 +46,7 @@ export class FindReferencesOperation {
       const guardResult = await this.tsServerGuard.ensureReady();
       if (guardResult) return guardResult;
 
-      await this.tsServer.openFile(filePath);
-
-      try {
-        await this.tsServer.discoverAndOpenImportingFiles(filePath);
-      } catch {
-        // Continue if file discovery fails
-      }
+      await this.fileDiscovery.discoverRelatedFiles(filePath);
 
       const references = await this.tsServer.sendRequest<TSReferencesResponse>('references', {
         file: filePath,

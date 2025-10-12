@@ -3,7 +3,8 @@ import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { BatchMoveFilesOperation } from '../batch-move-files.js';
+import type { BatchMoveFilesOperation } from '../batch-move-files.js';
+import { createBatchMoveFilesOperation } from '../shared/operation-factory.js';
 import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
 
 const testDir = createTestDir();
@@ -17,7 +18,7 @@ describe('batchMoveFiles', () => {
 
   beforeEach(async () => {
     testServer = await setupTestCase(testDir, TypeScriptServer);
-    operation = new BatchMoveFilesOperation(testServer);
+    operation = createBatchMoveFilesOperation(testServer);
   });
 
   afterEach(() => cleanupTestCase(testServer));

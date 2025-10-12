@@ -5,11 +5,11 @@
 import { mkdir } from 'fs/promises';
 import { basename, join, resolve } from 'path';
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import { logger } from '../utils/logger.js';
+import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
-import { MoveFileHelper } from './move-file-helper.js';
+import { FileDiscovery } from './shared/file-discovery.js';
 import { TSServerGuard } from './shared/tsserver-guard.js';
+import { FileMover } from './shared/file-mover.js';
 
 export const batchMoveFilesSchema = z.object({
   files: z.array(z.string().min(1)).min(1, 'At least one file must be provided'),
@@ -18,13 +18,11 @@ export const batchMoveFilesSchema = z.object({
 });
 
 export class BatchMoveFilesOperation {
-  private helper: MoveFileHelper;
-
-  constructor(private tsServer: TypeScriptServer,
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
-  ) {
-    this.helper = new MoveFileHelper(tsServer);
-  }
+  constructor(
+    private guard: TSServerGuard,
+    private discovery: FileDiscovery,
+    private helper: FileMover
+  ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
@@ -32,23 +30,12 @@ export class BatchMoveFilesOperation {
       const files = validated.files.map(f => resolve(f));
       const targetFolder = resolve(validated.targetFolder);
 
-      const guardResult = await this.tsServerGuard.ensureReady();
+      const guardResult = await this.guard.ensureReady();
       if (guardResult) return guardResult;
 
       await mkdir(targetFolder, { recursive: true });
 
-      for (const sourceFile of files) {
-        await this.tsServer.openFile(sourceFile);
-      }
-
-      try {
-        await this.tsServer.discoverAndOpenImportingFiles(files);
-      } catch (error) {
-        logger.debug({ error }, 'Error discovering importing files');
-      }
-
-      const projectFullyLoaded = this.tsServer.isProjectLoaded();
-      const scanTimedOut = this.tsServer.didLastScanTimeout();
+      const projectStatus = await this.discovery.discoverRelatedFiles(files);
 
       const allFilesChanged: RefactorResult['filesChanged'] = [];
       let successCount = 0;
@@ -93,16 +80,7 @@ Try:
         };
       }
 
-      let warningMessage = '';
-      if (!projectFullyLoaded) {
-        warningMessage += '\n\nWarning: TypeScript is still indexing the project. Some import updates may have been missed.';
-      }
-      if (scanTimedOut) {
-        warningMessage += '\n\nWarning: File discovery timed out. Some files may not have been scanned. Import updates might be incomplete.';
-      }
-      if (warningMessage) {
-        warningMessage += ' If results seem incomplete, try running the operation again.';
-      }
+      const warningMessage = this.discovery.buildWarningMessage(projectStatus, 'import updates');
 
       // Return preview if requested
       if (validated.preview) {
