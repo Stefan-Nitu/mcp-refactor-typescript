@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { OperationRegistry } from '../operations/registry.js';
+import { OperationName, OperationRegistry } from '../operations/registry.js';
 import { Telemetry } from '../utils/telemetry.js';
 import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 
@@ -29,19 +29,16 @@ export const fileOperationsTool: GroupedTool = {
 
 vs Edit: Updates ALL imports across project. vs Bash: TypeScript-aware, prevents breaking references.
 
-Use when: Renaming symbols, moving files, reorganizing code structure.`,
+Use when: Renaming/moving files, reorganizing code structure.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: false
   },
-  operations: ['rename', 'move', 'batch_move'],
+  operations: ['rename_file', 'move_file', 'batch_move_files'],
   inputSchema: z.object({
-    operation: z.enum(['rename', 'move', 'batch_move']),
-    filePath: z.string().optional(),
-    line: z.number().optional(),
-    text: z.string().optional(),
-    newName: z.string().optional(),
+    operation: z.enum(['rename_file', 'move_file', 'batch_move_files']),
     sourcePath: z.string().optional(),
+    newName: z.string().optional(),
     destinationPath: z.string().optional(),
     files: z.array(z.string()).optional(),
     targetFolder: z.string().optional(),
@@ -53,35 +50,12 @@ Use when: Renaming symbols, moving files, reorganizing code structure.`,
     telemetry.logToolCall('file_operations', args.operation as string | undefined);
 
     try {
-      let result: RefactorResult;
-
-      switch (args.operation) {
-        case 'rename':
-          result = await registry.getOperation('rename')!.execute({
-            filePath: args.filePath,
-            line: args.line,
-            text: args.text,
-            newName: args.newName,
-            preview: args.preview
-          });
-          break;
-        case 'move':
-          result = await registry.getOperation('move_file')!.execute({
-            sourcePath: args.sourcePath,
-            destinationPath: args.destinationPath,
-            preview: args.preview
-          });
-          break;
-        case 'batch_move':
-          result = await registry.getOperation('batch_move_files')!.execute({
-            files: args.files,
-            targetFolder: args.targetFolder,
-            preview: args.preview
-          });
-          break;
-        default:
-          throw new Error(`Unknown operation: ${args.operation as string}`);
+      const operation = registry.getOperation(args.operation as OperationName);
+      if (!operation) {
+        throw new Error(`Operation not found: ${args.operation as string}`);
       }
+
+      const result = await operation.execute(args);
 
       telemetry.logSuccess('file_operations', args.operation as string | undefined, result.filesChanged?.length || 0);
       return result;
@@ -117,15 +91,12 @@ Use when: Before commits, after refactoring, or cleanup tasks.`,
     telemetry.logToolCall('code_quality', args.operation as string | undefined);
 
     try {
-      const operation = registry.getOperation(args.operation as string);
+      const operation = registry.getOperation(args.operation as OperationName);
       if (!operation) {
-        throw new Error(`Unknown operation: ${args.operation as string}`);
+        throw new Error(`Operation not found: ${args.operation as string}`);
       }
 
-      const result = await operation.execute({
-        filePath: args.filePath,
-        preview: args.preview
-      });
+      const result = await operation.execute(args);
 
       telemetry.logSuccess('code_quality', args.operation as string | undefined, result.filesChanged?.length || 0);
       return result;
@@ -144,17 +115,18 @@ export const refactoringTool: GroupedTool = {
 
 vs Manual: Analyzes closures, mutations, control flow - impossible to do correctly by hand.
 
-Use when: Reducing duplication, improving structure, extracting reusable logic.`,
+Use when: Renaming symbols, reducing duplication, improving structure, extracting reusable logic.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: false
   },
-  operations: ['extract_function', 'extract_constant', 'extract_variable', 'infer_return_type'],
+  operations: ['rename', 'extract_function', 'extract_constant', 'extract_variable', 'infer_return_type'],
   inputSchema: z.object({
-    operation: z.enum(['extract_function', 'extract_constant', 'extract_variable', 'infer_return_type']),
+    operation: z.enum(['rename', 'extract_function', 'extract_constant', 'extract_variable', 'infer_return_type']),
     filePath: z.string(),
     line: z.number(),
     text: z.string(),
+    newName: z.string().optional(),
     functionName: z.string().optional(),
     constantName: z.string().optional(),
     variableName: z.string().optional(),
@@ -166,20 +138,12 @@ Use when: Reducing duplication, improving structure, extracting reusable logic.`
     telemetry.logToolCall('refactoring', args.operation as string | undefined);
 
     try {
-      const operation = registry.getOperation(args.operation as string);
+      const operation = registry.getOperation(args.operation as OperationName);
       if (!operation) {
-        throw new Error(`Unknown operation: ${args.operation as string}`);
+        throw new Error(`Operation not found: ${args.operation as string}`);
       }
 
-      const result = await operation.execute({
-        filePath: args.filePath,
-        line: args.line,
-        text: args.text,
-        functionName: args.functionName,
-        constantName: args.constantName,
-        variableName: args.variableName,
-        preview: args.preview
-      });
+      const result = await operation.execute(args);
 
       telemetry.logSuccess('refactoring', args.operation as string | undefined, result.filesChanged?.length || 0);
       return result;
@@ -222,9 +186,9 @@ Use when: Understanding code impact, large-scale refactoring, fixing TypeScript 
     telemetry.logToolCall('workspace', args.operation as string | undefined);
 
     try {
-      const operation = registry.getOperation(args.operation as string);
+      const operation = registry.getOperation(args.operation as OperationName);
       if (!operation) {
-        throw new Error(`Unknown operation: ${args.operation as string}`);
+        throw new Error(`Operation not found: ${args.operation as string}`);
       }
 
       const result = await operation.execute(args);

@@ -53,8 +53,8 @@ describe('Grouped Tools Integration', () => {
   describe('file_operations Tool', () => {
     const fileTool = groupedTools[0];
 
-    it('should support rename, move, batch_move operations', () => {
-      expect(fileTool.operations).toEqual(['rename', 'move', 'batch_move']);
+    it('should support rename_file, move_file, batch_move_files operations', () => {
+      expect(fileTool.operations).toEqual(['rename_file', 'move_file', 'batch_move_files']);
     });
 
     it('should have inputSchema with operation enum', () => {
@@ -62,14 +62,11 @@ describe('Grouped Tools Integration', () => {
       expect(fileTool.inputSchema.shape.operation).toBeDefined();
     });
 
-    it('should route to rename operation', async () => {
-      // This is a smoke test - just verify routing works without errors
+    it('should route to rename_file operation', async () => {
       const result = await fileTool.execute({
-        operation: 'rename',
-        filePath: 'nonexistent.ts',
-        line: 1,
-        text: 'test',
-        newName: 'renamed'
+        operation: 'rename_file',
+        sourcePath: 'nonexistent.ts',
+        newName: 'renamed.ts'
       }, registry);
 
       expect(result).toBeDefined();
@@ -103,8 +100,9 @@ describe('Grouped Tools Integration', () => {
   describe('refactoring Tool', () => {
     const refactorTool = groupedTools[2];
 
-    it('should support extract operations and infer_return_type', () => {
+    it('should support rename and extract operations', () => {
       expect(refactorTool.operations).toEqual([
+        'rename',
         'extract_function',
         'extract_constant',
         'extract_variable',
@@ -173,14 +171,14 @@ describe('Grouped Tools Integration', () => {
           operation: 'unknown_operation',
           filePath: 'test.ts'
         }, registry)
-      ).rejects.toThrow('Unknown operation');
+      ).rejects.toThrow('Operation not found');
     });
 
     it('should handle missing required parameters', async () => {
       const fileTool = groupedTools[0];
 
       const result = await fileTool.execute({
-        operation: 'rename'
+        operation: 'rename_file'
         // Missing required params
       }, registry);
 
@@ -194,11 +192,9 @@ describe('Grouped Tools Integration', () => {
 
       // Execute operation - telemetry logging happens internally
       await fileTool.execute({
-        operation: 'rename',
-        filePath: 'test.ts',
-        line: 1,
-        text: 'test',
-        newName: 'renamed'
+        operation: 'rename_file',
+        sourcePath: 'test.ts',
+        newName: 'renamed.ts'
       }, registry);
 
       // Telemetry logs to stderr, so we can't easily verify here
