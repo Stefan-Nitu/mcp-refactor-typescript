@@ -90,7 +90,7 @@ Open http://localhost:5173 to explore available tools and test refactoring opera
 
 ## Available Tools (v2.0)
 
-The server exposes **4 grouped tools** with **14 operations** total. Each tool has a specific domain and uses the `operation` parameter to specify the action.
+The server exposes **4 grouped tools** with **15 operations** total. Each tool has a specific domain and uses the `operation` parameter to specify the action.
 
 ### Tool Groups
 
@@ -129,7 +129,7 @@ All tools return structured JSON:
 
 ```json
 {
-  "tool": "file_operations",
+  "tool": "refactoring",
   "operation": "rename",
   "status": "success" | "error",
   "message": "Human-readable summary",

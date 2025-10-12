@@ -83,7 +83,7 @@ export class OperationRegistry {
     }
   }
 
-  async shutdown(): Promise<void> {
+  async close(): Promise<void> {
     if (this.tsServer.isRunning()) {
       await this.tsServer.stop();
     }

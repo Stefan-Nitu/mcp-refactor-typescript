@@ -1,5 +1,11 @@
 /**
  * E2E tests for MCP server lifecycle: initialization, startup, and cleanup
+ *
+ * Tests:
+ * - Registry initialization with TypeScript detection
+ * - TSServer startup and operation registration
+ * - Graceful shutdown on stdin close (prevents zombie processes)
+ * - Child process cleanup (tsserver, typingsInstaller)
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -17,7 +23,7 @@ describe('MCP Server Lifecycle E2E', () => {
   }, 30000);
 
   afterAll(async () => {
-    await registry.shutdown();
+    await registry.close();
   });
 
   it('should start tsserver and begin indexing project files immediately', async () => {

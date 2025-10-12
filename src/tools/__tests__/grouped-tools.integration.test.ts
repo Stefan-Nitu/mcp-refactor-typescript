@@ -16,7 +16,7 @@ describe('Grouped Tools Integration', () => {
   }, 30000);
 
   afterAll(async () => {
-    await registry.shutdown();
+    await registry.close();
   });
 
   describe('Tool Structure', () => {

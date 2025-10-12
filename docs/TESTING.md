@@ -177,7 +177,7 @@ Before writing any test, ask yourself:
    - Refactoring your algorithm = Test should NOT break
    - Switching frameworks/libraries = Test MAY break (and that's OK!)
 
-   Contract tests SHOULD break when you change dependencies - that's their job!
+   Protocol compliance tests SHOULD break when you change dependencies - that's their job!
 
 ### The Testing Pyramid with Behavior Context
 
@@ -735,7 +735,7 @@ describe('Security', () => {
 **MANDATORY: All test files must follow this strict naming convention:**
 
 - `*.unit.test.ts` - Unit tests (pure business logic, mock ALL dependencies, NO implementation testing)
-- `*.contract.test.ts` - Contract tests (verify correct API/framework usage, test integration boundaries)
+- `*.contract.test.ts` - Protocol compliance tests (verify correct API/framework usage, test integration boundaries)
 - `*.integration.test.ts` - Integration tests (test multiple components together, mock only external systems)
 - `*.e2e.test.ts` - End-to-end tests (full application flow, no mocks, real system interaction)
 

@@ -123,7 +123,12 @@ async function main() {
 
   const cleanup = async () => {
     logger.info('Shutting down...');
-    await registry.shutdown();
+    try {
+      await server.close();
+    } catch (error) {
+      logger.error({ err: error }, 'Error closing MCP server');
+    }
+    await registry.close();
     process.exit(0);
   };
 
