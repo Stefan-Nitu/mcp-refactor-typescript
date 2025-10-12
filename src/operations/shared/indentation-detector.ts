@@ -3,11 +3,16 @@ export class IndentationDetector {
   private readonly DEFAULT_INDENT = '  ';
 
   detect(lines: string[], targetLine: number): string {
-    const forwardIndent = this.searchForward(lines, targetLine);
+    const targetIndent = this.extractIndent(lines[targetLine]);
+    if (targetIndent !== null && targetIndent !== '') return targetIndent;
+
+    const forwardIndent = this.searchForward(lines, targetLine + 1);
     if (forwardIndent !== null) return forwardIndent;
 
     const backwardIndent = this.searchBackward(lines, targetLine);
     if (backwardIndent !== null) return backwardIndent;
+
+    if (targetIndent === '') return '';
 
     return this.DEFAULT_INDENT;
   }
@@ -38,6 +43,7 @@ export class IndentationDetector {
     if (line.trim().length === 0) return null;
 
     const match = line.match(/^(\s+)/);
-    return match ? match[1] : null;
+    if (!match) return '';
+    return match[1];
   }
 }

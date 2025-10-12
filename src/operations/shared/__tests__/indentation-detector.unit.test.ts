@@ -86,7 +86,7 @@ describe('IndentationDetector', () => {
       expect(indent).toBe('  ');
     });
 
-    it('should return default 2 spaces when no indented lines found', () => {
+    it('should return empty string when detecting module-level (no indented lines found)', () => {
       // Arrange
       const lines = [
         'const x = 1;',
@@ -97,7 +97,7 @@ describe('IndentationDetector', () => {
       const indent = detector.detect(lines, 0);
 
       // Assert
-      expect(indent).toBe('  ');
+      expect(indent).toBe('');
     });
 
     it('should detect indentation within search window (3 lines ahead)', () => {
@@ -114,8 +114,8 @@ describe('IndentationDetector', () => {
       // Act - should not find indentation 4+ lines away
       const indent = detector.detect(lines, 0);
 
-      // Assert - falls back to default
-      expect(indent).toBe('  ');
+      // Assert - returns empty string for module-level when no indent found in window
+      expect(indent).toBe('');
     });
 
     it('should detect indentation within search window (3 lines behind)', () => {
@@ -132,8 +132,8 @@ describe('IndentationDetector', () => {
       // Act
       const indent = detector.detect(lines, 4);
 
-      // Assert - falls back to default since too far
-      expect(indent).toBe('  ');
+      // Assert - returns empty string for module-level when no indent found in window
+      expect(indent).toBe('');
     });
 
     it('should detect from line within window', () => {

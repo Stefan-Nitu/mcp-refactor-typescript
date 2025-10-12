@@ -275,4 +275,31 @@ describe('extractConstant', () => {
     const content = await readFile(absolutePath, 'utf-8');
     expect(content).toMatch(/const \w+\s*=\s*99/);
   });
+
+  it('should extract module-level constant with correct indentation (no extra spaces)', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'module-level.ts');
+    await writeFile(filePath, `const x = 42;
+const y = 42;
+const z = 42;`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath,
+      line: 1,
+      text: '42',
+      name: 'ANSWER'
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    const content = await readFile(filePath, 'utf-8');
+    const lines = content.split('\n');
+
+    const constantLine = lines.find(l => l.includes('const ANSWER'));
+    expect(constantLine).toBeDefined();
+
+    expect(constantLine).toMatch(/^const ANSWER/);
+    expect(constantLine).not.toMatch(/^\s+const ANSWER/);
+  });
 });
