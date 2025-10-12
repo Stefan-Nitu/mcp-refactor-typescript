@@ -37,11 +37,11 @@ Use when: Renaming/moving files, reorganizing code structure.`,
   operations: ['rename_file', 'move_file', 'batch_move_files'],
   inputSchema: z.object({
     operation: z.enum(['rename_file', 'move_file', 'batch_move_files']),
-    sourcePath: z.string().optional(),
-    newName: z.string().optional(),
-    destinationPath: z.string().optional(),
-    files: z.array(z.string()).optional(),
-    targetFolder: z.string().optional(),
+    sourcePath: z.string().min(1).optional(),
+    newName: z.string().min(1).optional(),
+    destinationPath: z.string().min(1).optional(),
+    files: z.array(z.string().min(1)).optional(),
+    targetFolder: z.string().min(1).optional(),
     preview: z.boolean().optional()
   }),
   async execute(args, registry) {
@@ -82,7 +82,7 @@ Use when: Before commits, after refactoring, or cleanup tasks.`,
   operations: ['organize_imports', 'fix_all', 'remove_unused'],
   inputSchema: z.object({
     operation: z.enum(['organize_imports', 'fix_all', 'remove_unused']),
-    filePath: z.string(),
+    filePath: z.string().min(1, 'File path cannot be empty'),
     preview: z.boolean().optional()
   }),
   async execute(args, registry) {
@@ -123,9 +123,9 @@ Use when: Renaming symbols, reducing duplication, improving structure, extractin
   operations: ['rename', 'extract_function', 'extract_constant', 'extract_variable', 'infer_return_type'],
   inputSchema: z.object({
     operation: z.enum(['rename', 'extract_function', 'extract_constant', 'extract_variable', 'infer_return_type']),
-    filePath: z.string(),
-    line: z.number(),
-    text: z.string(),
+    filePath: z.string().min(1, 'File path cannot be empty'),
+    line: z.number().int().positive('Line must be a positive integer'),
+    text: z.string().min(1, 'Text cannot be empty'),
     newName: z.string().optional(),
     functionName: z.string().optional(),
     constantName: z.string().optional(),
@@ -170,12 +170,12 @@ Use when: Understanding code impact, large-scale refactoring, fixing TypeScript 
   operations: ['find_references', 'refactor_module', 'cleanup_codebase', 'restart_tsserver'],
   inputSchema: z.object({
     operation: z.enum(['find_references', 'refactor_module', 'cleanup_codebase', 'restart_tsserver']),
-    filePath: z.string().optional(),
-    line: z.number().optional(),
-    text: z.string().optional(),
-    sourcePath: z.string().optional(),
-    destinationPath: z.string().optional(),
-    directory: z.string().optional(),
+    filePath: z.string().min(1).optional(),
+    line: z.number().int().positive().optional(),
+    text: z.string().min(1).optional(),
+    sourcePath: z.string().min(1).optional(),
+    destinationPath: z.string().min(1).optional(),
+    directory: z.string().min(1).optional(),
     deleteUnusedFiles: z.boolean().optional(),
     entrypoints: z.array(z.string()).optional(),
     preview: z.boolean().optional()
