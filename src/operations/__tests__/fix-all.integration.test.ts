@@ -3,6 +3,7 @@ import { join } from 'path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { FixAllOperation } from '../fix-all.js';
+import { createFixAllOperation } from '../shared/operation-factory.js';
 import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
 
 const testDir = createTestDir();
@@ -16,7 +17,7 @@ describe('fixAll', () => {
 
   beforeEach(async () => {
     testServer = await setupTestCase(testDir, TypeScriptServer);
-    operation = new FixAllOperation(testServer);
+    operation = createFixAllOperation(testServer);
   });
 
   afterEach(() => cleanupTestCase(testServer));

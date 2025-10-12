@@ -6,19 +6,23 @@
 import { RefactorResult, TypeScriptServer } from './language-servers/typescript/tsserver-client.js';
 import { OperationName } from './operation-name.js';
 import { logger } from './utils/logger.js';
-import { CleanupCodebaseOperation } from './operations/cleanup-codebase.js';
-import { ExtractConstantOperation } from './operations/extract-constant.js';
-import { ExtractFunctionOperation } from './operations/extract-function.js';
-import { ExtractVariableOperation } from './operations/extract-variable.js';
-import { FindReferencesOperation } from './operations/find-references.js';
-import { FixAllOperation } from './operations/fix-all.js';
-import { InferReturnTypeOperation } from './operations/infer-return-type.js';
-import { OrganizeImportsOperation } from './operations/organize-imports.js';
-import { RefactorModuleOperation } from './operations/refactor-module.js';
-import { RemoveUnusedOperation } from './operations/remove-unused.js';
-import { RenameOperation } from './operations/rename.js';
-import { RestartTsServerOperation } from './operations/restart-tsserver.js';
-import { createBatchMoveFilesOperation, createMoveFileOperation, createRenameFileOperation } from './operations/shared/operation-factory.js';
+import {
+  createBatchMoveFilesOperation,
+  createCleanupCodebaseOperation,
+  createExtractConstantOperation,
+  createExtractFunctionOperation,
+  createExtractVariableOperation,
+  createFindReferencesOperation,
+  createFixAllOperation,
+  createInferReturnTypeOperation,
+  createMoveFileOperation,
+  createOrganizeImportsOperation,
+  createRefactorModuleOperation,
+  createRemoveUnusedOperation,
+  createRenameFileOperation,
+  createRenameOperation,
+  createRestartTsServerOperation
+} from './operations/shared/operation-factory.js';
 
 export interface Operation {
   execute(input: Record<string, unknown>): Promise<RefactorResult>;
@@ -34,21 +38,21 @@ export class OperationRegistry {
   }
 
   registerOperations(): void {
-    this.operations.set(OperationName.RENAME, new RenameOperation(this.tsServer));
+    this.operations.set(OperationName.RENAME, createRenameOperation(this.tsServer));
     this.operations.set(OperationName.RENAME_FILE, createRenameFileOperation(this.tsServer));
     this.operations.set(OperationName.MOVE_FILE, createMoveFileOperation(this.tsServer));
     this.operations.set(OperationName.BATCH_MOVE_FILES, createBatchMoveFilesOperation(this.tsServer));
-    this.operations.set(OperationName.ORGANIZE_IMPORTS, new OrganizeImportsOperation(this.tsServer));
-    this.operations.set(OperationName.FIX_ALL, new FixAllOperation(this.tsServer));
-    this.operations.set(OperationName.REMOVE_UNUSED, new RemoveUnusedOperation(this.tsServer));
-    this.operations.set(OperationName.FIND_REFERENCES, new FindReferencesOperation(this.tsServer));
-    this.operations.set(OperationName.EXTRACT_FUNCTION, new ExtractFunctionOperation(this.tsServer));
-    this.operations.set(OperationName.EXTRACT_CONSTANT, new ExtractConstantOperation(this.tsServer));
-    this.operations.set(OperationName.EXTRACT_VARIABLE, new ExtractVariableOperation(this.tsServer));
-    this.operations.set(OperationName.INFER_RETURN_TYPE, new InferReturnTypeOperation(this.tsServer));
-    this.operations.set(OperationName.REFACTOR_MODULE, new RefactorModuleOperation(this.tsServer));
-    this.operations.set(OperationName.CLEANUP_CODEBASE, new CleanupCodebaseOperation(this.tsServer));
-    this.operations.set(OperationName.RESTART_TSSERVER, new RestartTsServerOperation(this.tsServer));
+    this.operations.set(OperationName.ORGANIZE_IMPORTS, createOrganizeImportsOperation(this.tsServer));
+    this.operations.set(OperationName.FIX_ALL, createFixAllOperation(this.tsServer));
+    this.operations.set(OperationName.REMOVE_UNUSED, createRemoveUnusedOperation(this.tsServer));
+    this.operations.set(OperationName.FIND_REFERENCES, createFindReferencesOperation(this.tsServer));
+    this.operations.set(OperationName.EXTRACT_FUNCTION, createExtractFunctionOperation(this.tsServer));
+    this.operations.set(OperationName.EXTRACT_CONSTANT, createExtractConstantOperation(this.tsServer));
+    this.operations.set(OperationName.EXTRACT_VARIABLE, createExtractVariableOperation(this.tsServer));
+    this.operations.set(OperationName.INFER_RETURN_TYPE, createInferReturnTypeOperation(this.tsServer));
+    this.operations.set(OperationName.REFACTOR_MODULE, createRefactorModuleOperation(this.tsServer));
+    this.operations.set(OperationName.CLEANUP_CODEBASE, createCleanupCodebaseOperation(this.tsServer));
+    this.operations.set(OperationName.RESTART_TSSERVER, createRestartTsServerOperation(this.tsServer));
   }
 
   getOperation(name: OperationName): Operation | undefined {

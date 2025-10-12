@@ -3,6 +3,7 @@ import { join } from 'path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { CleanupCodebaseOperation } from '../cleanup-codebase.js';
+import { createCleanupCodebaseOperation } from '../shared/operation-factory.js';
 import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
 
 describe('cleanupCodebase', () => {
@@ -19,7 +20,7 @@ describe('cleanupCodebase', () => {
 
   beforeEach(async () => {
     testServer = await setupTestCase(testDir, TypeScriptServer);
-    operation = new CleanupCodebaseOperation(testServer);
+    operation = createCleanupCodebaseOperation(testServer);
   });
 
   afterEach(() => cleanupTestCase(testServer));

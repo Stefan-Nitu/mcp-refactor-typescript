@@ -23,9 +23,9 @@ export const fixAllSchema = z.object({
 export class FixAllOperation {
   constructor(
     private tsServer: TypeScriptServer,
-    private fileOps: FileOperations = new FileOperations(),
-    private editApplicator: EditApplicator = new EditApplicator(),
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+    private fileOps: FileOperations,
+    private editApplicator: EditApplicator,
+    private tsServerGuard: TSServerGuard
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {

@@ -22,11 +22,11 @@ export const extractFunctionSchema = z.object({
 export class ExtractFunctionOperation {
   constructor(
     private tsServer: TypeScriptServer,
-    private processor: RefactoringProcessor = new RefactoringProcessor('function'),
-    private fileOps: FileOperations = new FileOperations(),
-    private textConverter: TextPositionConverter = new TextPositionConverter(),
-    private editApplicator: EditApplicator = new EditApplicator(),
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+    private processor: RefactoringProcessor,
+    private fileOps: FileOperations,
+    private textConverter: TextPositionConverter,
+    private editApplicator: EditApplicator,
+    private tsServerGuard: TSServerGuard
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {

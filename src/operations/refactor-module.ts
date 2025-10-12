@@ -4,9 +4,10 @@
 
 import { resolve } from 'path';
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { FixAllOperation } from './fix-all.js';
+import { MoveFileOperation } from './move-file.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
 import { TSServerGuard } from './shared/tsserver-guard.js';
 
@@ -17,8 +18,11 @@ const refactorModuleSchema = z.object({
 });
 
 export class RefactorModuleOperation {
-  constructor(private tsServer: TypeScriptServer,
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+  constructor(
+    private tsServerGuard: TSServerGuard,
+    private moveFileOp: MoveFileOperation,
+    private organizeImportsOp: OrganizeImportsOperation,
+    private fixAllOp: FixAllOperation
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -34,9 +38,7 @@ export class RefactorModuleOperation {
       const steps: string[] = [];
 
       // Step 1: Move file
-      const { createMoveFileOperation } = await import('./shared/operation-factory.js');
-      const moveOp = createMoveFileOperation(this.tsServer);
-      const moveResult = await moveOp.execute({
+      const moveResult = await this.moveFileOp.execute({
         sourcePath,
         destinationPath,
         preview: validated.preview
@@ -65,11 +67,10 @@ Next steps: organize imports, fix errors`,
       }
 
       // Step 2: Organize imports for all affected files
-      const organizeOp = new OrganizeImportsOperation(this.tsServer);
       const uniqueFiles = [...new Set(allFilesChanged.map(f => f.path))];
 
       for (const file of uniqueFiles) {
-        const organizeResult = await organizeOp.execute({ filePath: file });
+        const organizeResult = await this.organizeImportsOp.execute({ filePath: file });
         if (organizeResult.success && organizeResult.filesChanged.length > 0) {
           steps.push(`✓ Organized imports in ${file.split('/').pop()}`);
           // Add to filesChanged if not already there (based on path)
@@ -82,10 +83,8 @@ Next steps: organize imports, fix errors`,
       }
 
       // Step 3: Fix all errors in affected files
-      const fixOp = new FixAllOperation(this.tsServer);
-
       for (const file of uniqueFiles) {
-        const fixResult = await fixOp.execute({ filePath: file });
+        const fixResult = await this.fixAllOp.execute({ filePath: file });
         if (fixResult.success && fixResult.filesChanged.length > 0) {
           steps.push(`✓ Fixed errors in ${file.split('/').pop()}`);
           // Add to filesChanged if not already there (based on path)

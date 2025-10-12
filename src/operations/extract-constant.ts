@@ -22,12 +22,12 @@ const extractConstantSchema = z.object({
 export class ExtractConstantOperation implements Operation {
   constructor(
     private tsServer: TypeScriptServer,
-    private processor: RefactoringProcessor = new RefactoringProcessor('const'),
-    private fileOps: FileOperations = new FileOperations(),
-    private textConverter: TextPositionConverter = new TextPositionConverter(),
-    private editApplicator: EditApplicator = new EditApplicator(),
-    private indentDetector: IndentationDetector = new IndentationDetector(),
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+    private processor: RefactoringProcessor,
+    private fileOps: FileOperations,
+    private textConverter: TextPositionConverter,
+    private editApplicator: EditApplicator,
+    private indentDetector: IndentationDetector,
+    private tsServerGuard: TSServerGuard
   ) {}
 
 

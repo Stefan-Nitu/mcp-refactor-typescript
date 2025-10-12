@@ -3,6 +3,7 @@ import { join } from 'path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { RefactorModuleOperation } from '../refactor-module.js';
+import { createRefactorModuleOperation } from '../shared/operation-factory.js';
 import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
 
 describe('refactorModule', () => {
@@ -19,7 +20,7 @@ describe('refactorModule', () => {
 
   beforeEach(async () => {
     testServer = await setupTestCase(testDir, TypeScriptServer);
-    operation = new RefactorModuleOperation(testServer);
+    operation = createRefactorModuleOperation(testServer);
     await mkdir(join(testDir, 'src', 'new'), { recursive: true });
   });
 

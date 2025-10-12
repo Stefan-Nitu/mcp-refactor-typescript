@@ -7,7 +7,7 @@ import { readdir } from 'fs/promises';
 import { extname, join, resolve } from 'path';
 import { promisify } from 'util';
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { OrganizeImportsOperation } from './organize-imports.js';
 import { TSServerGuard } from './shared/tsserver-guard.js';
@@ -33,8 +33,9 @@ const cleanupCodebaseSchema = z.object({
 });
 
 export class CleanupCodebaseOperation {
-  constructor(private tsServer: TypeScriptServer,
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+  constructor(
+    private tsServerGuard: TSServerGuard,
+    private organizeImportsOp: OrganizeImportsOperation
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -184,10 +185,8 @@ Try:
         steps.push('Skipped unused export removal (deleteUnusedFiles: false)');
       }
 
-      const organizeOp = new OrganizeImportsOperation(this.tsServer);
-
       for (const file of tsFiles) {
-        const organizeResult = await organizeOp.execute({ filePath: file });
+        const organizeResult = await this.organizeImportsOp.execute({ filePath: file });
         if (organizeResult.success && organizeResult.filesChanged.length > 0) {
           filesChanged.push(...organizeResult.filesChanged);
         }

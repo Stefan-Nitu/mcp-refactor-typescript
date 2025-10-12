@@ -19,10 +19,10 @@ export const inferReturnTypeSchema = z.object({
 export class InferReturnTypeOperation implements Operation {
   constructor(
     private tsServer: TypeScriptServer,
-    private fileOps: FileOperations = new FileOperations(),
-    private textConverter: TextPositionConverter = new TextPositionConverter(),
-    private editApplicator: EditApplicator = new EditApplicator(),
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer)
+    private fileOps: FileOperations,
+    private textConverter: TextPositionConverter,
+    private editApplicator: EditApplicator,
+    private tsServerGuard: TSServerGuard
   ) {}
 
 

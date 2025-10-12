@@ -3,6 +3,7 @@ import { join } from 'path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { RenameOperation } from '../rename.js';
+import { createRenameOperation } from '../shared/operation-factory.js';
 import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
 
 const testDir = createTestDir();
@@ -16,7 +17,7 @@ describe('rename', () => {
 
   beforeEach(async () => {
     testServer = await setupTestCase(testDir, TypeScriptServer);
-    operation = new RenameOperation(testServer);
+    operation = createRenameOperation(testServer);
   });
 
   afterEach(() => cleanupTestCase(testServer));

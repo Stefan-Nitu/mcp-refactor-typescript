@@ -22,11 +22,11 @@ export const renameSchema = z.object({
 export class RenameOperation {
   constructor(
     private tsServer: TypeScriptServer,
-    private fileOps: FileOperations = new FileOperations(),
-    private textConverter: TextPositionConverter = new TextPositionConverter(),
-    private editApplicator: EditApplicator = new EditApplicator(),
-    private tsServerGuard: TSServerGuard = new TSServerGuard(tsServer),
-    private fileDiscovery: FileDiscovery = new FileDiscovery(tsServer)
+    private fileOps: FileOperations,
+    private textConverter: TextPositionConverter,
+    private editApplicator: EditApplicator,
+    private tsServerGuard: TSServerGuard,
+    private fileDiscovery: FileDiscovery
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {

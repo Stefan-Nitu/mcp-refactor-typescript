@@ -3,6 +3,7 @@ import { join } from 'path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { FindReferencesOperation } from '../find-references.js';
+import { createFindReferencesOperation } from '../shared/operation-factory.js';
 import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
 
 const testDir = createTestDir();
@@ -16,7 +17,7 @@ describe('findReferences', () => {
 
   beforeEach(async () => {
     testServer = await setupTestCase(testDir, TypeScriptServer);
-    operation = new FindReferencesOperation(testServer);
+    operation = createFindReferencesOperation(testServer);
   });
 
   afterEach(() => cleanupTestCase(testServer));
