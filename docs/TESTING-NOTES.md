@@ -61,3 +61,22 @@ The vitest config has these timeouts:
 - `hookTimeout: 30000` (30 seconds for beforeAll/afterAll)
 
 These are necessary because the TypeScript LSP can take 5-7 seconds to initialize and index the test workspace.
+
+**Full Test Suite Duration**: The complete test suite takes approximately **3-5 minutes** to run due to:
+- TypeScript server initialization and file indexing
+- Integration tests with real file system operations
+- Multiple test workspaces being created and torn down
+
+When running tests programmatically (e.g., in scripts, CI, or Claude Code's Bash tool), ensure adequate timeout:
+```bash
+# Set 5-minute timeout for full test suite
+npm test -- --run  # Takes ~3-5 minutes
+```
+
+**For Claude Code Bash tool**: Use `timeout: 300000` (5 minutes) when running the full test suite:
+```typescript
+Bash({
+  command: "npm test -- --run",
+  timeout: 300000  // 5 minutes in milliseconds
+})
+```

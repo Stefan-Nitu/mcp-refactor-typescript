@@ -15,7 +15,7 @@ export const extractFunctionSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
   text: z.string().min(1, 'Text cannot be empty'),
-  functionName: z.string().optional(),
+  name: z.string().optional(),
   preview: z.boolean().optional()
 });
 
@@ -32,7 +32,7 @@ export class ExtractFunctionOperation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = extractFunctionSchema.parse(input);
-      const { line, text, functionName } = validated;
+      const { line, text, name: functionName } = validated;
       const filePath = this.fileOps.resolvePath(validated.filePath);
 
       const lines = await this.fileOps.readLines(filePath);

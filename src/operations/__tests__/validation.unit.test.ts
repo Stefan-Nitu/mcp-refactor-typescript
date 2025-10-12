@@ -16,7 +16,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: 10,
         text: 'oldName',
-        newName: 'newVariableName'
+        name: 'newVariableName'
       });
       expect(result.success).toBe(true);
     });
@@ -25,7 +25,7 @@ describe('Schema Validation', () => {
       const result = renameSchema.safeParse({
         line: 10,
         text: 'oldName',
-        newName: 'newName'
+        name: 'newName'
       });
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -38,7 +38,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: '10',
         text: 'oldName',
-        newName: 'newName'
+        name: 'newName'
       });
       expect(result.success).toBe(false);
     });
@@ -48,7 +48,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: 10,
         text: 'oldName',
-        newName: ''
+        name: ''
       });
       expect(result.success).toBe(false);
     });
@@ -58,7 +58,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: -1,
         text: 'oldName',
-        newName: 'newName'
+        name: 'newName'
       });
       expect(result.success).toBe(false);
     });
@@ -226,7 +226,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: 10,
         text: 'codeToExtract',
-        functionName: 'myFunction'
+        name: 'myFunction'
       });
       expect(result.success).toBe(true);
     });

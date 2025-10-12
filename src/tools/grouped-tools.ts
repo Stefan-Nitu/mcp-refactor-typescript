@@ -4,15 +4,16 @@
  */
 
 import { z } from 'zod';
-import { OperationName, OperationRegistry } from '../operations/registry.js';
-import { Telemetry } from '../utils/telemetry.js';
 import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import { OperationName } from '../operation-name.js';
+import { OperationRegistry } from '../registry.js';
+import { Telemetry } from '../utils/telemetry.js';
 
 export interface GroupedTool {
   name: string;
   title: string;
   description: string;
-  inputSchema: z.ZodObject<z.ZodRawShape>;
+  inputSchema: z.ZodObject<z.ZodRawShape> | z.ZodEffects<z.ZodObject<z.ZodRawShape>>;
   annotations: {
     readOnlyHint: boolean;
     destructiveHint: boolean;
@@ -34,15 +35,40 @@ Use when: Renaming/moving files, reorganizing code structure.`,
     readOnlyHint: false,
     destructiveHint: false
   },
-  operations: ['rename_file', 'move_file', 'batch_move_files'],
+  operations: [OperationName.RENAME_FILE, OperationName.MOVE_FILE, OperationName.BATCH_MOVE_FILES],
   inputSchema: z.object({
-    operation: z.enum(['rename_file', 'move_file', 'batch_move_files']),
+    operation: z.enum([OperationName.RENAME_FILE, OperationName.MOVE_FILE, OperationName.BATCH_MOVE_FILES]),
     sourcePath: z.string().min(1).optional(),
-    newName: z.string().min(1).optional(),
+    name: z.string().min(1).optional(),
     destinationPath: z.string().min(1).optional(),
     files: z.array(z.string().min(1)).optional(),
     targetFolder: z.string().min(1).optional(),
     preview: z.boolean().optional()
+  }).refine(data => {
+    if (data.operation === OperationName.RENAME_FILE) {
+      return !!data.sourcePath && !!data.name;
+    }
+    if (data.operation === OperationName.MOVE_FILE) {
+      return !!data.sourcePath && !!data.destinationPath;
+    }
+    if (data.operation === OperationName.BATCH_MOVE_FILES) {
+      return !!data.files && !!data.targetFolder;
+    }
+    return true;
+  }, (data) => {
+    if (data.operation === OperationName.RENAME_FILE) {
+      if (!data.sourcePath) return { message: `sourcePath is required for ${OperationName.RENAME_FILE}` };
+      if (!data.name) return { message: `name is required for ${OperationName.RENAME_FILE}` };
+    }
+    if (data.operation === OperationName.MOVE_FILE) {
+      if (!data.sourcePath) return { message: `sourcePath is required for ${OperationName.MOVE_FILE}` };
+      if (!data.destinationPath) return { message: `destinationPath is required for ${OperationName.MOVE_FILE}` };
+    }
+    if (data.operation === OperationName.BATCH_MOVE_FILES) {
+      if (!data.files) return { message: `files is required for ${OperationName.BATCH_MOVE_FILES}` };
+      if (!data.targetFolder) return { message: `targetFolder is required for ${OperationName.BATCH_MOVE_FILES}` };
+    }
+    return { message: 'Invalid file operation parameters' };
   }),
   async execute(args, registry) {
     const telemetry = new Telemetry();
@@ -79,9 +105,9 @@ Use when: Before commits, after refactoring, or cleanup tasks.`,
     readOnlyHint: false,
     destructiveHint: false
   },
-  operations: ['organize_imports', 'fix_all', 'remove_unused'],
+  operations: [OperationName.ORGANIZE_IMPORTS, OperationName.FIX_ALL, OperationName.REMOVE_UNUSED],
   inputSchema: z.object({
-    operation: z.enum(['organize_imports', 'fix_all', 'remove_unused']),
+    operation: z.enum([OperationName.ORGANIZE_IMPORTS, OperationName.FIX_ALL, OperationName.REMOVE_UNUSED]),
     filePath: z.string().min(1, 'File path cannot be empty'),
     preview: z.boolean().optional()
   }),
@@ -120,17 +146,19 @@ Use when: Renaming symbols, reducing duplication, improving structure, extractin
     readOnlyHint: false,
     destructiveHint: false
   },
-  operations: ['rename', 'extract_function', 'extract_constant', 'extract_variable', 'infer_return_type'],
+  operations: [OperationName.RENAME, OperationName.EXTRACT_FUNCTION, OperationName.EXTRACT_CONSTANT, OperationName.EXTRACT_VARIABLE, OperationName.INFER_RETURN_TYPE],
   inputSchema: z.object({
-    operation: z.enum(['rename', 'extract_function', 'extract_constant', 'extract_variable', 'infer_return_type']),
+    operation: z.enum([OperationName.RENAME, OperationName.EXTRACT_FUNCTION, OperationName.EXTRACT_CONSTANT, OperationName.EXTRACT_VARIABLE, OperationName.INFER_RETURN_TYPE]),
     filePath: z.string().min(1, 'File path cannot be empty'),
     line: z.number().int().positive('Line must be a positive integer'),
     text: z.string().min(1, 'Text cannot be empty'),
-    newName: z.string().optional(),
-    functionName: z.string().optional(),
-    constantName: z.string().optional(),
-    variableName: z.string().optional(),
+    name: z.string().optional(),
     preview: z.boolean().optional()
+  }).refine(data => {
+    if (data.operation === OperationName.RENAME) return !!data.name;
+    return true;
+  }, {
+    message: `name is required for ${OperationName.RENAME} operation`
   }),
   async execute(args, registry) {
     const telemetry = new Telemetry();
@@ -167,9 +195,9 @@ Use when: Understanding code impact, large-scale refactoring, fixing TypeScript 
     readOnlyHint: false,
     destructiveHint: true // cleanup_codebase can delete files
   },
-  operations: ['find_references', 'refactor_module', 'cleanup_codebase', 'restart_tsserver'],
+  operations: [OperationName.FIND_REFERENCES, OperationName.REFACTOR_MODULE, OperationName.CLEANUP_CODEBASE, OperationName.RESTART_TSSERVER],
   inputSchema: z.object({
-    operation: z.enum(['find_references', 'refactor_module', 'cleanup_codebase', 'restart_tsserver']),
+    operation: z.enum([OperationName.FIND_REFERENCES, OperationName.REFACTOR_MODULE, OperationName.CLEANUP_CODEBASE, OperationName.RESTART_TSSERVER]),
     filePath: z.string().min(1).optional(),
     line: z.number().int().positive().optional(),
     text: z.string().min(1).optional(),
@@ -179,6 +207,32 @@ Use when: Understanding code impact, large-scale refactoring, fixing TypeScript 
     deleteUnusedFiles: z.boolean().optional(),
     entrypoints: z.array(z.string()).optional(),
     preview: z.boolean().optional()
+  }).refine(data => {
+    if (data.operation === OperationName.FIND_REFERENCES) {
+      return !!data.filePath && data.line !== undefined && !!data.text;
+    }
+    if (data.operation === OperationName.REFACTOR_MODULE) {
+      return !!data.sourcePath && !!data.destinationPath;
+    }
+    if (data.operation === OperationName.CLEANUP_CODEBASE) {
+      return !!data.directory && !!data.entrypoints;
+    }
+    return true;
+  }, (data) => {
+    if (data.operation === OperationName.FIND_REFERENCES) {
+      if (!data.filePath) return { message: `filePath is required for ${OperationName.FIND_REFERENCES}` };
+      if (data.line === undefined) return { message: `line is required for ${OperationName.FIND_REFERENCES}` };
+      if (!data.text) return { message: `text is required for ${OperationName.FIND_REFERENCES}` };
+    }
+    if (data.operation === OperationName.REFACTOR_MODULE) {
+      if (!data.sourcePath) return { message: `sourcePath is required for ${OperationName.REFACTOR_MODULE}` };
+      if (!data.destinationPath) return { message: `destinationPath is required for ${OperationName.REFACTOR_MODULE}` };
+    }
+    if (data.operation === OperationName.CLEANUP_CODEBASE) {
+      if (!data.directory) return { message: `directory is required for ${OperationName.CLEANUP_CODEBASE}` };
+      if (!data.entrypoints) return { message: `entrypoints is required for ${OperationName.CLEANUP_CODEBASE}` };
+    }
+    return { message: 'Invalid workspace operation parameters' };
   }),
   async execute(args, registry) {
     const telemetry = new Telemetry();

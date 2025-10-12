@@ -45,7 +45,7 @@ export function useHelper() {
       // Act
       const response = await operation!.execute({
         sourcePath: oldPath,
-        newName: 'new-name.ts'
+        name: 'new-name.ts'
       });
 
       // Assert
@@ -83,7 +83,7 @@ export const version = getVersion();`;
       // Act
       const response = await operation!.execute({
         sourcePath: oldPath,
-        newName: 'utilities.ts'
+        name: 'utilities.ts'
       });
 
       // Assert
@@ -111,7 +111,7 @@ export const version = getVersion();`;
       // Act
       const response = await operation!.execute({
         sourcePath: oldPath,
-        newName: 'preview-renamed.ts',
+        name: 'preview-renamed.ts',
         preview: true
       });
 
@@ -140,7 +140,7 @@ export const version = getVersion();`;
       // Act
       const response = await operation!.execute({
         sourcePath: relativePath,
-        newName: 'relative-renamed.ts'
+        name: 'relative-renamed.ts'
       });
 
       // Assert
@@ -157,7 +157,7 @@ export const version = getVersion();`;
       // Act
       const response = await operation!.execute({
         sourcePath: absolutePath,
-        newName: 'absolute-renamed.ts'
+        name: 'absolute-renamed.ts'
       });
 
       // Assert
@@ -171,7 +171,7 @@ export const version = getVersion();`;
       // Act
       const response = await operation!.execute({
         sourcePath: '/nonexistent/file.ts',
-        newName: 'renamed.ts'
+        name: 'renamed.ts'
       });
 
       // Assert
@@ -190,7 +190,7 @@ export const version = getVersion();`;
       // Act
       const response = await operation!.execute({
         sourcePath: oldPath,
-        newName: 'no-importers-renamed.ts'
+        name: 'no-importers-renamed.ts'
       });
 
       // Assert
@@ -209,7 +209,7 @@ export const version = getVersion();`;
       // Act
       const response = await operation!.execute({
         sourcePath: oldPath,
-        newName: 'renamed-with-ext.ts'
+        name: 'renamed-with-ext.ts'
       });
 
       // Assert

@@ -15,7 +15,7 @@ export const renameSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
   text: z.string().min(1, 'Text cannot be empty'),
-  newName: z.string().min(1, 'New name cannot be empty'),
+  name: z.string().min(1, 'Name cannot be empty'),
   preview: z.boolean().optional()
 });
 
@@ -81,7 +81,7 @@ Try:
         const renamedChanges = fileLoc.locs.map((loc: TSRenameLoc) => ({
           start: loc.start,
           end: loc.end,
-          newText: validated.newName
+          newText: validated.name
         }));
 
         const sortedChanges = this.editApplicator.sortEdits(renamedChanges);
@@ -100,7 +100,7 @@ Try:
       if (validated.preview) {
         return {
           success: true,
-          message: `Preview: Would rename to "${validated.newName}" in ${filesChanged.length} file(s)${warningMessage}`,
+          message: `Preview: Would rename to "${validated.name}" in ${filesChanged.length} file(s)${warningMessage}`,
           filesChanged,
           preview: {
             filesAffected: filesChanged.length,
@@ -112,7 +112,7 @@ Try:
 
       return {
         success: true,
-        message: `Renamed to "${validated.newName}"${warningMessage}`,
+        message: `Renamed to "${validated.name}"${warningMessage}`,
         filesChanged,
         nextActions: [
           'organize_imports - Clean up import statements',

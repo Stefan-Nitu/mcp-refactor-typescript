@@ -3,9 +3,9 @@
  * Verifies that grouped tools properly route to operations
  */
 
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { OperationRegistry } from '../../registry.js';
 import { groupedTools } from '../grouped-tools.js';
-import { OperationRegistry } from '../../operations/registry.js';
 
 describe('Grouped Tools Integration', () => {
   let registry: OperationRegistry;
@@ -59,14 +59,17 @@ describe('Grouped Tools Integration', () => {
 
     it('should have inputSchema with operation enum', () => {
       expect(fileTool.inputSchema).toBeDefined();
-      expect(fileTool.inputSchema.shape.operation).toBeDefined();
+      const schema = 'shape' in fileTool.inputSchema
+        ? fileTool.inputSchema.shape
+        : fileTool.inputSchema._def.schema.shape;
+      expect(schema.operation).toBeDefined();
     });
 
     it('should route to rename_file operation', async () => {
       const result = await fileTool.execute({
         operation: 'rename_file',
         sourcePath: 'nonexistent.ts',
-        newName: 'renamed.ts'
+        name: 'renamed.ts'
       }, registry);
 
       expect(result).toBeDefined();
@@ -194,7 +197,7 @@ describe('Grouped Tools Integration', () => {
       await fileTool.execute({
         operation: 'rename_file',
         sourcePath: 'test.ts',
-        newName: 'renamed.ts'
+        name: 'renamed.ts'
       }, registry);
 
       // Telemetry logs to stderr, so we can't easily verify here

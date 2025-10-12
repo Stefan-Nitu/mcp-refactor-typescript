@@ -6,14 +6,14 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { z } from 'zod';
-import { OperationRegistry } from './operations/registry.js';
-import { logger } from './utils/logger.js';
-import { groupedTools } from './tools/grouped-tools.js';
-import { operationsCatalog } from './resources/operations-catalog.js';
 import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import { z } from 'zod';
+import { OperationRegistry } from './registry.js';
+import { operationsCatalog } from './resources/operations-catalog.js';
+import { groupedTools } from './tools/grouped-tools.js';
+import { logger } from './utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -46,12 +46,16 @@ server.registerResource(
 
 // Register grouped tools (v2.0)
 for (const tool of groupedTools) {
+  const schema = 'shape' in tool.inputSchema
+    ? tool.inputSchema.shape
+    : tool.inputSchema._def.schema.shape;
+
   server.registerTool(
     tool.name,
     {
       title: tool.title,
       description: tool.description,
-      inputSchema: tool.inputSchema.shape,
+      inputSchema: schema,
       annotations: tool.annotations
     },
     async (args: Record<string, unknown>) => {

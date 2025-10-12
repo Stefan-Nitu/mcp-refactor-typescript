@@ -53,7 +53,7 @@ describe('extractVariable', () => {
       filePath,
       line: 2,
       text: '(a + b) * 2',
-      variableName: 'doubled'
+      name: 'doubled'
     });
 
     // Assert
@@ -75,7 +75,7 @@ describe('extractVariable', () => {
       filePath,
       line: 2,
       text: '(a + b) * 2',
-      variableName: 'doubled'
+      name: 'doubled'
     });
 
     // Assert first extraction
@@ -89,7 +89,7 @@ describe('extractVariable', () => {
       filePath,
       line: 3,
       text: '(a - b) * 3',
-      variableName: 'tripled'
+      name: 'tripled'
     });
 
     // Assert both variables have correct names
@@ -115,7 +115,7 @@ describe('extractVariable', () => {
       filePath,
       line: 3,
       text: 'subtotal * taxRate',
-      variableName: 'calculatedTax'
+      name: 'calculatedTax'
     });
 
     // Assert
@@ -147,7 +147,7 @@ describe('extractVariable', () => {
       filePath,
       line: 2,
       text: 'x + y',
-      variableName: 'total'
+      name: 'total'
     });
 
     // Assert - filesChanged should reflect the final state after rename

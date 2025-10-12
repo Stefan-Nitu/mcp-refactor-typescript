@@ -173,7 +173,7 @@ All tools return structured JSON:
     "filePath": "src/user.ts",
     "line": 10,
     "text": "getUser",
-    "newName": "getUserProfile",
+    "name": "getUserProfile",
     "preview": false
   }
 }
@@ -199,7 +199,7 @@ All tools return structured JSON:
     "filePath": "src/calculate.ts",
     "line": 15,
     "text": "x + y",
-    "functionName": "addNumbers"
+    "name": "addNumbers"
   }
 }
 ```
@@ -228,7 +228,7 @@ All destructive operations support preview mode:
   "filePath": "src/user.ts",
   "line": 10,
   "column": 5,
-  "newName": "getUserProfile",
+  "name": "getUserProfile",
   "preview": true
 }
 ```
@@ -277,8 +277,9 @@ All imports update automatically, all files move together or not at all.
 mcp-refactor-typescript/
 ├── src/
 │   ├── index.ts                     # MCP server entry point
+│   ├── operation-name.ts            # Operation name enum (single source of truth)
+│   ├── registry.ts                  # Operation registry
 │   ├── operations/                  # Refactoring operations
-│   │   ├── registry.ts             # Operation registry
 │   │   ├── rename.ts               # Rename operation
 │   │   ├── move-file.ts            # Move file operation
 │   │   ├── extract-function.ts     # Extract function operation

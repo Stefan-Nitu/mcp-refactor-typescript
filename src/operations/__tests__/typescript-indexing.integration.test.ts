@@ -97,7 +97,7 @@ const result = processData('hello');`, 'utf-8');
           filePath: libPath,
           line: 1,
           text: 'processData',
-          newName: 'transformData'
+          name: 'transformData'
         });
 
         expect(renameResponse.success).toBe(true);
@@ -148,7 +148,7 @@ const result = processData('hello');`, 'utf-8');
           filePath: lib1Path,
           line: 1,
           text: 'processData',
-          newName: 'transformData'
+          name: 'transformData'
         });
 
         // Assert

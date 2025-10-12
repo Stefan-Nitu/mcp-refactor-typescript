@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo } from '../language-servers/typescript/tsserver-types.js';
+import { Operation } from '../registry.js';
 import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
-import { Operation } from './registry.js';
 import { EditApplicator } from './shared/edit-applicator.js';
 import { FileOperations } from './shared/file-operations.js';
 import { TextPositionConverter } from './shared/text-position-converter.js';

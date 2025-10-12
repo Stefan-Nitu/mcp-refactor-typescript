@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc, TSRenameResponse } from '../language-servers/typescript/tsserver-types.js';
+import { Operation } from '../registry.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { RefactoringProcessor } from './refactoring-processor.js';
-import { Operation } from './registry.js';
 import { EditApplicator } from './shared/edit-applicator.js';
 import { FileOperations } from './shared/file-operations.js';
 import { IndentationDetector } from './shared/indentation-detector.js';
@@ -14,7 +14,7 @@ const extractVariableSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
   text: z.string().min(1, 'Text cannot be empty'),
-  variableName: z.string().optional(),
+  name: z.string().optional(),
   preview: z.boolean().optional()
 });
 
@@ -33,7 +33,7 @@ export class ExtractVariableOperation implements Operation {
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = extractVariableSchema.parse(input);
-      const { line, text, variableName } = validated;
+      const { line, text, name: variableName } = validated;
       const filePath = this.fileOps.resolvePath(validated.filePath);
 
       const lines = await this.fileOps.readLines(filePath);

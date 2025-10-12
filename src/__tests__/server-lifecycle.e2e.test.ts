@@ -3,7 +3,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { OperationRegistry } from '../operations/registry.js';
+import { OperationRegistry } from '../registry.js';
 
 describe('MCP Server Lifecycle E2E', () => {
   let registry: OperationRegistry;

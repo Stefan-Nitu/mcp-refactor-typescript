@@ -76,7 +76,7 @@ describe('extractConstant', () => {
       filePath,
       line: 2,
       text: '3.14159',
-      constantName: 'PI'
+      name: 'PI'
     });
 
     // Assert
@@ -99,7 +99,7 @@ describe('extractConstant', () => {
       filePath,
       line: 2,
       text: '0.15',
-      constantName: 'TAX_RATE'
+      name: 'TAX_RATE'
     });
 
     // Assert
@@ -133,7 +133,7 @@ describe('extractConstant', () => {
       filePath,
       line: 2,
       text: '3.14159',
-      constantName: 'PI'
+      name: 'PI'
     });
 
     // Assert
@@ -157,7 +157,7 @@ describe('extractConstant', () => {
       filePath,
       line: 2,
       text: '29.99',
-      constantName: 'UNIT_PRICE'
+      name: 'UNIT_PRICE'
     });
 
     // Assert first extraction succeeded
@@ -172,7 +172,7 @@ describe('extractConstant', () => {
       filePath,
       line: 4,
       text: '0.15',
-      constantName: 'TAX_RATE'
+      name: 'TAX_RATE'
     });
 
     // Assert second extraction succeeded and both constants have correct names
@@ -197,7 +197,7 @@ describe('extractConstant', () => {
       filePath,
       line: 2,
       text: '3.14159',
-      constantName: 'PI'
+      name: 'PI'
     });
 
     // Assert - filesChanged should reflect the final state after rename

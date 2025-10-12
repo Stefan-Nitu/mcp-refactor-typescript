@@ -11,7 +11,7 @@ import { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const renameFileSchema = z.object({
   sourcePath: z.string().min(1, 'Source path cannot be empty'),
-  newName: z.string().min(1, 'New name cannot be empty'),
+  name: z.string().min(1, 'Name cannot be empty'),
   preview: z.boolean().optional()
 });
 
@@ -27,7 +27,7 @@ export class RenameFileOperation {
       const validated = renameFileSchema.parse(input);
       const sourcePath = resolve(validated.sourcePath);
       const directory = dirname(sourcePath);
-      const destinationPath = join(directory, validated.newName);
+      const destinationPath = join(directory, validated.name);
 
       const guardResult = await this.guard.ensureReady();
       if (guardResult) return guardResult;

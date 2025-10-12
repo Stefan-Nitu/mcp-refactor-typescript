@@ -38,7 +38,7 @@ describe('extractFunction', () => {
       filePath,
       line: 4,
       text: 'const result = x + y;',
-      functionName: 'addNumbers'
+      name: 'addNumbers'
     });
 
     // Assert
@@ -61,7 +61,7 @@ describe('extractFunction', () => {
       filePath,
       line: 2,
       text: 'const x = 1 + 2;',
-      functionName: 'addNumbers'
+      name: 'addNumbers'
     });
 
     // Assert
@@ -85,7 +85,7 @@ describe('extractFunction', () => {
       filePath,
       line: 2,
       text: 'x + y',
-      functionName: 'addNums'
+      name: 'addNums'
     });
 
     // Assert first extraction
@@ -99,7 +99,7 @@ describe('extractFunction', () => {
       filePath,
       line: 3,
       text: 'x - y',
-      functionName: 'subtractNums'
+      name: 'subtractNums'
     });
 
     // Assert both functions have correct names
@@ -128,7 +128,7 @@ describe('extractFunction', () => {
       filePath,
       line: 2,
       text: 'x + y',
-      functionName: 'addNumbers'
+      name: 'addNumbers'
     });
 
     // Assert - filesChanged should reflect the final state after rename
@@ -173,7 +173,7 @@ describe('extractFunction', () => {
       filePath,
       line: 9,
       text: 'subtotal * 0.15',
-      functionName: 'calculatePremiumDiscount'
+      name: 'calculatePremiumDiscount'
     });
 
     // Assert
@@ -200,7 +200,7 @@ describe('extractFunction', () => {
       filePath,
       line: 1,
       text: 'const',
-      functionName: 'extracted'
+      name: 'extracted'
     });
 
     // Assert - should fail gracefully

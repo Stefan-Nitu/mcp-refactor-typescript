@@ -3,42 +3,25 @@
  * Single place to manage and access all operations
  */
 
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import { logger } from '../utils/logger.js';
-import { createBatchMoveFilesOperation, createMoveFileOperation, createRenameFileOperation } from './shared/operation-factory.js';
-import { CleanupCodebaseOperation } from './cleanup-codebase.js';
-import { ExtractConstantOperation } from './extract-constant.js';
-import { ExtractFunctionOperation } from './extract-function.js';
-import { ExtractVariableOperation } from './extract-variable.js';
-import { FindReferencesOperation } from './find-references.js';
-import { FixAllOperation } from './fix-all.js';
-import { InferReturnTypeOperation } from './infer-return-type.js';
-import { OrganizeImportsOperation } from './organize-imports.js';
-import { RefactorModuleOperation } from './refactor-module.js';
-import { RemoveUnusedOperation } from './remove-unused.js';
-import { RenameOperation } from './rename.js';
-import { RestartTsServerOperation } from './restart-tsserver.js';
+import { RefactorResult, TypeScriptServer } from './language-servers/typescript/tsserver-client.js';
+import { OperationName } from './operation-name.js';
+import { logger } from './utils/logger.js';
+import { CleanupCodebaseOperation } from './operations/cleanup-codebase.js';
+import { ExtractConstantOperation } from './operations/extract-constant.js';
+import { ExtractFunctionOperation } from './operations/extract-function.js';
+import { ExtractVariableOperation } from './operations/extract-variable.js';
+import { FindReferencesOperation } from './operations/find-references.js';
+import { FixAllOperation } from './operations/fix-all.js';
+import { InferReturnTypeOperation } from './operations/infer-return-type.js';
+import { OrganizeImportsOperation } from './operations/organize-imports.js';
+import { RefactorModuleOperation } from './operations/refactor-module.js';
+import { RemoveUnusedOperation } from './operations/remove-unused.js';
+import { RenameOperation } from './operations/rename.js';
+import { RestartTsServerOperation } from './operations/restart-tsserver.js';
+import { createBatchMoveFilesOperation, createMoveFileOperation, createRenameFileOperation } from './operations/shared/operation-factory.js';
 
 export interface Operation {
   execute(input: Record<string, unknown>): Promise<RefactorResult>;
-}
-
-export enum OperationName {
-  RENAME = 'rename',
-  RENAME_FILE = 'rename_file',
-  MOVE_FILE = 'move_file',
-  BATCH_MOVE_FILES = 'batch_move_files',
-  ORGANIZE_IMPORTS = 'organize_imports',
-  FIX_ALL = 'fix_all',
-  REMOVE_UNUSED = 'remove_unused',
-  FIND_REFERENCES = 'find_references',
-  EXTRACT_FUNCTION = 'extract_function',
-  EXTRACT_CONSTANT = 'extract_constant',
-  EXTRACT_VARIABLE = 'extract_variable',
-  INFER_RETURN_TYPE = 'infer_return_type',
-  REFACTOR_MODULE = 'refactor_module',
-  CLEANUP_CODEBASE = 'cleanup_codebase',
-  RESTART_TSSERVER = 'restart_tsserver'
 }
 
 export class OperationRegistry {

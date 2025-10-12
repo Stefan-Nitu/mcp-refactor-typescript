@@ -39,7 +39,7 @@ console.error(result);`;
         filePath,
         line: 1,
         text: 'calculateSum',
-        newName: 'computeSum'
+        name: 'computeSum'
       });
 
       // Assert
@@ -71,7 +71,7 @@ console.error(result);`;
         filePath,
         line: 1,
         text: 'calculateSum',
-        newName: 'computeSum'
+        name: 'computeSum'
       });
 
       // Assert
@@ -124,7 +124,7 @@ console.error(result);`;
         filePath,
         line: 8,
         text: 'getName',
-        newName: 'getDisplayName'
+        name: 'getDisplayName'
       });
 
       // Assert
@@ -159,7 +159,7 @@ export { myLongVariableName };`;
         filePath,
         line: 1,
         text: 'myLongVariableName',
-        newName: 'shortName'
+        name: 'shortName'
       });
 
       // Act - rename again (on new file)
@@ -168,7 +168,7 @@ export { myLongVariableName };`;
         filePath,
         line: 1,
         text: 'myLongVariableName',
-        newName: 'shortName'
+        name: 'shortName'
       });
 
       // Assert - both should work
@@ -207,7 +207,7 @@ export function useHelper() {
         filePath: classPath,
         line: 1,
         text: 'MoveFileHelper',
-        newName: 'FileMover'
+        name: 'FileMover'
       });
 
       // Assert
@@ -251,7 +251,7 @@ export function wrapper(input: string) {
         filePath: libPath,
         line: 1,
         text: 'processData',
-        newName: 'transformData'
+        name: 'transformData'
       });
 
       // Assert
@@ -306,7 +306,7 @@ export class UserService {
         filePath: userPath,
         line: 8,
         text: 'getName',
-        newName: 'getFullName'
+        name: 'getFullName'
       });
 
       // Assert
@@ -333,7 +333,7 @@ export class UserService {
         filePath: relativePath,
         line: 1,
         text: 'oldName',
-        newName: 'newName'
+        name: 'newName'
       });
 
       // Assert
@@ -364,7 +364,7 @@ export class UserService {
         filePath: absolutePath,
         line: 1,
         text: 'oldName',
-        newName: 'newName'
+        name: 'newName'
       });
 
       // Assert
@@ -390,7 +390,7 @@ export class UserService {
         filePath: '/nonexistent/file.ts',
         line: 1,
         text: 'anything',
-        newName: 'newName'
+        name: 'newName'
       });
 
       // Assert
@@ -409,7 +409,7 @@ export class UserService {
         filePath,
         line: 1,
         text: 'nonexistent',
-        newName: 'newName'
+        name: 'newName'
       });
 
       // Assert - TypeScript might find nearest identifier or return no locations
@@ -427,7 +427,7 @@ export class UserService {
         filePath,
         line: 1,
         text: 'validName',
-        newName: '123invalid'
+        name: '123invalid'
       });
 
       // Assert - LSP might accept it or reject it
@@ -450,7 +450,7 @@ console.error(oldName);`;
         filePath,
         line: 1,
         text: 'oldName',
-        newName: 'newName'
+        name: 'newName'
       });
 
       // Assert - should either succeed with warning or fail gracefully
@@ -473,7 +473,7 @@ export function   oldFunction   (x: number): number {
         filePath,
         line: 2,
         text: 'oldFunction',
-        newName: 'newFunction'
+        name: 'newFunction'
       });
 
       // Assert
@@ -498,7 +498,7 @@ const result = oldName();`;
         filePath,
         line: 1,
         text: 'oldName',
-        newName: 'newName',
+        name: 'newName',
         preview: true
       });
 
@@ -535,7 +535,7 @@ const result = oldName();`;
         filePath,
         line: 1,
         text: 'oldName',
-        newName: 'newName',
+        name: 'newName',
         preview: false
       });
 
