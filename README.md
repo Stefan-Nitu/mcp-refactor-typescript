@@ -96,21 +96,22 @@ The server exposes **4 grouped tools** with **14 operations** total. Each tool h
 
 | Tool | Operations | Use When |
 |------|-----------|----------|
-| **file_operations** | `rename`, `move`, `batch_move` | Renaming symbols, moving files, reorganizing code structure |
+| **file_operations** | `rename_file`, `move_file`, `batch_move_files` | Renaming/moving files, reorganizing code structure |
 | **code_quality** | `organize_imports`, `fix_all`, `remove_unused` | Before commits, after refactoring, cleanup tasks |
-| **refactoring** | `extract_function`, `extract_constant`, `extract_variable`, `infer_return_type` | Reducing duplication, improving structure, extracting logic |
+| **refactoring** | `rename`, `extract_function`, `extract_constant`, `extract_variable`, `infer_return_type` | Renaming symbols, reducing duplication, improving structure |
 | **workspace** | `find_references`, `refactor_module`, `cleanup_codebase`, `restart_tsserver` | Understanding impact, large-scale refactoring, TypeScript issues |
 
 ### Operations Reference
 
 | Operation | Tool | Description |
 |-----------|------|-------------|
-| **rename** | file_operations | Rename symbols across all files with automatic import/export updates |
-| **move** | file_operations | Move files with automatic import path updates |
-| **batch_move** | file_operations | Move multiple files atomically |
+| **rename_file** | file_operations | Rename file in-place with automatic import path updates |
+| **move_file** | file_operations | Move file to different directory with import updates |
+| **batch_move_files** | file_operations | Move multiple files atomically |
 | **organize_imports** | code_quality | Sort and remove unused imports (preserves side-effects) |
 | **fix_all** | code_quality | Apply all available TypeScript quick fixes |
 | **remove_unused** | code_quality | Remove unused variables and imports safely |
+| **rename** | refactoring | Rename symbols across all files with automatic import/export updates |
 | **extract_function** | refactoring | Extract code to function with auto-detected parameters/types |
 | **extract_constant** | refactoring | Extract magic numbers/strings to named constants |
 | **extract_variable** | refactoring | Extract expressions to local variables |
@@ -120,13 +121,7 @@ The server exposes **4 grouped tools** with **14 operations** total. Each tool h
 | **cleanup_codebase** | workspace | Clean entire codebase (organize + optionally delete unused) |
 | **restart_tsserver** | workspace | Restart TypeScript server for fresh project state |
 
-### Operations Catalog Resource
-
-Detailed documentation is available via the MCP resource `operations://catalog`:
-- Full examples for each operation
-- Best practices and tips
-- Common workflow patterns
-- Troubleshooting guides
+> 📖 **Detailed Documentation**: See [docs/OPERATIONS.md](docs/OPERATIONS.md) for full examples, best practices, and workflow patterns for each operation. Also available via MCP resource `operations://catalog`.
 
 ## Response Format
 
@@ -172,7 +167,7 @@ All tools return structured JSON:
 ### Rename a symbol
 ```json
 {
-  "tool": "file_operations",
+  "tool": "refactoring",
   "params": {
     "operation": "rename",
     "filePath": "src/user.ts",
@@ -351,6 +346,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture infor
 
 ## Documentation
 
+- **[OPERATIONS.md](docs/OPERATIONS.md)** - Complete operations reference with examples
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - MCP server architecture and patterns
 - **[TESTING.md](docs/TESTING.md)** - Testing strategies and patterns
 - **[TESTING-NOTES.md](docs/TESTING-NOTES.md)** - Test workspace setup requirements
