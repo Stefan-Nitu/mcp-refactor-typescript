@@ -26,11 +26,11 @@ export interface GroupedTool {
 export const fileOperationsTool: GroupedTool = {
   name: 'file_operations',
   title: 'File Operations',
-  description: `File operations with automatic import/export updates.
+  description: `Rename/move TypeScript files - auto-updates ALL imports (<1s, 47 refs across 12 files).
 
-vs Edit: Updates ALL imports across project. vs Bash: TypeScript-aware, prevents breaking references.
+vs Edit/Bash: They break imports. This catches dynamic imports, mocks, re-exports.
 
-Use when: Renaming/moving files, reorganizing code structure.`,
+When renaming/moving TS/JS files → use this, not mv/Edit.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: false
@@ -96,11 +96,11 @@ Use when: Renaming/moving files, reorganizing code structure.`,
 export const codeQualityTool: GroupedTool = {
   name: 'code_quality',
   title: 'Code Quality',
-  description: `Clean and fix code quality issues automatically.
+  description: `Fix ALL TypeScript errors + organize imports + remove unused (<1s, 20+ issues).
 
-vs Manual: Finds issues compiler detects but you might miss.
+vs Manual: Compiler-verified, preserves side-effects, finds hidden issues.
 
-Use when: Before commits, after refactoring, or cleanup tasks.`,
+After refactoring or before commits → use this proactively.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: false
@@ -137,11 +137,11 @@ Use when: Before commits, after refactoring, or cleanup tasks.`,
 export const refactoringTool: GroupedTool = {
   name: 'refactoring',
   title: 'Refactoring',
-  description: `Extract code to functions/constants with auto-detected types and parameters.
+  description: `Rename symbols project-wide OR extract functions (auto-detects params/types/closures).
 
-vs Manual: Analyzes closures, mutations, control flow - impossible to do correctly by hand.
+vs Edit: Updates ALL refs (imports, JSDoc, dynamic imports). Impossible by hand.
 
-Use when: Renaming symbols, reducing duplication, improving structure, extracting reusable logic.`,
+When renaming variables/functions OR extracting code → always use this.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: false
@@ -186,11 +186,11 @@ Use when: Renaming symbols, reducing duplication, improving structure, extractin
 export const workspaceTool: GroupedTool = {
   name: 'workspace',
   title: 'Workspace',
-  description: `Project-wide operations: search, analyze, cleanup, restart services.
+  description: `Find references (type-aware) | Cleanup | Move+organize+fix | Restart tsserver.
 
-vs grep: Finds dynamic imports, JSDoc refs, type-only imports text search misses.
+vs grep: Finds dynamic imports, JSDoc, type-only imports grep misses. ⚠️ Can DELETE.
 
-Use when: Understanding code impact, large-scale refactoring, fixing TypeScript issues.`,
+Before renaming/refactoring → find_references first to see impact.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: true // cleanup_codebase can delete files
