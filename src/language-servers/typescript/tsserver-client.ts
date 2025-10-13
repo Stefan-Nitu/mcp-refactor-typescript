@@ -235,6 +235,12 @@ export class TypeScriptServer {
     });
   }
 
+  async reloadFile(filePath: string): Promise<void> {
+    await this.sendRequest('close', { file: filePath });
+    await this.openFile(filePath);
+    logger.debug({ filePath }, 'Reloaded file in tsserver');
+  }
+
   isProjectLoaded(): boolean {
     return this.projectLoaded;
   }

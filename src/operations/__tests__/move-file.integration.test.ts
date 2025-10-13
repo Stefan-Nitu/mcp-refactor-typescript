@@ -186,4 +186,37 @@ describe('api', () => {
     expect(testFileContent).toContain("vi.mock('./services/api.js');");
     expect(testFileContent).not.toContain("vi.mock('./api.js');");
   });
+
+  it('should handle consecutive moves of the same file', async () => {
+    // Arrange
+    const dataPath = join(testDir, 'src', 'data.ts');
+    const mainPath = join(testDir, 'src', 'main.ts');
+
+    await writeFile(dataPath, 'export function getData() { return [1,2,3]; }', 'utf-8');
+    await writeFile(mainPath, `import { getData } from './data.js';\nconsole.log(getData());`, 'utf-8');
+
+    // Act - First move
+    const firstMove = await operation!.execute({
+      sourcePath: dataPath,
+      destinationPath: join(testDir, 'src', 'services', 'data.ts')
+    });
+
+    // Assert first move worked
+    expect(firstMove.success).toBe(true);
+    let mainContent = await readFile(mainPath, 'utf-8');
+    expect(mainContent).toContain('./services/data.js');
+
+    // Act - Second consecutive move
+    const secondMove = await operation!.execute({
+      sourcePath: join(testDir, 'src', 'services', 'data.ts'),
+      destinationPath: join(testDir, 'src', 'utils', 'data.ts')
+    });
+
+    // Assert second move should also update imports
+    expect(secondMove.success).toBe(true);
+    mainContent = await readFile(mainPath, 'utf-8');
+    expect(mainContent).toContain('./utils/data.js');
+    expect(mainContent).not.toContain('./services/data.js');
+    expect(existsSync(join(testDir, 'src', 'utils', 'data.ts'))).toBe(true);
+  });
 });

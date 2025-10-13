@@ -115,6 +115,10 @@ export class FileMover {
     await this.ensureDirectoryExists(destinationPath);
     await rename(sourcePath, destinationPath);
 
+    for (const fileEdit of edits) {
+      await this.tsServer.reloadFile(fileEdit.fileName);
+    }
+
     return {
       success: true,
       message: `Moved file and updated ${filesChanged.length} import(s)`,
