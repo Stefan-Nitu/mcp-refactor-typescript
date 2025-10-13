@@ -223,10 +223,13 @@ Performs:
 
 ⚠️ **WARNING**: Aggressive mode DELETES files. Use preview mode first!
 
-**Entry Points**: Files your app starts from (main.ts, index.ts, server.ts)
+**Entry Points**: Files your app starts from
+- **Optional for safe mode** (organize imports only)
+- **REQUIRED when `deleteUnusedFiles: true`** - prevents accidental deletion with wrong defaults
+- **Default patterns**: `main|index|app|server` + all test files
 - Tool follows imports from entry points to find used code
 - Anything not reachable = unused
-- Test files automatically preserved
+- Custom regex: `["src/main\\.ts$", "scripts/.*\\.ts$"]`
 
 **Example**: Safe cleanup
 ```typescript
@@ -247,6 +250,7 @@ Input: {
   operation: "cleanup_codebase",
   directory: "src",
   deleteUnusedFiles: true,
+  entrypoints: ["src/main\\.ts$", "src/cli\\.ts$"],  // REQUIRED with deleteUnusedFiles
   preview: true  // See what would be deleted
 }
 

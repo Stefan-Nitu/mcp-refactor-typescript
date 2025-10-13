@@ -215,7 +215,8 @@ Use when: Understanding code impact, large-scale refactoring, fixing TypeScript 
       return !!data.sourcePath && !!data.destinationPath;
     }
     if (data.operation === OperationName.CLEANUP_CODEBASE) {
-      return !!data.directory && !!data.entrypoints;
+      if (!data.directory) return false;
+      if (data.deleteUnusedFiles && !data.entrypoints) return false;
     }
     return true;
   }, (data) => {
@@ -230,7 +231,7 @@ Use when: Understanding code impact, large-scale refactoring, fixing TypeScript 
     }
     if (data.operation === OperationName.CLEANUP_CODEBASE) {
       if (!data.directory) return { message: `directory is required for ${OperationName.CLEANUP_CODEBASE}` };
-      if (!data.entrypoints) return { message: `entrypoints is required for ${OperationName.CLEANUP_CODEBASE}` };
+      if (data.deleteUnusedFiles && !data.entrypoints) return { message: `entrypoints is required when deleteUnusedFiles: true to prevent accidental deletion. Specify your app's entry points like ["src/main\\\\.ts$"] or use defaults at your own risk.` };
     }
     return { message: 'Invalid workspace operation parameters' };
   }),

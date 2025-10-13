@@ -237,20 +237,25 @@ Returns what would change without modifying any files.
 
 ### Entry Points for Cleanup
 
-Control what's considered "unused" when cleaning codebases:
+**Required when `deleteUnusedFiles: true`** - prevents accidental deletion with wrong defaults.
+
+Safe mode (organize imports only) uses automatic defaults. Aggressive mode requires explicit entry points:
 
 ```json
 {
+  "operation": "cleanup_codebase",
   "directory": "src",
+  "deleteUnusedFiles": true,
   "entrypoints": [
-    "main\\.ts$",           // Main entry point
-    ".*\\.test\\.ts$",      // Test files
+    "src/main\\.ts$",       // Main entry point
+    "src/cli\\.ts$",        // CLI entry
+    ".*\\.test\\.ts$",      // Test files (auto-included in defaults)
     "scripts/.*\\.ts$"      // Script files
   ]
 }
 ```
 
-Anything not reachable from these entry points will be removed.
+⚠️ **Files not reachable from entry points will be DELETED**. Always use `preview: true` first.
 
 ### Batch Operations
 
