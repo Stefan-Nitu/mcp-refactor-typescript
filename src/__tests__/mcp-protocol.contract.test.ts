@@ -90,7 +90,7 @@ describe('MCP Protocol Contract', () => {
     expect(allStdout).not.toMatch(/Project loaded/i);
     expect(allStdout).not.toMatch(/TSServer/i);
     expect(allStdout).not.toMatch(/Initializing/i);
-  }, 10000);
+  });
 
   it('should write all log messages to stderr, never stdout', async () => {
     // Arrange
@@ -136,7 +136,7 @@ describe('MCP Protocol Contract', () => {
     expect(allStdout).not.toMatch(/\[DEBUG\]/);
     expect(allStdout).not.toMatch(/\[ERROR\]/);
     expect(allStdout).not.toMatch(/console\./);
-  }, 10000);
+  });
 
   it('should handle stdin close and exit gracefully within 5 seconds', async () => {
     // Arrange
@@ -162,7 +162,7 @@ describe('MCP Protocol Contract', () => {
 
     const exitCode = await Promise.race([exitPromise, timeout]);
     expect(exitCode).toBe(0);
-  }, 10000);
+  });
 
   it('should respond to initialize request with valid JSON-RPC', async () => {
     // Arrange
@@ -226,7 +226,7 @@ describe('MCP Protocol Contract', () => {
     expect(initResponse!.result?.capabilities).toBeDefined();
     expect(initResponse!.result?.serverInfo).toBeDefined();
     expect(initResponse!.result?.serverInfo.name).toBe('mcp-refactor-typescript');
-  }, 10000);
+  });
 
 
   it('should handle SIGTERM and exit gracefully within 5 seconds', async () => {
@@ -253,7 +253,7 @@ describe('MCP Protocol Contract', () => {
 
     const exitCode = await Promise.race([exitPromise, timeout]);
     expect(exitCode).toBe(0);
-  }, 10000);
+  });
 
   it('should handle SIGINT (Ctrl+C) and exit gracefully within 5 seconds', async () => {
     // Arrange
@@ -279,7 +279,7 @@ describe('MCP Protocol Contract', () => {
 
     const exitCode = await Promise.race([exitPromise, timeout]);
     expect(exitCode).toBe(0);
-  }, 10000);
+  });
 
   it('should not write to stdout before receiving any requests', async () => {
     // Arrange
@@ -299,5 +299,5 @@ describe('MCP Protocol Contract', () => {
 
     // Assert - stdout should be completely empty (no unsolicited output)
     expect(stdoutReceived).toBe(false);
-  }, 10000);
+  });
 });

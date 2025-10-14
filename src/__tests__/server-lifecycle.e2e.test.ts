@@ -107,5 +107,5 @@ describe('MCP Server Lifecycle E2E', () => {
       expect(stdout).not.toContain('tsserver');
       expect(stdout).not.toContain('typingsInstaller');
     }
-  }, 20000);
+  });
 });
