@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2025-01-15
+
 ### 🐛 Fixed
 - **Improved Indentation Detection**: Refactored indentation detection to analyze the entire file using the detect-indent algorithm
   - Detects most common indent difference between consecutive non-empty lines
   - Handles 2-space, 4-space, tab, and even 3-space indentation
   - Properly preserves nesting levels when extracting functions/constants/variables
+  - Extract function now correctly preserves indentation from deeply nested contexts (6+ levels)
   - Removed reliance on TSServer's formatOptions (which are ignored by getEditsForRefactor)
   - Custom indentation fixing now respects project-wide indentation patterns
+- **Fixed token limit issue in cleanup_codebase**:
+  - Large operations (>20 files) now return summaries to avoid MCP's 25K token limit
+  - Shows only first 20 files with simplified edit details when over threshold
 
 ### 🚀 Major Changes - Breaking
 
@@ -145,6 +151,7 @@ Replaced 15 individual MCP tools with 4 grouped tools, reducing token overhead b
 - Preview mode for all destructive operations
 - MCP protocol compliance (stderr logging only)
 
-[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/releases/tag/v1.0.0
