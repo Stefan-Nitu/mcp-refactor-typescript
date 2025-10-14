@@ -8,6 +8,7 @@ import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc,
 import { RefactoringProcessor } from './refactoring-processor.js';
 import { EditApplicator } from './shared/edit-applicator.js';
 import { FileOperations } from './shared/file-operations.js';
+import { IndentationDetector } from './shared/indentation-detector.js';
 import { TextPositionConverter } from './shared/text-position-converter.js';
 import { TSServerGuard } from './shared/tsserver-guard.js';
 
@@ -26,6 +27,7 @@ export class ExtractFunctionOperation {
     private fileOps: FileOperations,
     private textConverter: TextPositionConverter,
     private editApplicator: EditApplicator,
+    private indentDetector: IndentationDetector,
     private tsServerGuard: TSServerGuard
   ) {}
 
@@ -143,8 +145,44 @@ This might indicate:
       for (const fileEdit of edits.edits) {
         const originalLines = await this.fileOps.readLines(fileEdit.fileName);
         const sortedChanges = this.editApplicator.sortEdits(fileEdit.textChanges);
-        const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, fileEdit.fileName);
-        const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
+
+        const projectIndentUnit = this.indentDetector.detectIndentUnit(originalLines);
+
+        const fixedChanges = sortedChanges.map(change => {
+          let newText = change.newText;
+
+          if (newText.includes('function ')) {
+            const textLines = newText.split('\n');
+            const funcLineIndex = textLines.findIndex(l => l.includes('function '));
+
+            if (funcLineIndex !== -1) {
+              const targetNestingLevel = this.indentDetector.detectNestingLevel(
+                originalLines[change.start.line - 1] || '',
+                projectIndentUnit
+              );
+
+              const fixedLines = textLines.map((line, idx) => {
+                if (line.trim().length === 0) return line;
+
+                const tsNestingLevel = this.indentDetector.detectNestingLevel(line, '    ');
+
+                if (idx === funcLineIndex) {
+                  return this.indentDetector.getIndentAtNestingLevel(projectIndentUnit, targetNestingLevel) + line.trimStart();
+                } else {
+                  const relativeLevel = tsNestingLevel;
+                  return this.indentDetector.getIndentAtNestingLevel(projectIndentUnit, targetNestingLevel + relativeLevel) + line.trimStart();
+                }
+              });
+
+              newText = fixedLines.join('\n');
+            }
+          }
+
+          return { ...change, newText };
+        });
+
+        const fileChanges = this.editApplicator.buildFileChanges(originalLines, fixedChanges, fileEdit.fileName);
+        const updatedLines = this.editApplicator.applyEdits(originalLines, fixedChanges);
 
         if (!validated.preview) {
           await this.fileOps.writeLines(fileEdit.fileName, updatedLines);

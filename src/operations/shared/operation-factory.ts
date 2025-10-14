@@ -102,6 +102,7 @@ export function createExtractFunctionOperation(tsServer: TypeScriptServer) {
     new FileOperations(),
     new TextPositionConverter(),
     new EditApplicator(),
+    new IndentationDetector(),
     new TSServerGuard(tsServer)
   );
 }

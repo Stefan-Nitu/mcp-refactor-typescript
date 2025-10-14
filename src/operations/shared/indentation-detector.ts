@@ -1,42 +1,65 @@
 export class IndentationDetector {
-  private readonly SEARCH_WINDOW = 3;
   private readonly DEFAULT_INDENT = '  ';
 
-  detect(lines: string[], targetLine: number): string {
-    const targetIndent = this.extractIndent(lines[targetLine]);
-    if (targetIndent !== null && targetIndent !== '') return targetIndent;
-
-    const forwardIndent = this.searchForward(lines, targetLine + 1);
-    if (forwardIndent !== null) return forwardIndent;
-
-    const backwardIndent = this.searchBackward(lines, targetLine);
-    if (backwardIndent !== null) return backwardIndent;
-
-    if (targetIndent === '') return '';
-
-    return this.DEFAULT_INDENT;
+  detectIndentUnitOrDefault(lines: string[]): string {
+    const detected = this.detectIndentUnit(lines);
+    return detected || this.DEFAULT_INDENT;
   }
 
-  private searchForward(lines: string[], startLine: number): string | null {
-    const endLine = Math.min(startLine + this.SEARCH_WINDOW, lines.length);
+  detectIndentUnit(lines: string[]): string {
+    const indentCounts = new Map<string, number>();
+    let previousIndent: string | null = null;
 
-    for (let i = startLine; i < endLine; i++) {
-      const indent = this.extractIndent(lines[i]);
-      if (indent !== null) return indent;
+    for (const line of lines) {
+      if (line.trim().length === 0) continue;
+
+      const currentIndent = this.extractIndent(line);
+      if (currentIndent === null) continue;
+
+      if (previousIndent !== null && currentIndent !== previousIndent) {
+        const diff = this.calculateIndentDifference(previousIndent, currentIndent);
+        if (diff && (diff.length > 1 || diff === '\t')) {
+          indentCounts.set(diff, (indentCounts.get(diff) || 0) + 1);
+        }
+      }
+
+      previousIndent = currentIndent;
     }
 
-    return null;
+    if (indentCounts.size === 0) {
+      return '';
+    }
+
+    let mostCommon = '';
+    let maxCount = 0;
+
+    for (const [indent, count] of indentCounts) {
+      if (count > maxCount) {
+        maxCount = count;
+        mostCommon = indent;
+      }
+    }
+
+    return mostCommon || this.DEFAULT_INDENT;
   }
 
-  private searchBackward(lines: string[], startLine: number): string | null {
-    const beginLine = Math.max(0, startLine - this.SEARCH_WINDOW);
+  getIndentAtNestingLevel(indentUnit: string, level: number): string {
+    if (level === 0 || !indentUnit) return '';
+    return indentUnit.repeat(level);
+  }
 
-    for (let i = startLine - 1; i >= beginLine; i--) {
-      const indent = this.extractIndent(lines[i]);
-      if (indent !== null) return indent;
+  detectNestingLevel(line: string, indentUnit: string): number {
+    if (!line || line.trim().length === 0) return 0;
+    if (!indentUnit) return 0;
+
+    const lineIndent = this.extractIndent(line);
+    if (lineIndent === null || lineIndent === '') return 0;
+
+    if (indentUnit === '\t') {
+      return lineIndent.split('\t').length - 1;
     }
 
-    return null;
+    return Math.floor(lineIndent.length / indentUnit.length);
   }
 
   private extractIndent(line: string): string | null {
@@ -45,5 +68,17 @@ export class IndentationDetector {
     const match = line.match(/^(\s+)/);
     if (!match) return '';
     return match[1];
+  }
+
+  private calculateIndentDifference(prevIndent: string, currentIndent: string): string {
+    if (currentIndent.length > prevIndent.length) {
+      return currentIndent.substring(prevIndent.length);
+    }
+
+    if (prevIndent.length > currentIndent.length) {
+      return prevIndent.substring(currentIndent.length);
+    }
+
+    return '';
   }
 }

@@ -250,4 +250,41 @@ describe('extractFunction', () => {
     expect(response.message).not.toContain('undefined');
     expect(response).toBeDefined();
   });
+
+  it('should preserve 2-space indentation in extracted function', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'indent-test.ts');
+    const code = `export class Calculator {
+  process(x: number, y: number) {
+    const sum = x + y;
+    const product = x * y;
+    return { sum, product };
+  }
+}`;
+
+    await writeFile(filePath, code, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath,
+      line: 3,
+      text: 'x + y',
+      name: 'add'
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    const content = await readFile(filePath, 'utf-8');
+    const lines = content.split('\n');
+
+    const functionDeclLine = lines.findIndex(l => l.includes('function add'));
+    expect(functionDeclLine).toBeGreaterThan(-1);
+
+    const functionBodyLine = functionDeclLine + 1;
+    const bodyLine = lines[functionBodyLine];
+
+    const leadingSpaces = bodyLine.match(/^(\s*)/)?.[1] || '';
+    expect(leadingSpaces).toBe('  ');
+    expect(bodyLine).toMatch(/^ {2}return x \+ y;/);
+  });
 });

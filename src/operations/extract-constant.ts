@@ -155,6 +155,8 @@ Try:
         const originalLines = await this.fileOps.readLines(fileEdit.fileName);
         const sortedChanges = this.editApplicator.sortEdits(fileEdit.textChanges);
 
+        const projectIndentUnit = this.indentDetector.detectIndentUnit(originalLines);
+
         const fixedChanges = sortedChanges.map(change => {
           let newText = change.newText;
 
@@ -165,7 +167,10 @@ Try:
             if (constLineIndex !== -1) {
               const constLine = textLines[constLineIndex];
               const insertedIndent = constLine.match(/^(\s*)/)?.[1] || '';
-              const existingIndent = this.indentDetector.detect(originalLines, change.start.line - 1);
+
+              const targetLine = originalLines[change.start.line - 1] || '';
+              const targetNestingLevel = this.indentDetector.detectNestingLevel(targetLine, projectIndentUnit);
+              const existingIndent = this.indentDetector.getIndentAtNestingLevel(projectIndentUnit, targetNestingLevel);
 
               if (insertedIndent !== existingIndent) {
                 textLines[constLineIndex] = constLine.replace(/^\s*/, existingIndent);

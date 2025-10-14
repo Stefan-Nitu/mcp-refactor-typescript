@@ -5,13 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2025-01-12
+## [Unreleased]
+
+### 🐛 Fixed
+- **Improved Indentation Detection**: Refactored indentation detection to analyze the entire file using the detect-indent algorithm
+  - Detects most common indent difference between consecutive non-empty lines
+  - Handles 2-space, 4-space, tab, and even 3-space indentation
+  - Properly preserves nesting levels when extracting functions/constants/variables
+  - Removed reliance on TSServer's formatOptions (which are ignored by getEditsForRefactor)
+  - Custom indentation fixing now respects project-wide indentation patterns
 
 ### 🚀 Major Changes - Breaking
 
 **Grouped Tools Architecture**
 
-Replaced 14 individual MCP tools with 4 grouped tools, reducing token overhead by 92%.
+Replaced 15 individual MCP tools with 4 grouped tools, reducing token overhead by 92%.
 
 #### Migration Guide
 
@@ -31,13 +39,13 @@ Replaced 14 individual MCP tools with 4 grouped tools, reducing token overhead b
 **New (v2.0):**
 ```json
 {
-  "tool": "file_operations",
+  "tool": "refactoring",
   "params": {
     "operation": "rename",
     "filePath": "src/user.ts",
     "line": 10,
     "text": "getUser",
-    "newName": "getUserProfile"
+    "name": "getUserProfile"
   }
 }
 ```
@@ -45,26 +53,27 @@ Replaced 14 individual MCP tools with 4 grouped tools, reducing token overhead b
 #### New Tool Groups
 
 1. **file_operations** - File operations with automatic import updates
-   - `rename` (was: `rename`)
-   - `move` (was: `move_file`)
-   - `batch_move` (was: `batch_move_files`)
+   - `rename_file` - Rename file in-place
+   - `move_file` - Move file to different directory
+   - `batch_move_files` - Move multiple files atomically
 
 2. **code_quality** - Code quality and cleanup operations
-   - `organize_imports` (was: `organize_imports`)
-   - `fix_all` (was: `fix_all`)
-   - `remove_unused` (was: `remove_unused`)
+   - `organize_imports` - Sort and remove unused imports
+   - `fix_all` - Apply all TypeScript quick fixes
+   - `remove_unused` - Remove unused variables and imports
 
 3. **refactoring** - Code structure refactoring
-   - `extract_function` (was: `extract_function`)
-   - `extract_constant` (was: `extract_constant`)
-   - `extract_variable` (was: `extract_variable`)
-   - `infer_return_type` (was: `infer_return_type`)
+   - `rename` - Rename symbols across all files
+   - `extract_function` - Extract code to function
+   - `extract_constant` - Extract magic numbers/strings
+   - `extract_variable` - Extract expressions to variables
+   - `infer_return_type` - Add return type annotations
 
 4. **workspace** - Project-wide operations
-   - `find_references` (was: `find_references`)
-   - `refactor_module` (was: `refactor_module`)
-   - `cleanup_codebase` (was: `cleanup_codebase`)
-   - `restart_tsserver` (was: `restart_tsserver`)
+   - `find_references` - Find all usages with type-aware analysis
+   - `refactor_module` - Complete workflow: move + organize + fix
+   - `cleanup_codebase` - Clean entire codebase
+   - `restart_tsserver` - Restart TypeScript server
 
 ### ✨ Added
 
@@ -109,7 +118,7 @@ Replaced 14 individual MCP tools with 4 grouped tools, reducing token overhead b
 - Operations catalog resource with comprehensive examples
 - New telemetry logging documentation
 
-### 🐛 Removed
+### 🗑️ Removed
 
 - Individual tool endpoints (now operations within grouped tools)
 - Verbose examples from tool descriptions (moved to operations catalog)
@@ -136,6 +145,6 @@ Replaced 14 individual MCP tools with 4 grouped tools, reducing token overhead b
 - Preview mode for all destructive operations
 - MCP protocol compliance (stderr logging only)
 
-[2.0.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.1.0...v2.0.0
+[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/releases/tag/v1.0.0

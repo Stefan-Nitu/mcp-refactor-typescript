@@ -562,7 +562,7 @@ describe('Grouped Tools Schema Validation', () => {
         expect(() => schema.parse(input)).toThrow(/directory is required for cleanup_codebase/);
       });
 
-      it('should reject cleanup_codebase without entrypoints', () => {
+      it('should accept cleanup_codebase without entrypoints when deleteUnusedFiles is not set', () => {
         // Arrange
         const input = {
           operation: 'cleanup_codebase',
@@ -570,8 +570,20 @@ describe('Grouped Tools Schema Validation', () => {
         };
 
         // Act & Assert
+        expect(() => schema.parse(input)).not.toThrow();
+      });
+
+      it('should reject cleanup_codebase without entrypoints when deleteUnusedFiles is true', () => {
+        // Arrange
+        const input = {
+          operation: 'cleanup_codebase',
+          directory: '/path/to/src',
+          deleteUnusedFiles: true
+        };
+
+        // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/entrypoints is required for cleanup_codebase/);
+        expect(() => schema.parse(input)).toThrow(/entrypoints is required when deleteUnusedFiles: true/);
       });
     });
 

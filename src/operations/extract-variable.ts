@@ -145,6 +145,8 @@ This might indicate:
         const originalLines = await this.fileOps.readLines(fileEdit.fileName);
         const sortedChanges = this.editApplicator.sortEdits(fileEdit.textChanges);
 
+        const projectIndentUnit = this.indentDetector.detectIndentUnit(originalLines);
+
         const fixedChanges = sortedChanges.map(change => {
           let newText = change.newText;
 
@@ -155,10 +157,12 @@ This might indicate:
             if (constLineIndex !== -1) {
               const constLine = textLines[constLineIndex];
               const insertedIndent = constLine.match(/^(\s*)/)?.[1] || '';
-              const existingIndent = this.indentDetector.detect(originalLines, change.start.line - 1);
+              const targetLine = originalLines[change.start.line - 1] || '';
+              const existingIndent = this.indentDetector.detectNestingLevel(targetLine, projectIndentUnit);
+              const targetIndent = this.indentDetector.getIndentAtNestingLevel(projectIndentUnit, existingIndent);
 
-              if (insertedIndent !== existingIndent) {
-                textLines[constLineIndex] = constLine.replace(/^\s*/, existingIndent);
+              if (insertedIndent !== targetIndent) {
+                textLines[constLineIndex] = constLine.replace(/^\s*/, targetIndent);
                 newText = textLines.join('\n');
               }
             }

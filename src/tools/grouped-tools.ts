@@ -30,7 +30,7 @@ export const fileOperationsTool: GroupedTool = {
 
 vs Edit/Bash: They break imports. This catches dynamic imports, mocks, re-exports.
 
-When renaming/moving TS/JS files → use this, not mv/Edit.`,
+Use when: Renaming/moving TS/JS files. Always use this, not mv/Edit.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: false
@@ -100,7 +100,7 @@ export const codeQualityTool: GroupedTool = {
 
 vs Manual: Compiler-verified, preserves side-effects, finds hidden issues.
 
-After refactoring or before commits → use this proactively.`,
+Use when: After refactoring or before commits. Use proactively.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: false
@@ -141,7 +141,7 @@ export const refactoringTool: GroupedTool = {
 
 vs Edit: Updates ALL refs (imports, JSDoc, dynamic imports). Impossible by hand.
 
-When renaming variables/functions OR extracting code → always use this.`,
+Use when: Renaming variables/functions OR extracting code. Always use this.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: false
@@ -190,7 +190,7 @@ export const workspaceTool: GroupedTool = {
 
 vs grep: Finds dynamic imports, JSDoc, type-only imports grep misses. ⚠️ Can DELETE.
 
-Before renaming/refactoring → find_references first to see impact.`,
+Use when: Before renaming/refactoring. Use find_references first to see impact.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: true // cleanup_codebase can delete files
