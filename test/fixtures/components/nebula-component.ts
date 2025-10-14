@@ -1,6 +1,6 @@
+import { QUIXOTIC_DEFAULT_PRICE, QuixoticModel } from '../models/quixotic.js';
 import { ZephyrService } from '../services/zephyr-service.js';
 import { performXylophoneTransform, XYLOPHONE_CONSTANTS } from '../utils/xylophone-helpers.js';
-import { QUIXOTIC_DEFAULT_PRICE, QuixoticModel } from '../models/quixotic.js';
 
 export class NebulaComponent {
   private zephyrService: ZephyrService;

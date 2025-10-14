@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TSServerGuard } from '../tsserver-guard.js';
 import type { TypeScriptServer } from '../../../language-servers/typescript/tsserver-client.js';
+import { TSServerGuard } from '../tsserver-guard.js';
 
 describe('TSServerGuard', () => {
   let mockTsServer: TypeScriptServer;

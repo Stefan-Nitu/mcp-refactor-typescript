@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FileDiscovery } from '../file-discovery.js';
 import type { TypeScriptServer } from '../../../language-servers/typescript/tsserver-client.js';
+import { FileDiscovery } from '../file-discovery.js';
 
 describe('FileDiscovery', () => {
   let mockTsServer: TypeScriptServer;

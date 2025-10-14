@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { EditApplicator } from '../edit-applicator.js';
 import type { TSTextChange } from '../../../language-servers/typescript/tsserver-types.js';
+import { EditApplicator } from '../edit-applicator.js';
 
 describe('EditApplicator', () => {
   const applicator = new EditApplicator();

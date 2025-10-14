@@ -8,8 +8,8 @@ import { z } from 'zod';
 import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import { FileDiscovery } from './shared/file-discovery.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
 import { FileMover } from './shared/file-mover.js';
+import { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const batchMoveFilesSchema = z.object({
   files: z.array(z.string().min(1)).min(1, 'At least one file must be provided'),

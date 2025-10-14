@@ -5,10 +5,10 @@
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type {
-  TSDiagnostic,
   TSCombinedCodeFix,
-  TSTextChange,
-  TSFileEdit
+  TSDiagnostic,
+  TSFileEdit,
+  TSTextChange
 } from '../language-servers/typescript/tsserver-types.js';
 import { EditApplicator } from './shared/edit-applicator.js';
 import { FileOperations } from './shared/file-operations.js';

@@ -3,8 +3,8 @@
  * Logs to stderr (safe for MCP protocol)
  */
 
-import { logger } from './logger.js';
 import { relative } from 'path';
+import { logger } from './logger.js';
 
 export interface TelemetryEvent {
   event: 'tool_call' | 'tool_success' | 'tool_error';

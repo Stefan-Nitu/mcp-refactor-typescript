@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { StringLiteralPathUpdater } from '../string-literal-path-updater.js';
 
 describe('StringLiteralPathUpdater', () => {

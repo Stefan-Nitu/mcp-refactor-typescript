@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TypeScriptServer } from '../../../language-servers/typescript/tsserver-client.js';
 import { FormatConfigurator } from '../format-configurator.js';
 import { IndentationDetector } from '../indentation-detector.js';

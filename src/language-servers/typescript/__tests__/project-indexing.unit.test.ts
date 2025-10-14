@@ -6,8 +6,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { TypeScriptServer } from '../tsserver-client.js';
 import { TSServerGuard } from '../../../operations/shared/tsserver-guard.js';
+import { TypeScriptServer } from '../tsserver-client.js';
 
 describe('TypeScript Project Indexing', () => {
   let tsServer: TypeScriptServer;

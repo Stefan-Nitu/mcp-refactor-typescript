@@ -1,5 +1,5 @@
-import { ZephyrModel, Zephyr } from '../models/zephyr.js';
 import { QUIXOTIC_DEFAULT_PRICE } from '../models/quixotic.js';
+import { Zephyr, ZephyrModel } from '../models/zephyr.js';
 
 export class ZephyrService {
   private zephyrs: ZephyrModel[] = [];

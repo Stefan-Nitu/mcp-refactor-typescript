@@ -1,8 +1,5 @@
 // Vortex sample TypeScript file for testing refactoring operations
 
-import { readFile, writeFile } from 'fs';
-import path from 'path';
-import { promisify } from 'util';
 
 // Test rename: rename this variable
 const renamedVortexQuantum = 42;

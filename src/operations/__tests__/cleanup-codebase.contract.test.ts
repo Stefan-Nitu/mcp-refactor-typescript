@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'child_process';
 import { exec } from 'child_process';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { promisify } from 'util';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const execAsync = promisify(exec);
 

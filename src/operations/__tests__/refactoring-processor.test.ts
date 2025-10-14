@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { RefactoringProcessor } from '../refactoring-processor.js';
 import type { TSTextChange } from '../../language-servers/typescript/tsserver-types.js';
+import { RefactoringProcessor } from '../refactoring-processor.js';
 
 describe('RefactoringProcessor', () => {
   describe('const declarations', () => {

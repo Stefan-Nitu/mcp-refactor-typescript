@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { refactoringTool, codeQualityTool, fileOperationsTool, workspaceTool } from '../grouped-tools.js';
 import { z } from 'zod';
+import { codeQualityTool, fileOperationsTool, refactoringTool, workspaceTool } from '../grouped-tools.js';
 
 describe('Grouped Tools Schema Validation', () => {
   describe('refactoring Tool Schema', () => {

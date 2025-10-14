@@ -5,9 +5,9 @@
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type {
-  TSDiagnostic,
   TSCodeFixAction,
   TSCombinedCodeFix,
+  TSDiagnostic,
   TSFileEdit,
   TSTextChange
 } from '../language-servers/typescript/tsserver-types.js';

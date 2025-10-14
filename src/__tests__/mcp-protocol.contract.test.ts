@@ -9,7 +9,7 @@
  * - Handles SIGTERM and SIGINT signals gracefully
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { ChildProcess, spawn } from 'child_process';
 import { resolve } from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 

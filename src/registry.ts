@@ -5,7 +5,6 @@
 
 import { RefactorResult, TypeScriptServer } from './language-servers/typescript/tsserver-client.js';
 import { OperationName } from './operation-name.js';
-import { logger } from './utils/logger.js';
 import {
   createBatchMoveFilesOperation,
   createCleanupCodebaseOperation,
@@ -23,6 +22,7 @@ import {
   createRenameOperation,
   createRestartTsServerOperation
 } from './operations/shared/operation-factory.js';
+import { logger } from './utils/logger.js';
 
 export interface Operation {
   execute(input: Record<string, unknown>): Promise<RefactorResult>;

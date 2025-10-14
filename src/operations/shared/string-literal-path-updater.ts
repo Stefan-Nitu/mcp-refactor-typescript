@@ -4,7 +4,7 @@
  * More robust than pattern matching - catches mocks, requires, dynamic imports, etc.
  */
 
-import { relative, dirname } from 'path';
+import { dirname, relative } from 'path';
 
 export class StringLiteralPathUpdater {
   findMockPathUpdates(

@@ -1,9 +1,8 @@
 // Main entry point with unique name - quasar-entry.ts
-import { ZephyrModel } from './models/zephyr.js';
-import { QuixoticModel, QUIXOTIC_DEFAULT_PRICE } from './models/quixotic.js';
-import { ZephyrService } from './services/zephyr-service.js';
 import { NebulaComponent } from './components/nebula-component.js';
-import { performXylophoneTransform, calculateXylophoneFrequency } from './utils/xylophone-helpers.js';
+import { QUIXOTIC_DEFAULT_PRICE } from './models/quixotic.js';
+import { ZephyrService } from './services/zephyr-service.js';
+import { calculateXylophoneFrequency, performXylophoneTransform } from './utils/xylophone-helpers.js';
 
 // Test file showing cross-file dependencies
 
