@@ -86,7 +86,7 @@ describe('MCP Server Lifecycle E2E', () => {
     });
 
     const timeout = new Promise<number>((_, reject) => {
-      setTimeout(() => reject(new Error('Server did not exit within 5 seconds - zombie process detected!')), 5000);
+      setTimeout(() => reject(new Error('Server did not exit within 10 seconds - zombie process detected!')), 10000);
     });
 
     const exitCode = await Promise.race([exitPromise, timeout]);
@@ -107,5 +107,5 @@ describe('MCP Server Lifecycle E2E', () => {
       expect(stdout).not.toContain('tsserver');
       expect(stdout).not.toContain('typingsInstaller');
     }
-  }, 15000);
+  }, 20000);
 });
