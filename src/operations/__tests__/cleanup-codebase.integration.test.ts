@@ -276,4 +276,41 @@ export const c = 3;`, 'utf-8');
     const file1FirstLine = file1Content.split('\n')[0];
     expect(file1FirstLine).toContain('{ a, b, c }');
   });
+
+  it('should return summary for large codebases (>20 files)', async () => {
+    // Arrange
+    const largeDir = join(testDir, 'large');
+    await mkdir(largeDir, { recursive: true });
+
+    // Create 25 files with unsorted imports
+    for (let i = 1; i <= 25; i++) {
+      const filePath = join(largeDir, `file${i}.ts`);
+      await writeFile(filePath, `import { z, b, a } from './utils.js';
+
+const value${i} = a + b;
+console.error(value${i}, z);`, 'utf-8');
+    }
+
+    await writeFile(join(largeDir, 'utils.ts'), `export const a = 1;
+export const b = 2;
+export const z = 3;`, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      directory: largeDir
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(response.message).toContain('Cleanup completed');
+    expect(response.message).toContain('summary'); // Should mention it's a summary
+
+    // Should return simplified edits for large operations
+    expect(response.filesChanged).toBeDefined();
+    expect(response.filesChanged.length).toBeLessThanOrEqual(20);
+
+    // Verify files were actually modified
+    const file1Content = await readFile(join(largeDir, 'file1.ts'), 'utf-8');
+    expect(file1Content).toContain('{ a, b, z }'); // Should be sorted
+  });
 });

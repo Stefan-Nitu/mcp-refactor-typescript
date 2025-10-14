@@ -185,24 +185,37 @@ Try:
         steps.push('Skipped unused export removal (deleteUnusedFiles: false)');
       }
 
+      const affectedFiles: string[] = [];
+
       for (const file of tsFiles) {
         const organizeResult = await this.organizeImportsOp.execute({ filePath: file });
         if (organizeResult.success && organizeResult.filesChanged.length > 0) {
+          affectedFiles.push(file);
           filesChanged.push(...organizeResult.filesChanged);
         }
       }
 
-      if (filesChanged.length > 0) {
-        steps.push(`✓ Organized imports in ${filesChanged.length} file(s)`);
+      if (affectedFiles.length > 0) {
+        steps.push(`✓ Organized imports in ${affectedFiles.length} file(s)`);
       }
+
+      // For large operations (>20 files), return summary to avoid token limits
+      const shouldSummarize = affectedFiles.length > 20;
+      const responseFilesChanged = shouldSummarize
+        ? affectedFiles.slice(0, 20).map(path => ({
+            file: path.split('/').pop() || path,
+            path,
+            edits: [{ line: 1, old: '', new: '(imports organized, details omitted)' }]
+          }))
+        : filesChanged;
 
       return {
         success: true,
         message: `Cleanup completed successfully:
 ${steps.join('\n')}
 
-Processed ${tsFiles.length} TypeScript file(s)`,
-        filesChanged
+Processed ${tsFiles.length} TypeScript file(s)${shouldSummarize ? `\n\n⚠️  Showing summary for first 20 of ${affectedFiles.length} affected files to avoid response size limits` : ''}`,
+        filesChanged: responseFilesChanged
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
