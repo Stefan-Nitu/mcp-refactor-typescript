@@ -7,6 +7,7 @@ import { RefactorResult, TypeScriptServer } from '../language-servers/typescript
 import type { TSOrganizeImportsResponse } from '../language-servers/typescript/tsserver-types.js';
 import { EditApplicator } from './shared/edit-applicator.js';
 import { FileOperations } from './shared/file-operations.js';
+import { FormatConfigurator } from './shared/format-configurator.js';
 import { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const organizeImportsSchema = z.object({
@@ -19,6 +20,7 @@ export class OrganizeImportsOperation {
     private tsServer: TypeScriptServer,
     private fileOps: FileOperations,
     private editApplicator: EditApplicator,
+    private formatConfigurator: FormatConfigurator,
     private tsServerGuard: TSServerGuard
   ) {}
 
@@ -31,6 +33,9 @@ export class OrganizeImportsOperation {
       if (guardResult) return guardResult;
 
       await this.tsServer.openFile(filePath);
+
+      const originalLines = await this.fileOps.readLines(filePath);
+      await this.formatConfigurator.configureForFile(filePath, originalLines);
 
       const result = await this.tsServer.sendRequest<TSOrganizeImportsResponse[]>('organizeImports', {
         scope: {
@@ -47,7 +52,6 @@ export class OrganizeImportsOperation {
         };
       }
 
-      const originalLines = await this.fileOps.readLines(filePath);
       const sortedChanges = this.editApplicator.sortEdits(result[0].textChanges);
       const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, filePath);
       const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);

@@ -19,6 +19,7 @@ import { EditApplicator } from './edit-applicator.js';
 import { FileDiscovery } from './file-discovery.js';
 import { FileMover } from './file-mover.js';
 import { FileOperations } from './file-operations.js';
+import { FormatConfigurator } from './format-configurator.js';
 import { IndentationDetector } from './indentation-detector.js';
 import { TextPositionConverter } from './text-position-converter.js';
 import { TSServerGuard } from './tsserver-guard.js';
@@ -63,6 +64,7 @@ export function createOrganizeImportsOperation(tsServer: TypeScriptServer) {
     tsServer,
     new FileOperations(),
     new EditApplicator(),
+    new FormatConfigurator(tsServer, new IndentationDetector()),
     new TSServerGuard(tsServer)
   );
 }
@@ -102,7 +104,7 @@ export function createExtractFunctionOperation(tsServer: TypeScriptServer) {
     new FileOperations(),
     new TextPositionConverter(),
     new EditApplicator(),
-    new IndentationDetector(),
+    new FormatConfigurator(tsServer, new IndentationDetector()),
     new TSServerGuard(tsServer)
   );
 }
@@ -114,7 +116,7 @@ export function createExtractConstantOperation(tsServer: TypeScriptServer) {
     new FileOperations(),
     new TextPositionConverter(),
     new EditApplicator(),
-    new IndentationDetector(),
+    new FormatConfigurator(tsServer, new IndentationDetector()),
     new TSServerGuard(tsServer)
   );
 }
@@ -126,7 +128,7 @@ export function createExtractVariableOperation(tsServer: TypeScriptServer) {
     new FileOperations(),
     new TextPositionConverter(),
     new EditApplicator(),
-    new IndentationDetector(),
+    new FormatConfigurator(tsServer, new IndentationDetector()),
     new TSServerGuard(tsServer)
   );
 }

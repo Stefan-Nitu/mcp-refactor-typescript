@@ -103,4 +103,39 @@ export const x: a = null as any;`, 'utf-8');
     // Assert
     expect(response.success).toBe(true);
   });
+
+  it('should preserve 2-space indentation in multiline imports', async () => {
+    // Arrange
+    const filePath = join(testDir, 'src', 'indentation-test.ts');
+    const codeWithMultilineImport = `import type {
+  SomeLongTypeName,
+  AnotherLongTypeName,
+  YetAnotherType
+} from '../utils.js';
+import { readFile } from 'fs/promises';
+
+export const x: SomeLongTypeName = null as any;
+export const y: AnotherLongTypeName = null as any;
+export const z: YetAnotherType = null as any;
+`;
+
+    await writeFile(filePath, codeWithMultilineImport, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({ filePath });
+
+    // Assert
+    expect(response.success).toBe(true);
+    const organized = await readFile(filePath, 'utf-8');
+
+    // Should NOT have 4-space indentation
+    expect(organized).not.toContain('    SomeLongTypeName');
+    expect(organized).not.toContain('    AnotherLongTypeName');
+    expect(organized).not.toContain('    YetAnotherType');
+
+    // Should have 2-space indentation
+    expect(organized).toContain('  SomeLongTypeName');
+    expect(organized).toContain('  AnotherLongTypeName');
+    expect(organized).toContain('  YetAnotherType');
+  });
 });
