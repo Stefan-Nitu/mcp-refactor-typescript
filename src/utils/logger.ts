@@ -5,9 +5,15 @@
 
 import pino from 'pino';
 
+const destination = pino.destination({ dest: 2, sync: false });
+
 export const logger = pino(
   {
     level: process.env.LOG_LEVEL || 'info',
   },
-  pino.destination({ dest: 2, sync: false }) // stderr, no worker threads
+  destination
 );
+
+export function flushLogs(): void {
+  destination.flushSync();
+}
