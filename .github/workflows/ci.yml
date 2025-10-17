@@ -25,9 +25,6 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Run tests
-      run: npm test
-
     - name: Build
       run: npm run build
 
@@ -37,3 +34,6 @@ jobs:
         test -d dist/operations
         test -d dist/language-servers
         test -d dist/utils
+
+    - name: Run tests
+      run: npm test
