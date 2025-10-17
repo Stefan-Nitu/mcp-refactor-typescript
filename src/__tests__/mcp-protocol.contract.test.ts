@@ -141,8 +141,14 @@ describe('MCP Protocol Contract', () => {
   it('should handle stdin close and exit gracefully within 5 seconds', async () => {
     // Arrange
     const serverPath = resolve(__dirname, '../../dist/index.js');
+    const stderrLines: string[] = [];
+
     server = spawn('node', [serverPath], {
       stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    server.stderr?.on('data', (data) => {
+      stderrLines.push(data.toString());
     });
 
     // Wait for server to start
@@ -152,16 +158,24 @@ describe('MCP Protocol Contract', () => {
     server.stdin?.end();
 
     // Assert - Server should exit within 5 seconds
-    const exitPromise = new Promise<number>((resolve) => {
-      server!.on('exit', (code) => resolve(code ?? 0));
+    const exitPromise = new Promise<{ code: number; signal: string | null }>((resolve) => {
+      server!.on('exit', (code, signal) => {
+        console.error(`Process exited with code=${code} signal=${signal}`);
+        resolve({ code: code ?? 0, signal });
+      });
     });
 
-    const timeout = new Promise<number>((_, reject) => {
-      setTimeout(() => reject(new Error('Server did not exit within 5 seconds - zombie process detected!')), 5000);
+    const timeout = new Promise<{ code: number; signal: string | null }>((_, reject) => {
+      setTimeout(() => {
+        console.error('\n=== STDERR OUTPUT ===');
+        console.error(stderrLines.join(''));
+        console.error('=== END STDERR ===\n');
+        reject(new Error('Server did not exit within 5 seconds - zombie process detected!'));
+      }, 5000);
     });
 
-    const exitCode = await Promise.race([exitPromise, timeout]);
-    expect(exitCode).toBe(0);
+    const result = await Promise.race([exitPromise, timeout]);
+    expect(result.code).toBe(0);
   });
 
   it('should respond to initialize request with valid JSON-RPC', async () => {

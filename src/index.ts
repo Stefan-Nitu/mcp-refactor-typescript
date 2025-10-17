@@ -6,7 +6,6 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { EventEmitter } from 'events';
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -121,38 +120,55 @@ async function main() {
   await registry.initialize();
 
   const transport = new StdioServerTransport();
-  const shutdownEmitter = new EventEmitter();
 
-  const cleanup = async () => {
+  let cleanupStarted = false;
+
+  const cleanup = () => {
+    if (cleanupStarted) {
+      logger.info('Cleanup already started, skipping');
+      return;
+    }
+    cleanupStarted = true;
+
     logger.info('Shutting down...');
     flushLogs();
 
-    const timeoutId = setTimeout(() => {
-      logger.error('Cleanup timeout - forcing exit');
-      process.exit(1);
-    }, 5000);
+    let elapsedMs = 0;
+    const timeoutCheck = setInterval(() => {
+      elapsedMs += 100;
+      if (elapsedMs >= 5000) {
+        clearInterval(timeoutCheck);
+        logger.error('Cleanup timeout - forcing exit after 5 seconds');
+        flushLogs();
+        process.exit(1);
+      }
+    }, 100);
 
-    try {
-      await server.close();
-      await registry.close();
-      clearTimeout(timeoutId);
-      process.exit(0);
-    } catch (error) {
-      logger.error({ err: error }, 'Error during cleanup');
-      clearTimeout(timeoutId);
-      process.exit(1);
-    }
+    (async () => {
+      try {
+        await server.close();
+        await registry.close();
+
+        clearInterval(timeoutCheck);
+        logger.info('Cleanup completed successfully');
+        process.exit(0);
+      } catch (error) {
+        clearInterval(timeoutCheck);
+        logger.error({ err: error }, 'Error during cleanup');
+        flushLogs();
+        process.exit(1);
+      }
+    })();
   };
 
-  const triggerShutdown = () => shutdownEmitter.emit('shutdown');
-
-  shutdownEmitter.once('shutdown', cleanup);
-  process.on('SIGINT', triggerShutdown);
-  process.on('SIGTERM', triggerShutdown);
-  process.stdin.on('end', triggerShutdown);
-  process.stdin.on('close', triggerShutdown);
+  process.once('SIGINT', cleanup);
+  process.once('SIGTERM', cleanup);
 
   await server.connect(transport);
+
+  process.stdin.once('end', cleanup);
+  process.stdin.once('close', cleanup);
+
   logger.info('Server started with tsserver (TypeScript/JavaScript support)');
 }
 
