@@ -123,7 +123,7 @@ async function main() {
 
   let cleanupStarted = false;
 
-  const cleanup = () => {
+  const cleanup = async () => {
     if (cleanupStarted) {
       logger.info('Cleanup already started, skipping');
       return;
@@ -133,32 +133,25 @@ async function main() {
     logger.info('Shutting down...');
     flushLogs();
 
-    let elapsedMs = 0;
-    const timeoutCheck = setInterval(() => {
-      elapsedMs += 100;
-      if (elapsedMs >= 5000) {
-        clearInterval(timeoutCheck);
-        logger.error('Cleanup timeout - forcing exit after 5 seconds');
-        flushLogs();
-        process.exit(1);
-      }
-    }, 100);
+    const timeoutId = setTimeout(() => {
+      logger.error('Cleanup timeout - forcing exit after 5 seconds');
+      flushLogs();
+      process.exit(1);
+    }, 5000);
 
-    (async () => {
-      try {
-        await server.close();
-        await registry.close();
+    try {
+      await server.close();
+      await registry.close();
 
-        clearInterval(timeoutCheck);
-        logger.info('Cleanup completed successfully');
-        process.exit(0);
-      } catch (error) {
-        clearInterval(timeoutCheck);
-        logger.error({ err: error }, 'Error during cleanup');
-        flushLogs();
-        process.exit(1);
-      }
-    })();
+      clearTimeout(timeoutId);
+      logger.info('Cleanup completed successfully');
+      process.exit(0);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      logger.error({ err: error }, 'Error during cleanup');
+      flushLogs();
+      process.exit(1);
+    }
   };
 
   process.once('SIGINT', cleanup);
