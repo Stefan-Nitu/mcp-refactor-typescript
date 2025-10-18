@@ -6,7 +6,7 @@
 import { relative } from 'path';
 import { logger } from './logger.js';
 
-export interface TelemetryEvent {
+interface TelemetryEvent {
   event: 'tool_call' | 'tool_success' | 'tool_error';
   tool: string;
   operation?: string;

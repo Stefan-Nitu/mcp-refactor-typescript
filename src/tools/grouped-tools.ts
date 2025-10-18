@@ -9,7 +9,7 @@ import { OperationName } from '../operation-name.js';
 import { OperationRegistry } from '../registry.js';
 import { Telemetry } from '../utils/telemetry.js';
 
-export interface GroupedTool {
+interface GroupedTool {
   name: string;
   title: string;
   description: string;

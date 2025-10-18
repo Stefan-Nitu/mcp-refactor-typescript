@@ -1,11 +1,11 @@
-export interface Position {
+interface Position {
   startLine: number;
   startColumn: number;
   endLine: number;
   endColumn: number;
 }
 
-export type PositionResult =
+type PositionResult =
   | { success: true } & Position
   | { success: false; message: string };
 

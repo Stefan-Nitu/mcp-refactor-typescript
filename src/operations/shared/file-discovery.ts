@@ -3,7 +3,7 @@ import { dirname, join } from 'path';
 import type { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { logger } from '../../utils/logger.js';
 
-export interface ProjectStatus {
+interface ProjectStatus {
   isFullyLoaded: boolean;
   didScanTimeout: boolean;
 }

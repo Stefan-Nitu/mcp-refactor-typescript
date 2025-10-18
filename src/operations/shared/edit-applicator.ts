@@ -1,13 +1,13 @@
 import type { TSTextChange } from '../../language-servers/typescript/tsserver-types.js';
 
-export interface FileEdit {
+interface FileEdit {
   line: number;
   column?: number;
   old: string;
   new: string;
 }
 
-export interface FileChanges {
+interface FileChanges {
   file: string;
   path: string;
   edits: FileEdit[];

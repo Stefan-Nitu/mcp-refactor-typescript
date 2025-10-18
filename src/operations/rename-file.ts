@@ -9,7 +9,7 @@ import { FileDiscovery } from './shared/file-discovery.js';
 import { FileMover } from './shared/file-mover.js';
 import { TSServerGuard } from './shared/tsserver-guard.js';
 
-export const renameFileSchema = z.object({
+const renameFileSchema = z.object({
   sourcePath: z.string().min(1, 'Source path cannot be empty'),
   name: z.string().min(1, 'Name cannot be empty'),
   preview: z.boolean().optional()
