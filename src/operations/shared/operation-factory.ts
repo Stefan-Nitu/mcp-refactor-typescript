@@ -8,6 +8,7 @@ import { FindReferencesOperation } from '../find-references.js';
 import { FixAllOperation } from '../fix-all.js';
 import { InferReturnTypeOperation } from '../infer-return-type.js';
 import { MoveFileOperation } from '../move-file.js';
+import { MoveToFileOperation } from '../move-to-file.js';
 import { OrganizeImportsOperation } from '../organize-imports.js';
 import { RefactorModuleOperation } from '../refactor-module.js';
 import { RefactoringProcessor } from '../refactoring-processor.js';
@@ -125,6 +126,17 @@ export function createExtractVariableOperation(tsServer: TypeScriptServer) {
   return new ExtractVariableOperation(
     tsServer,
     new RefactoringProcessor('const'),
+    new FileOperations(),
+    new TextPositionConverter(),
+    new EditApplicator(),
+    new FormatConfigurator(tsServer, new IndentationDetector()),
+    new TSServerGuard(tsServer)
+  );
+}
+
+export function createMoveToFileOperation(tsServer: TypeScriptServer) {
+  return new MoveToFileOperation(
+    tsServer,
     new FileOperations(),
     new TextPositionConverter(),
     new EditApplicator(),

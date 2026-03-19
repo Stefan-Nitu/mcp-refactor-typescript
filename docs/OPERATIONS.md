@@ -163,6 +163,40 @@ const circumference = 2 * PI * radius;
 **What**: Extract complex expressions to local variables
 **Benefit**: Reduces duplication, improves readability
 
+### move_to_file
+**What**: Move a top-level symbol to another file with automatic import updates
+**Time**: < 1s
+**vs Edit**: Updates all imports/exports across the codebase automatically
+
+**Example**: Move `parseConfig` to a dedicated file
+```typescript
+Input: {
+  operation: "move_to_file",
+  filePath: "src/utils.ts",
+  line: 10,
+  text: "parseConfig",
+  destinationPath: "src/config/parser.ts"
+}
+
+Result: Moves parseConfig to new file + updates all imports:
+  ✓ Moves the full declaration
+  ✓ Creates destination file (with directory) if needed
+  ✓ Updates all import paths across the codebase
+  ✓ Preserves dependent type imports
+```
+
+**Without destinationPath**: TypeScript auto-generates a new file name
+```typescript
+Input: {
+  operation: "move_to_file",
+  filePath: "src/utils.ts",
+  line: 10,
+  text: "parseConfig"
+}
+
+Result: Moves parseConfig to auto-named new file (e.g. src/parseConfig.ts)
+```
+
 ### infer_return_type
 **What**: Generate perfect return type annotations automatically
 **Benefit**: Even complex nested objects and union types - no guessing

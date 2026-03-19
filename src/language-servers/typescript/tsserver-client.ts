@@ -97,7 +97,8 @@ export class TypeScriptServer {
         includeCompletionsForModuleExports: true,
         includeCompletionsWithInsertText: true,
         allowIncompleteCompletions: true,
-        includeAutomaticOptionalChainCompletions: true
+        includeAutomaticOptionalChainCompletions: true,
+        allowTextChangesInNewFiles: true
       }
     });
 

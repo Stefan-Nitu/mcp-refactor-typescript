@@ -103,12 +103,13 @@ describe('Grouped Tools Integration', () => {
   describe('refactoring Tool', () => {
     const refactorTool = groupedTools[2];
 
-    it('should support rename and extract operations', () => {
+    it('should support rename, extract, and move operations', () => {
       expect(refactorTool.operations).toEqual([
         'rename',
         'extract_function',
         'extract_constant',
         'extract_variable',
+        'move_to_file',
         'infer_return_type'
       ]);
     });
@@ -116,6 +117,18 @@ describe('Grouped Tools Integration', () => {
     it('should route to extract_function operation', async () => {
       const result = await refactorTool.execute({
         operation: 'extract_function',
+        filePath: 'nonexistent.ts',
+        line: 1,
+        text: 'test'
+      }, registry);
+
+      expect(result).toBeDefined();
+      expect(result.success).toBe(false); // File doesn't exist
+    });
+
+    it('should route to move_to_file operation', async () => {
+      const result = await refactorTool.execute({
+        operation: 'move_to_file',
         filePath: 'nonexistent.ts',
         line: 1,
         text: 'test'

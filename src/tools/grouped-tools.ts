@@ -137,22 +137,23 @@ Use when: After refactoring or before commits. Use proactively.`,
 export const refactoringTool: GroupedTool = {
   name: 'refactoring',
   title: 'Refactoring',
-  description: `Rename symbols project-wide OR extract functions (auto-detects params/types/closures).
+  description: `Rename symbols, extract functions, or move symbols to files (auto-updates imports).
 
 vs Edit: Updates ALL refs (imports, JSDoc, dynamic imports). Impossible by hand.
 
-Use when: Renaming variables/functions OR extracting code. Always use this.`,
+Use when: Renaming, extracting, or moving symbols between files. Always use this.`,
   annotations: {
     readOnlyHint: false,
     destructiveHint: false
   },
-  operations: [OperationName.RENAME, OperationName.EXTRACT_FUNCTION, OperationName.EXTRACT_CONSTANT, OperationName.EXTRACT_VARIABLE, OperationName.INFER_RETURN_TYPE],
+  operations: [OperationName.RENAME, OperationName.EXTRACT_FUNCTION, OperationName.EXTRACT_CONSTANT, OperationName.EXTRACT_VARIABLE, OperationName.MOVE_TO_FILE, OperationName.INFER_RETURN_TYPE],
   inputSchema: z.object({
-    operation: z.enum([OperationName.RENAME, OperationName.EXTRACT_FUNCTION, OperationName.EXTRACT_CONSTANT, OperationName.EXTRACT_VARIABLE, OperationName.INFER_RETURN_TYPE]),
+    operation: z.enum([OperationName.RENAME, OperationName.EXTRACT_FUNCTION, OperationName.EXTRACT_CONSTANT, OperationName.EXTRACT_VARIABLE, OperationName.MOVE_TO_FILE, OperationName.INFER_RETURN_TYPE]),
     filePath: z.string().min(1, 'File path cannot be empty'),
     line: z.number().int().positive('Line must be a positive integer'),
     text: z.string().min(1, 'Text cannot be empty'),
     name: z.string().optional(),
+    destinationPath: z.string().min(1).optional(),
     preview: z.boolean().optional()
   }).refine(data => {
     if (data.operation === OperationName.RENAME) return !!data.name;

@@ -15,6 +15,7 @@ export enum OperationName {
   EXTRACT_FUNCTION = 'extract_function',
   EXTRACT_CONSTANT = 'extract_constant',
   EXTRACT_VARIABLE = 'extract_variable',
+  MOVE_TO_FILE = 'move_to_file',
   INFER_RETURN_TYPE = 'infer_return_type',
   REFACTOR_MODULE = 'refactor_module',
   CLEANUP_CODEBASE = 'cleanup_codebase',

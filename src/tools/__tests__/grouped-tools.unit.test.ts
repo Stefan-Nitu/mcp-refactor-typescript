@@ -247,6 +247,62 @@ describe('Grouped Tools Schema Validation', () => {
       });
     });
 
+    describe('move_to_file Operation', () => {
+      it('should accept move_to_file with required fields', () => {
+        // Arrange
+        const input = {
+          operation: 'move_to_file',
+          filePath: '/path/to/file.ts',
+          line: 10,
+          text: 'export function myFunc'
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).not.toThrow();
+      });
+
+      it('should accept move_to_file with destinationPath', () => {
+        // Arrange
+        const input = {
+          operation: 'move_to_file',
+          filePath: '/path/to/file.ts',
+          line: 10,
+          text: 'export function myFunc',
+          destinationPath: '/path/to/dest.ts'
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).not.toThrow();
+      });
+
+      it('should accept move_to_file without destinationPath', () => {
+        // Arrange
+        const input = {
+          operation: 'move_to_file',
+          filePath: '/path/to/file.ts',
+          line: 1,
+          text: 'export interface Foo'
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).not.toThrow();
+      });
+
+      it('should accept move_to_file with preview mode', () => {
+        // Arrange
+        const input = {
+          operation: 'move_to_file',
+          filePath: '/path/to/file.ts',
+          line: 10,
+          text: 'export function myFunc',
+          preview: true
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).not.toThrow();
+      });
+    });
+
     describe('Invalid Operations', () => {
       it('should reject unknown operations', () => {
         // Arrange
