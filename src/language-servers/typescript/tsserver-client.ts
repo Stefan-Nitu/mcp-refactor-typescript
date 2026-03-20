@@ -155,16 +155,16 @@ export class TypeScriptServer {
       }
 
       const contentLength = parseInt(headerMatch[1], 10);
-      const headerLength = headerMatch[0].length;
-      const totalLength = headerLength + contentLength;
+      const headerEnd = headerMatch.index! + headerMatch[0].length;
+      const messageEnd = headerEnd + contentLength;
 
-      if (this.messageBuffer.length < totalLength) {
+      if (this.messageBuffer.length < messageEnd) {
         break; // Wait for complete message
       }
 
       // Extract the JSON body
-      const jsonBody = this.messageBuffer.slice(headerLength, totalLength);
-      this.messageBuffer = this.messageBuffer.slice(totalLength);
+      const jsonBody = this.messageBuffer.slice(headerEnd, messageEnd);
+      this.messageBuffer = this.messageBuffer.slice(messageEnd);
 
       try {
         const message: TSServerResponse = JSON.parse(jsonBody);
