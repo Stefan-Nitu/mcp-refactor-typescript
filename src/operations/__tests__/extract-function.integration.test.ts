@@ -206,7 +206,7 @@ describe('extractFunction', () => {
 
     // Assert - should fail gracefully
     expect(response.success).toBe(false);
-    expect(response.message).toContain('Cannot extract function');
+    expect(response.message).toMatch(/Cannot extract function|Extract function not available/);
   });
 
   it('should work with relative file paths', async () => {

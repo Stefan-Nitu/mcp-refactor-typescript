@@ -5,6 +5,7 @@ import { findReferencesSchema } from '../find-references.js';
 import { fixAllSchema } from '../fix-all.js';
 import { inferReturnTypeSchema } from '../infer-return-type.js';
 import { moveFileSchema } from '../move-file.js';
+import { moveToFileSchema } from '../move-to-file.js';
 import { organizeImportsSchema } from '../organize-imports.js';
 import { removeUnusedSchema } from '../remove-unused.js';
 import { renameSchema } from '../rename.js';
@@ -245,6 +246,64 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: -1,
         text: 'codeToExtract'
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('moveToFileSchema', () => {
+    it('should validate correct input with all fields', () => {
+      const result = moveToFileSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 10,
+        text: 'export function myFunc',
+        destinationPath: '/path/to/dest.ts',
+        preview: false
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should validate without destinationPath (auto mode)', () => {
+      const result = moveToFileSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 10,
+        text: 'export function myFunc'
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject empty filePath', () => {
+      const result = moveToFileSchema.safeParse({
+        filePath: '',
+        line: 10,
+        text: 'export function myFunc'
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject non-positive line', () => {
+      const result = moveToFileSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 0,
+        text: 'export function myFunc'
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject empty text', () => {
+      const result = moveToFileSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: 10,
+        text: ''
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject negative line numbers', () => {
+      const result = moveToFileSchema.safeParse({
+        filePath: '/path/to/file.ts',
+        line: -1,
+        text: 'export function myFunc'
       });
       expect(result.success).toBe(false);
     });

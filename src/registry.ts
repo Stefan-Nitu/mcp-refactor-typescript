@@ -15,6 +15,7 @@ import {
   createFixAllOperation,
   createInferReturnTypeOperation,
   createMoveFileOperation,
+  createMoveToFileOperation,
   createOrganizeImportsOperation,
   createRefactorModuleOperation,
   createRemoveUnusedOperation,
@@ -49,6 +50,7 @@ export class OperationRegistry {
     this.operations.set(OperationName.EXTRACT_FUNCTION, createExtractFunctionOperation(this.tsServer));
     this.operations.set(OperationName.EXTRACT_CONSTANT, createExtractConstantOperation(this.tsServer));
     this.operations.set(OperationName.EXTRACT_VARIABLE, createExtractVariableOperation(this.tsServer));
+    this.operations.set(OperationName.MOVE_TO_FILE, createMoveToFileOperation(this.tsServer));
     this.operations.set(OperationName.INFER_RETURN_TYPE, createInferReturnTypeOperation(this.tsServer));
     this.operations.set(OperationName.REFACTOR_MODULE, createRefactorModuleOperation(this.tsServer));
     this.operations.set(OperationName.CLEANUP_CODEBASE, createCleanupCodebaseOperation(this.tsServer));
