@@ -7,6 +7,7 @@ import { ChildProcess, spawn } from 'child_process';
 import { readFile } from 'fs/promises';
 import { resolve } from 'path';
 import { logger } from '../../utils/logger.js';
+import { MessageParser } from './message-parser.js';
 
 export interface RefactorResult {
   success: boolean;
@@ -53,7 +54,7 @@ export class TypeScriptServer {
     resolve: (value: unknown) => void;
     reject: (error: Error) => void;
   }>();
-  private messageBuffer = '';
+  private parser = new MessageParser();
   private projectLoaded = false;
   private running = false;
 
@@ -145,33 +146,8 @@ export class TypeScriptServer {
   }
 
   private handleData(data: string): void {
-    this.messageBuffer += data;
-
-    while (true) {
-      // Look for Content-Length header
-      const headerMatch = this.messageBuffer.match(/Content-Length: (\d+)\r?\n\r?\n/);
-      if (!headerMatch) {
-        break; // Wait for more data
-      }
-
-      const contentLength = parseInt(headerMatch[1], 10);
-      const headerEnd = headerMatch.index! + headerMatch[0].length;
-      const messageEnd = headerEnd + contentLength;
-
-      if (this.messageBuffer.length < messageEnd) {
-        break; // Wait for complete message
-      }
-
-      // Extract the JSON body
-      const jsonBody = this.messageBuffer.slice(headerEnd, messageEnd);
-      this.messageBuffer = this.messageBuffer.slice(messageEnd);
-
-      try {
-        const message: TSServerResponse = JSON.parse(jsonBody);
-        this.handleMessage(message);
-      } catch (error) {
-        logger.error({ err: error, body: jsonBody }, 'Failed to parse TSServer message');
-      }
+    for (const message of this.parser.feed(data)) {
+      this.handleMessage(message as TSServerResponse);
     }
   }
 
