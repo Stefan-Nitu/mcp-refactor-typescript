@@ -3,10 +3,12 @@
  */
 
 import { mkdir } from 'fs/promises';
-import { dirname } from 'path';
+import { basename, dirname } from 'path';
 import { z } from 'zod';
 import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
 import type { TSRefactorEditInfo, TSRefactorInfo } from '../language-servers/typescript/tsserver-types.js';
+import { logger } from '../utils/logger.js';
+import { formatValidationError } from '../utils/validation-error.js';
 import { EditApplicator } from './shared/edit-applicator.js';
 import { FileOperations } from './shared/file-operations.js';
 import { FormatConfigurator } from './shared/format-configurator.js';
@@ -64,6 +66,8 @@ export class MoveToFileOperation {
         ...(destinationPath ? { includeInteractiveActions: true } : {})
       }) as TSRefactorInfo[] | null;
 
+      logger.debug({ refactors }, 'Available refactorings for move');
+
       if (!refactors || refactors.length === 0) {
         return {
           success: false,
@@ -79,6 +83,8 @@ Try:
 
       const refactorName = destinationPath ? 'Move to file' : 'Move to a new file';
       const moveRefactor = refactors.find((r) => r.name === refactorName);
+
+      logger.info({ actions: moveRefactor?.actions }, 'Available move actions');
 
       if (!moveRefactor) {
         const available = refactors.map((r) => r.name).join(', ');
@@ -151,7 +157,7 @@ This might indicate:
         if (isNewFile) {
           const newContent = fileEdit.textChanges.map(c => c.newText).join('');
           const newLines = newContent.split('\n');
-          const fileName = fileEdit.fileName.split('/').pop() || fileEdit.fileName;
+          const fileName = basename(fileEdit.fileName);
 
           if (!validated.preview) {
             await mkdir(dirname(fileEdit.fileName), { recursive: true });
@@ -198,6 +204,10 @@ This might indicate:
         ]
       };
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return formatValidationError(error);
+      }
+
       return {
         success: false,
         message: `Move to file failed: ${error instanceof Error ? error.message : String(error)}
