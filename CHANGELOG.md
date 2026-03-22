@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-03-22
+
+### ✨ Added
+
+- **`move_to_file` operation**: Move top-level symbols (functions, interfaces, type aliases) to another file with automatic import updates across the codebase. Supports optional `destinationPath` and preview mode.
+- **`MessageParser` class**: Extracted tsserver Content-Length framing logic into a standalone, testable unit with full test coverage.
+
+### 🐛 Fixed
+
+- **tsserver message parser**: Fixed a bug where batched responses (multiple messages in one chunk) could produce corrupt JSON when trailing bytes preceded the `Content-Length` header.
+
+### 🔧 Changed
+
+- **Migrated to Bun**: Runtime, package manager, and test runner now use Bun (>=1.3.8). Node.js (>=18) still supported for runtime consumers via `node dist/index.js`.
+- **Migrated to Biome**: Replaced ESLint with Biome for linting and formatting.
+- **Migrated to bun:test**: Replaced Vitest with bun:test across all 34 test files.
+- **CI/CD**: Updated GitHub Actions workflows to use `oven-sh/setup-bun@v2`.
+- **Unit tests run in parallel**, integration tests run serially with 30s timeout.
+
 ## [2.0.0] - 2025-01-15
 
 ### 🐛 Fixed
@@ -151,7 +170,8 @@ Replaced 15 individual MCP tools with 4 grouped tools, reducing token overhead b
 - Preview mode for all destructive operations
 - MCP protocol compliance (stderr logging only)
 
-[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/releases/tag/v1.0.0
