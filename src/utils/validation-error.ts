@@ -2,11 +2,11 @@
  * Shared validation error formatting utility
  */
 
-import { z } from 'zod';
-import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import type { z } from 'zod';
+import type { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 
 export function formatValidationError(error: z.ZodError): RefactorResult {
-  const errors = error.errors.map(e => {
+  const errors = error.errors.map((e) => {
     const path = e.path.length > 0 ? `${e.path.join('.')}: ` : '';
     return `${path}${e.message}`;
   });
@@ -17,6 +17,6 @@ export function formatValidationError(error: z.ZodError): RefactorResult {
   • ${errors.join('\n  • ')}
 
 Check the input parameters and try again`,
-    filesChanged: []
+    filesChanged: [],
   };
 }

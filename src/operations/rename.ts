@@ -3,20 +3,26 @@
  */
 
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRenameLoc, TSRenameResponse } from '../language-servers/typescript/tsserver-types.js';
-import { EditApplicator } from './shared/edit-applicator.js';
-import { FileDiscovery } from './shared/file-discovery.js';
-import { FileOperations } from './shared/file-operations.js';
-import { TextPositionConverter } from './shared/text-position-converter.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type {
+  RefactorResult,
+  TypeScriptServer,
+} from '../language-servers/typescript/tsserver-client.js';
+import type {
+  TSRenameLoc,
+  TSRenameResponse,
+} from '../language-servers/typescript/tsserver-types.js';
+import type { EditApplicator } from './shared/edit-applicator.js';
+import type { FileDiscovery } from './shared/file-discovery.js';
+import type { FileOperations } from './shared/file-operations.js';
+import type { TextPositionConverter } from './shared/text-position-converter.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const renameSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
   text: z.string().min(1, 'Text cannot be empty'),
   name: z.string().min(1, 'Name cannot be empty'),
-  preview: z.boolean().optional()
+  preview: z.boolean().optional(),
 });
 
 export class RenameOperation {
@@ -26,7 +32,7 @@ export class RenameOperation {
     private textConverter: TextPositionConverter,
     private editApplicator: EditApplicator,
     private tsServerGuard: TSServerGuard,
-    private fileDiscovery: FileDiscovery
+    private fileDiscovery: FileDiscovery,
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -35,13 +41,17 @@ export class RenameOperation {
       const absoluteFilePath = this.fileOps.resolvePath(validated.filePath);
 
       const lines = await this.fileOps.readLines(absoluteFilePath);
-      const positionResult = this.textConverter.findTextPosition(lines, validated.line, validated.text);
+      const positionResult = this.textConverter.findTextPosition(
+        lines,
+        validated.line,
+        validated.text,
+      );
 
       if (!positionResult.success) {
         return {
           success: false,
           message: positionResult.message,
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
@@ -50,15 +60,16 @@ export class RenameOperation {
       const guardResult = await this.tsServerGuard.ensureReady();
       if (guardResult) return guardResult;
 
-      const projectStatus = await this.fileDiscovery.discoverRelatedFiles(absoluteFilePath);
+      const projectStatus =
+        await this.fileDiscovery.discoverRelatedFiles(absoluteFilePath);
 
-      const renameInfo = await this.tsServer.sendRequest('rename', {
+      const renameInfo = (await this.tsServer.sendRequest('rename', {
         file: absoluteFilePath,
         line: validated.line,
         offset: column,
         findInComments: false,
-        findInStrings: false
-      }) as TSRenameResponse | null;
+        findInStrings: false,
+      })) as TSRenameResponse | null;
 
       if (!renameInfo?.locs) {
         return {
@@ -81,12 +92,19 @@ Try:
         const renamedChanges = fileLoc.locs.map((loc: TSRenameLoc) => ({
           start: loc.start,
           end: loc.end,
-          newText: validated.name
+          newText: validated.name,
         }));
 
         const sortedChanges = this.editApplicator.sortEdits(renamedChanges);
-        const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, fileLoc.file);
-        const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
+        const fileChanges = this.editApplicator.buildFileChanges(
+          originalLines,
+          sortedChanges,
+          fileLoc.file,
+        );
+        const updatedLines = this.editApplicator.applyEdits(
+          originalLines,
+          sortedChanges,
+        );
 
         if (!validated.preview) {
           await this.fileOps.writeLines(fileLoc.file, updatedLines);
@@ -95,7 +113,10 @@ Try:
         filesChanged.push(fileChanges);
       }
 
-      const warningMessage = this.fileDiscovery.buildWarningMessage(projectStatus, 'references');
+      const warningMessage = this.fileDiscovery.buildWarningMessage(
+        projectStatus,
+        'references',
+      );
 
       if (validated.preview) {
         return {
@@ -105,8 +126,8 @@ Try:
           preview: {
             filesAffected: filesChanged.length,
             estimatedTime: '< 1s',
-            command: 'Run again with preview: false to apply changes'
-          }
+            command: 'Run again with preview: false to apply changes',
+          },
         };
       }
 
@@ -116,8 +137,8 @@ Try:
         filesChanged,
         nextActions: [
           'organize_imports - Clean up import statements',
-          'fix_all - Fix any type errors from rename'
-        ]
+          'fix_all - Fix any type errors from rename',
+        ],
       };
     } catch (error) {
       return {
@@ -132,5 +153,4 @@ Try:
       };
     }
   }
-
 }

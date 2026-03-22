@@ -1,5 +1,5 @@
-import { readFile, writeFile } from 'fs/promises';
-import { resolve } from 'path';
+import { readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 export class FileOperations {
   async readLines(filePath: string): Promise<string[]> {

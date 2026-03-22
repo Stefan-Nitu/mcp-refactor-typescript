@@ -2,19 +2,19 @@
  * Refactor module operation - combines move_file + organize_imports + fix_all
  */
 
-import { resolve } from 'path';
+import { resolve } from 'node:path';
 import { z } from 'zod';
-import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import type { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
-import { FixAllOperation } from './fix-all.js';
-import { MoveFileOperation } from './move-file.js';
-import { OrganizeImportsOperation } from './organize-imports.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type { FixAllOperation } from './fix-all.js';
+import type { MoveFileOperation } from './move-file.js';
+import type { OrganizeImportsOperation } from './organize-imports.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 const refactorModuleSchema = z.object({
   sourcePath: z.string().min(1, 'Source path cannot be empty'),
   destinationPath: z.string().min(1, 'Destination path cannot be empty'),
-  preview: z.boolean().optional()
+  preview: z.boolean().optional(),
 });
 
 export class RefactorModuleOperation {
@@ -22,7 +22,7 @@ export class RefactorModuleOperation {
     private tsServerGuard: TSServerGuard,
     private moveFileOp: MoveFileOperation,
     private organizeImportsOp: OrganizeImportsOperation,
-    private fixAllOp: FixAllOperation
+    private fixAllOp: FixAllOperation,
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -41,7 +41,7 @@ export class RefactorModuleOperation {
       const moveResult = await this.moveFileOp.execute({
         sourcePath,
         destinationPath,
-        preview: validated.preview
+        preview: validated.preview,
       });
 
       if (!moveResult.success) {
@@ -59,23 +59,25 @@ ${steps.join('\n')}
 Next steps: organize imports, fix errors`,
           filesChanged: allFilesChanged,
           preview: {
-            filesAffected: moveResult.preview!.filesAffected,
+            filesAffected: moveResult.preview?.filesAffected ?? 0,
             estimatedTime: '< 2s',
-            command: 'Run again with preview: false to apply changes'
-          }
+            command: 'Run again with preview: false to apply changes',
+          },
         };
       }
 
       // Step 2: Organize imports for all affected files
-      const uniqueFiles = [...new Set(allFilesChanged.map(f => f.path))];
+      const uniqueFiles = [...new Set(allFilesChanged.map((f) => f.path))];
 
       for (const file of uniqueFiles) {
-        const organizeResult = await this.organizeImportsOp.execute({ filePath: file });
+        const organizeResult = await this.organizeImportsOp.execute({
+          filePath: file,
+        });
         if (organizeResult.success && organizeResult.filesChanged.length > 0) {
           steps.push(`✓ Organized imports in ${file.split('/').pop()}`);
           // Add to filesChanged if not already there (based on path)
           for (const changed of organizeResult.filesChanged) {
-            if (!allFilesChanged.find(f => f.path === changed.path)) {
+            if (!allFilesChanged.find((f) => f.path === changed.path)) {
               allFilesChanged.push(changed);
             }
           }
@@ -89,7 +91,7 @@ Next steps: organize imports, fix errors`,
           steps.push(`✓ Fixed errors in ${file.split('/').pop()}`);
           // Add to filesChanged if not already there (based on path)
           for (const changed of fixResult.filesChanged) {
-            if (!allFilesChanged.find(f => f.path === changed.path)) {
+            if (!allFilesChanged.find((f) => f.path === changed.path)) {
               allFilesChanged.push(changed);
             }
           }
@@ -100,7 +102,7 @@ Next steps: organize imports, fix errors`,
         success: true,
         message: `Refactored module successfully:
 ${steps.join('\n')}`,
-        filesChanged: allFilesChanged
+        filesChanged: allFilesChanged,
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -118,5 +120,4 @@ Try:
       };
     }
   }
-
 }

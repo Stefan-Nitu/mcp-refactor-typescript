@@ -1,10 +1,24 @@
-import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { ExtractConstantOperation } from '../extract-constant.js';
+import type { ExtractConstantOperation } from '../extract-constant.js';
 import { createExtractConstantOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -25,16 +39,20 @@ describe('extractConstant', () => {
   it('should extract literal number to constant', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'math.ts');
-    await writeFile(filePath, `export function calculateArea(radius: number) {
+    await writeFile(
+      filePath,
+      `export function calculateArea(radius: number) {
   const area = 3.14159 * radius * radius;
   return area;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath,
       line: 2,
-      text: '3.14159'
+      text: '3.14159',
     });
 
     // Assert
@@ -47,37 +65,47 @@ describe('extractConstant', () => {
   it('should extract string literal to constant', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'config.ts');
-    await writeFile(filePath, `export function getApiUrl() {
+    await writeFile(
+      filePath,
+      `export function getApiUrl() {
   return "https://api.example.com/v1";
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath,
       line: 2,
-      text: '"https://api.example.com/v1"'
+      text: '"https://api.example.com/v1"',
     });
 
     // Assert
     expect(response.success).toBe(true);
     const content = await readFile(filePath, 'utf-8');
-    expect(content).toMatch(/const \w+\s*=\s*"https:\/\/api\.example\.com\/v1"/);
+    expect(content).toMatch(
+      /const \w+\s*=\s*"https:\/\/api\.example\.com\/v1"/,
+    );
   });
 
   it('should extract with custom constant name', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'custom-name.ts');
-    await writeFile(filePath, `export function calculateCircumference(radius: number) {
+    await writeFile(
+      filePath,
+      `export function calculateCircumference(radius: number) {
   const circumference = 2 * 3.14159 * radius;
   return circumference;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath,
       line: 2,
       text: '3.14159',
-      name: 'PI'
+      name: 'PI',
     });
 
     // Assert
@@ -90,17 +118,21 @@ describe('extractConstant', () => {
   it('should preserve indentation when extracting constant', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'indentation.ts');
-    await writeFile(filePath, `function calculatePrice(quantity: number) {
+    await writeFile(
+      filePath,
+      `function calculatePrice(quantity: number) {
   const tax = quantity * 0.15;
   return tax;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath,
       line: 2,
       text: '0.15',
-      name: 'TAX_RATE'
+      name: 'TAX_RATE',
     });
 
     // Assert
@@ -109,11 +141,11 @@ describe('extractConstant', () => {
     const lines = content.split('\n');
 
     // Find the constant declaration line
-    const constantLine = lines.find(l => l.includes('TAX_RATE'));
+    const constantLine = lines.find((l) => l.includes('TAX_RATE'));
     expect(constantLine).toBeDefined();
 
     // Verify it has same indentation as other lines (2 spaces)
-    const taxLine = lines.find(l => l.includes('const tax'));
+    const taxLine = lines.find((l) => l.includes('const tax'));
     expect(taxLine).toBeDefined();
 
     const constantIndent = constantLine!.match(/^(\s*)/)?.[1].length || 0;
@@ -125,16 +157,20 @@ describe('extractConstant', () => {
   it('should extract using text parameter (simplified API)', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'simplified.ts');
-    await writeFile(filePath, `function calculateArea(radius: number) {
+    await writeFile(
+      filePath,
+      `function calculateArea(radius: number) {
   return 3.14159 * radius * radius;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act - Extract "3.14159" using just line and text
     const response = await operation!.execute({
       filePath,
       line: 2,
       text: '3.14159',
-      name: 'PI'
+      name: 'PI',
     });
 
     // Assert
@@ -147,18 +183,22 @@ describe('extractConstant', () => {
   it('should extract multiple constants sequentially with correct custom names', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'multiple-extracts.ts');
-    await writeFile(filePath, `function calculateTotal(quantity: number) {
+    await writeFile(
+      filePath,
+      `function calculateTotal(quantity: number) {
   const price = quantity * 29.99;
   const tax = price * 0.15;
   return price + tax;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act - Extract first constant using text API
     const response1 = await operation!.execute({
       filePath,
       line: 2,
       text: '29.99',
-      name: 'UNIT_PRICE'
+      name: 'UNIT_PRICE',
     });
 
     // Assert first extraction succeeded
@@ -173,7 +213,7 @@ describe('extractConstant', () => {
       filePath,
       line: 4,
       text: '0.15',
-      name: 'TAX_RATE'
+      name: 'TAX_RATE',
     });
 
     // Assert second extraction succeeded and both constants have correct names
@@ -189,16 +229,20 @@ describe('extractConstant', () => {
   it('should include final renamed constant name in JSON response', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'json-response.ts');
-    await writeFile(filePath, `function calculateArea(radius: number) {
+    await writeFile(
+      filePath,
+      `function calculateArea(radius: number) {
   return 3.14159 * radius * radius;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act - extract with custom constant name
     const response = await operation!.execute({
       filePath,
       line: 2,
       text: '3.14159',
-      name: 'PI'
+      name: 'PI',
     });
 
     // Assert - filesChanged should reflect the final state after rename
@@ -208,7 +252,7 @@ describe('extractConstant', () => {
 
     // Find the edit that replaces the extracted code with the constant reference
     const callSiteEdit = response.filesChanged![0].edits.find(
-      edit => edit.old === '3.14159'
+      (edit) => edit.old === '3.14159',
     );
 
     expect(callSiteEdit).toBeDefined();
@@ -226,7 +270,7 @@ describe('extractConstant', () => {
     const response = await operation!.execute({
       filePath,
       line: 1,
-      text: 'x'
+      text: 'x',
     });
 
     // Assert
@@ -237,17 +281,21 @@ describe('extractConstant', () => {
   it('should work with relative file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'relative-test.ts');
-    await writeFile(absolutePath, `export function calc() {
+    await writeFile(
+      absolutePath,
+      `export function calc() {
   return 42;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
-    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+    const relativePath = absolutePath.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
       filePath: relativePath,
       line: 2,
-      text: '42'
+      text: '42',
     });
 
     // Assert
@@ -259,15 +307,19 @@ describe('extractConstant', () => {
   it('should work with absolute file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'absolute-test.ts');
-    await writeFile(absolutePath, `export function calc() {
+    await writeFile(
+      absolutePath,
+      `export function calc() {
   return 99;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath: absolutePath,
       line: 2,
-      text: '99'
+      text: '99',
     });
 
     // Assert
@@ -279,16 +331,20 @@ describe('extractConstant', () => {
   it('should extract module-level constant with correct indentation (no extra spaces)', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'module-level.ts');
-    await writeFile(filePath, `const x = 42;
+    await writeFile(
+      filePath,
+      `const x = 42;
 const y = 42;
-const z = 42;`, 'utf-8');
+const z = 42;`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath,
       line: 1,
       text: '42',
-      name: 'ANSWER'
+      name: 'ANSWER',
     });
 
     // Assert
@@ -296,7 +352,7 @@ const z = 42;`, 'utf-8');
     const content = await readFile(filePath, 'utf-8');
     const lines = content.split('\n');
 
-    const constantLine = lines.find(l => l.includes('const ANSWER'));
+    const constantLine = lines.find((l) => l.includes('const ANSWER'));
     expect(constantLine).toBeDefined();
 
     expect(constantLine).toMatch(/^const ANSWER/);

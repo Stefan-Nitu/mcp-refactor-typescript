@@ -1,16 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { TypeScriptServer } from '../../../language-servers/typescript/tsserver-client.js';
 import { FileDiscovery } from '../file-discovery.js';
 
 describe('FileDiscovery', () => {
   let mockTsServer: TypeScriptServer;
   let fileDiscovery: FileDiscovery;
+  const openFileMock = mock();
+  const sendRequestMock = mock();
+  const isProjectLoadedMock = mock();
 
   beforeEach(() => {
+    openFileMock.mockReset();
+    sendRequestMock.mockReset();
+    isProjectLoadedMock.mockReset();
+
     mockTsServer = {
-      openFile: vi.fn(),
-      sendRequest: vi.fn(),
-      isProjectLoaded: vi.fn()
+      openFile: openFileMock,
+      sendRequest: sendRequestMock,
+      isProjectLoaded: isProjectLoadedMock,
     } as unknown as TypeScriptServer;
 
     fileDiscovery = new FileDiscovery(mockTsServer);
@@ -20,14 +27,11 @@ describe('FileDiscovery', () => {
     it('should open file and discover importing files via sendRequest', async () => {
       // Arrange
       const filePath = '/test/file.ts';
-      vi.mocked(mockTsServer.openFile).mockResolvedValue(undefined);
-      vi.mocked(mockTsServer.sendRequest).mockResolvedValue({
-        refs: [
-          { file: '/test/importer1.ts' },
-          { file: '/test/importer2.ts' }
-        ]
+      openFileMock.mockResolvedValue(undefined);
+      sendRequestMock.mockResolvedValue({
+        refs: [{ file: '/test/importer1.ts' }, { file: '/test/importer2.ts' }],
       });
-      vi.mocked(mockTsServer.isProjectLoaded).mockReturnValue(true);
+      isProjectLoadedMock.mockReturnValue(true);
 
       // Act
       const status = await fileDiscovery.discoverRelatedFiles(filePath);
@@ -35,22 +39,22 @@ describe('FileDiscovery', () => {
       // Assert
       expect(mockTsServer.openFile).toHaveBeenCalledWith(filePath);
       expect(mockTsServer.sendRequest).toHaveBeenCalledWith('fileReferences', {
-        file: filePath
+        file: filePath,
       });
       expect(mockTsServer.openFile).toHaveBeenCalledWith('/test/importer1.ts');
       expect(mockTsServer.openFile).toHaveBeenCalledWith('/test/importer2.ts');
       expect(status).toEqual({
         isFullyLoaded: true,
-        didScanTimeout: false
+        didScanTimeout: false,
       });
     });
 
     it('should silently handle discovery errors and still return status', async () => {
       // Arrange
       const filePath = '/test/file.ts';
-      vi.mocked(mockTsServer.openFile).mockResolvedValue(undefined);
-      vi.mocked(mockTsServer.sendRequest).mockRejectedValue(new Error('Discovery failed'));
-      vi.mocked(mockTsServer.isProjectLoaded).mockReturnValue(false);
+      openFileMock.mockResolvedValue(undefined);
+      sendRequestMock.mockRejectedValue(new Error('Discovery failed'));
+      isProjectLoadedMock.mockReturnValue(false);
 
       // Act
       const status = await fileDiscovery.discoverRelatedFiles(filePath);
@@ -58,16 +62,16 @@ describe('FileDiscovery', () => {
       // Assert
       expect(status).toEqual({
         isFullyLoaded: false,
-        didScanTimeout: false
+        didScanTimeout: false,
       });
     });
 
     it('should handle array of file paths', async () => {
       // Arrange
       const files = ['/test/file1.ts', '/test/file2.ts'];
-      vi.mocked(mockTsServer.openFile).mockResolvedValue(undefined);
-      vi.mocked(mockTsServer.sendRequest).mockResolvedValue({ refs: [] });
-      vi.mocked(mockTsServer.isProjectLoaded).mockReturnValue(true);
+      openFileMock.mockResolvedValue(undefined);
+      sendRequestMock.mockResolvedValue({ refs: [] });
+      isProjectLoadedMock.mockReturnValue(true);
 
       // Act
       const status = await fileDiscovery.discoverRelatedFiles(files);
@@ -78,16 +82,16 @@ describe('FileDiscovery', () => {
       expect(mockTsServer.openFile).toHaveBeenCalledWith('/test/file2.ts');
       expect(status).toEqual({
         isFullyLoaded: true,
-        didScanTimeout: false
+        didScanTimeout: false,
       });
     });
 
     it('should return correct status when project not fully loaded', async () => {
       // Arrange
       const filePath = '/test/file.ts';
-      vi.mocked(mockTsServer.openFile).mockResolvedValue(undefined);
-      vi.mocked(mockTsServer.sendRequest).mockResolvedValue({ refs: [] });
-      vi.mocked(mockTsServer.isProjectLoaded).mockReturnValue(false);
+      openFileMock.mockResolvedValue(undefined);
+      sendRequestMock.mockResolvedValue({ refs: [] });
+      isProjectLoadedMock.mockReturnValue(false);
 
       // Act
       const status = await fileDiscovery.discoverRelatedFiles(filePath);
@@ -95,21 +99,18 @@ describe('FileDiscovery', () => {
       // Assert
       expect(status).toEqual({
         isFullyLoaded: false,
-        didScanTimeout: false
+        didScanTimeout: false,
       });
     });
 
     it('should not open target file as importing file', async () => {
       // Arrange
       const filePath = '/test/utils.ts';
-      vi.mocked(mockTsServer.openFile).mockResolvedValue(undefined);
-      vi.mocked(mockTsServer.sendRequest).mockResolvedValue({
-        refs: [
-          { file: '/test/importer.ts' },
-          { file: filePath }
-        ]
+      openFileMock.mockResolvedValue(undefined);
+      sendRequestMock.mockResolvedValue({
+        refs: [{ file: '/test/importer.ts' }, { file: filePath }],
       });
-      vi.mocked(mockTsServer.isProjectLoaded).mockReturnValue(true);
+      isProjectLoadedMock.mockReturnValue(true);
 
       // Act
       await fileDiscovery.discoverRelatedFiles(filePath);
@@ -143,9 +144,13 @@ describe('FileDiscovery', () => {
       const message = fileDiscovery.buildWarningMessage(status, context);
 
       // Assert
-      expect(message).toContain('Warning: TypeScript is still indexing the project');
+      expect(message).toContain(
+        'Warning: TypeScript is still indexing the project',
+      );
       expect(message).toContain('Some references may have been missed');
-      expect(message).toContain('If results seem incomplete, try running the operation again');
+      expect(message).toContain(
+        'If results seem incomplete, try running the operation again',
+      );
     });
 
     it('should warn when scan timed out', () => {
@@ -159,7 +164,9 @@ describe('FileDiscovery', () => {
       // Assert
       expect(message).toContain('Warning: File discovery timed out');
       expect(message).toContain('Import updates might be incomplete');
-      expect(message).toContain('If results seem incomplete, try running the operation again');
+      expect(message).toContain(
+        'If results seem incomplete, try running the operation again',
+      );
     });
 
     it('should combine warnings when both conditions are true', () => {
@@ -171,9 +178,13 @@ describe('FileDiscovery', () => {
       const message = fileDiscovery.buildWarningMessage(status, context);
 
       // Assert
-      expect(message).toContain('Warning: TypeScript is still indexing the project');
+      expect(message).toContain(
+        'Warning: TypeScript is still indexing the project',
+      );
       expect(message).toContain('Warning: File discovery timed out');
-      expect(message).toContain('If results seem incomplete, try running the operation again');
+      expect(message).toContain(
+        'If results seem incomplete, try running the operation again',
+      );
     });
 
     it('should use provided context in warning messages', () => {

@@ -1,10 +1,24 @@
-import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { ExtractVariableOperation } from '../extract-variable.js';
+import type { ExtractVariableOperation } from '../extract-variable.js';
 import { createExtractVariableOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -25,15 +39,19 @@ describe('extractVariable', () => {
   it('should extract expression to variable', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'calc.ts');
-    await writeFile(filePath, `export function calculate(a: number, b: number) {
+    await writeFile(
+      filePath,
+      `export function calculate(a: number, b: number) {
   return (a + b) * 2;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath,
       line: 2,
-      text: '(a + b) * 2'
+      text: '(a + b) * 2',
     });
 
     // Assert
@@ -45,16 +63,20 @@ describe('extractVariable', () => {
   it('should extract with custom variable name', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'custom-name.ts');
-    await writeFile(filePath, `export function calculate(a: number, b: number) {
+    await writeFile(
+      filePath,
+      `export function calculate(a: number, b: number) {
   return (a + b) * 2;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath,
       line: 2,
       text: '(a + b) * 2',
-      name: 'doubled'
+      name: 'doubled',
     });
 
     // Assert
@@ -67,16 +89,20 @@ describe('extractVariable', () => {
   it('should extract multiple variables sequentially with correct custom names', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'multiple-vars.ts');
-    await writeFile(filePath, `function calc(a: number, b: number) {
+    await writeFile(
+      filePath,
+      `function calc(a: number, b: number) {
   return (a + b) * 2 + (a - b) * 3;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act - Extract first variable
     const response1 = await operation!.execute({
       filePath,
       line: 2,
       text: '(a + b) * 2',
-      name: 'doubled'
+      name: 'doubled',
     });
 
     // Assert first extraction
@@ -90,7 +116,7 @@ describe('extractVariable', () => {
       filePath,
       line: 3,
       text: '(a - b) * 3',
-      name: 'tripled'
+      name: 'tripled',
     });
 
     // Assert both variables have correct names
@@ -105,18 +131,22 @@ describe('extractVariable', () => {
   it('should preserve indentation of extracted variable declaration', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'indentation.ts');
-    await writeFile(filePath, `function calculate(basePrice: number, taxRate: number) {
+    await writeFile(
+      filePath,
+      `function calculate(basePrice: number, taxRate: number) {
   const subtotal = basePrice * 0.9;
   const tax = subtotal * taxRate;
   return subtotal + tax;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act - Extract "subtotal * taxRate" on line 3
     const response = await operation!.execute({
       filePath,
       line: 3,
       text: 'subtotal * taxRate',
-      name: 'calculatedTax'
+      name: 'calculatedTax',
     });
 
     // Assert
@@ -125,7 +155,7 @@ describe('extractVariable', () => {
     const lines = content.split('\n');
 
     // Find the line with the new const declaration
-    const constLine = lines.find(l => l.includes('const calculatedTax'));
+    const constLine = lines.find((l) => l.includes('const calculatedTax'));
     expect(constLine).toBeDefined();
 
     // Should have same indentation as surrounding lines (2 spaces)
@@ -137,18 +167,22 @@ describe('extractVariable', () => {
   it('should include final renamed variable name in JSON response', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'json-response.ts');
-    await writeFile(filePath, `function process(x: number, y: number) {
+    await writeFile(
+      filePath,
+      `function process(x: number, y: number) {
   const sum = x + y;
   const diff = x - y;
   return sum * diff;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act - extract with custom variable name
     const response = await operation!.execute({
       filePath,
       line: 2,
       text: 'x + y',
-      name: 'total'
+      name: 'total',
     });
 
     // Assert - filesChanged should reflect the final state after rename
@@ -158,7 +192,7 @@ describe('extractVariable', () => {
 
     // Find the edit that replaces the extracted code with the variable reference
     const callSiteEdit = response.filesChanged![0].edits.find(
-      edit => edit.old === 'x + y'
+      (edit) => edit.old === 'x + y',
     );
 
     expect(callSiteEdit).toBeDefined();
@@ -176,7 +210,7 @@ describe('extractVariable', () => {
     const response = await operation!.execute({
       filePath,
       line: 1,
-      text: 'x'
+      text: 'x',
     });
 
     // Assert
@@ -187,17 +221,21 @@ describe('extractVariable', () => {
   it('should work with relative file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'relative-test.ts');
-    await writeFile(absolutePath, `export function main() {
+    await writeFile(
+      absolutePath,
+      `export function main() {
   return (5 + 3) * 2;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
-    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+    const relativePath = absolutePath.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
       filePath: relativePath,
       line: 2,
-      text: '5 + 3'
+      text: '5 + 3',
     });
 
     // Assert
@@ -207,15 +245,19 @@ describe('extractVariable', () => {
   it('should work with absolute file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'absolute-test.ts');
-    await writeFile(absolutePath, `export function main() {
+    await writeFile(
+      absolutePath,
+      `export function main() {
   return (7 + 2) * 2;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath: absolutePath,
       line: 2,
-      text: '7 + 2'
+      text: '7 + 2',
     });
 
     // Assert

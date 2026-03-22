@@ -3,9 +3,14 @@
  * Tests the BEHAVIOR of input validation, not implementation
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
-import { codeQualityTool, fileOperationsTool, refactoringTool, workspaceTool } from '../grouped-tools.js';
+import {
+  codeQualityTool,
+  fileOperationsTool,
+  refactoringTool,
+  workspaceTool,
+} from '../grouped-tools.js';
 
 describe('Grouped Tools Schema Validation', () => {
   describe('refactoring Tool Schema', () => {
@@ -19,7 +24,7 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 10,
           text: 'myVariable',
-          name: 'myRenamedVariable'
+          name: 'myRenamedVariable',
         };
 
         // Act & Assert
@@ -33,12 +38,14 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '',
           line: 10,
           text: 'myVariable',
-          name: 'newName'
+          name: 'newName',
         };
 
         // Act & Assert
         expect(() => schema.parse(invalidInput)).toThrow(z.ZodError);
-        expect(() => schema.parse(invalidInput)).toThrow(/File path cannot be empty/);
+        expect(() => schema.parse(invalidInput)).toThrow(
+          /File path cannot be empty/,
+        );
       });
 
       it('should reject non-positive line numbers', () => {
@@ -48,12 +55,14 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 0,
           text: 'myVariable',
-          name: 'newName'
+          name: 'newName',
         };
 
         // Act & Assert
         expect(() => schema.parse(zeroLine)).toThrow(z.ZodError);
-        expect(() => schema.parse(zeroLine)).toThrow(/Line must be a positive integer/);
+        expect(() => schema.parse(zeroLine)).toThrow(
+          /Line must be a positive integer/,
+        );
       });
 
       it('should reject non-integer line numbers', () => {
@@ -63,7 +72,7 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 10.5,
           text: 'myVariable',
-          name: 'newName'
+          name: 'newName',
         };
 
         // Act & Assert
@@ -77,7 +86,7 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 10,
           text: '',
-          name: 'newName'
+          name: 'newName',
         };
 
         // Act & Assert
@@ -94,7 +103,7 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 10,
           text: 'oldName',
-          name: 'newName'
+          name: 'newName',
         };
 
         // Act & Assert
@@ -107,12 +116,14 @@ describe('Grouped Tools Schema Validation', () => {
           operation: 'rename',
           filePath: '/path/to/file.ts',
           line: 10,
-          text: 'oldName'
+          text: 'oldName',
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/name is required for rename operation/);
+        expect(() => schema.parse(input)).toThrow(
+          /name is required for rename operation/,
+        );
       });
 
       it('should allow rename with preview mode', () => {
@@ -123,7 +134,7 @@ describe('Grouped Tools Schema Validation', () => {
           line: 10,
           text: 'oldName',
           name: 'newName',
-          preview: true
+          preview: true,
         };
 
         // Act & Assert
@@ -139,7 +150,7 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 10,
           text: 'const x = 1;\nconst y = 2;',
-          name: 'myFunction'
+          name: 'myFunction',
         };
 
         // Act & Assert
@@ -152,7 +163,7 @@ describe('Grouped Tools Schema Validation', () => {
           operation: 'extract_function',
           filePath: '/path/to/file.ts',
           line: 10,
-          text: 'const x = 1;\nconst y = 2;'
+          text: 'const x = 1;\nconst y = 2;',
         };
 
         // Act & Assert
@@ -168,7 +179,7 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 10,
           text: '42',
-          name: 'MY_CONSTANT'
+          name: 'MY_CONSTANT',
         };
 
         // Act & Assert
@@ -181,7 +192,7 @@ describe('Grouped Tools Schema Validation', () => {
           operation: 'extract_constant',
           filePath: '/path/to/file.ts',
           line: 10,
-          text: '42'
+          text: '42',
         };
 
         // Act & Assert
@@ -197,7 +208,7 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 10,
           text: 'someExpression()',
-          name: 'myVariable'
+          name: 'myVariable',
         };
 
         // Act & Assert
@@ -210,7 +221,7 @@ describe('Grouped Tools Schema Validation', () => {
           operation: 'extract_variable',
           filePath: '/path/to/file.ts',
           line: 10,
-          text: 'someExpression()'
+          text: 'someExpression()',
         };
 
         // Act & Assert
@@ -225,7 +236,7 @@ describe('Grouped Tools Schema Validation', () => {
           operation: 'infer_return_type',
           filePath: '/path/to/file.ts',
           line: 10,
-          text: 'function myFunction() { return 42; }'
+          text: 'function myFunction() { return 42; }',
         };
 
         // Act & Assert
@@ -239,7 +250,7 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 10,
           text: 'function myFunction() { return 42; }',
-          name: 'ignored'
+          name: 'ignored',
         };
 
         // Act & Assert
@@ -254,7 +265,7 @@ describe('Grouped Tools Schema Validation', () => {
           operation: 'move_to_file',
           filePath: '/path/to/file.ts',
           line: 10,
-          text: 'export function myFunc'
+          text: 'export function myFunc',
         };
 
         // Act & Assert
@@ -268,7 +279,7 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 10,
           text: 'export function myFunc',
-          destinationPath: '/path/to/dest.ts'
+          destinationPath: '/path/to/dest.ts',
         };
 
         // Act & Assert
@@ -281,7 +292,7 @@ describe('Grouped Tools Schema Validation', () => {
           operation: 'move_to_file',
           filePath: '/path/to/file.ts',
           line: 1,
-          text: 'export interface Foo'
+          text: 'export interface Foo',
         };
 
         // Act & Assert
@@ -295,7 +306,7 @@ describe('Grouped Tools Schema Validation', () => {
           filePath: '/path/to/file.ts',
           line: 10,
           text: 'export function myFunc',
-          preview: true
+          preview: true,
         };
 
         // Act & Assert
@@ -310,7 +321,7 @@ describe('Grouped Tools Schema Validation', () => {
           operation: 'unknown_operation',
           filePath: '/path/to/file.ts',
           line: 10,
-          text: 'test'
+          text: 'test',
         };
 
         // Act & Assert
@@ -322,7 +333,7 @@ describe('Grouped Tools Schema Validation', () => {
         const missingOp = {
           filePath: '/path/to/file.ts',
           line: 10,
-          text: 'test'
+          text: 'test',
         };
 
         // Act & Assert
@@ -338,7 +349,7 @@ describe('Grouped Tools Schema Validation', () => {
       // Arrange
       const input = {
         operation: 'organize_imports',
-        filePath: '/path/to/file.ts'
+        filePath: '/path/to/file.ts',
       };
 
       // Act & Assert
@@ -349,7 +360,7 @@ describe('Grouped Tools Schema Validation', () => {
       // Arrange
       const input = {
         operation: 'fix_all',
-        filePath: '/path/to/file.ts'
+        filePath: '/path/to/file.ts',
       };
 
       // Act & Assert
@@ -360,7 +371,7 @@ describe('Grouped Tools Schema Validation', () => {
       // Arrange
       const input = {
         operation: 'remove_unused',
-        filePath: '/path/to/file.ts'
+        filePath: '/path/to/file.ts',
       };
 
       // Act & Assert
@@ -371,7 +382,7 @@ describe('Grouped Tools Schema Validation', () => {
       // Arrange
       const invalid = {
         operation: 'organize_imports',
-        filePath: ''
+        filePath: '',
       };
 
       // Act & Assert
@@ -389,7 +400,7 @@ describe('Grouped Tools Schema Validation', () => {
         const input = {
           operation: 'rename_file',
           sourcePath: '/path/to/old.ts',
-          name: 'new.ts'
+          name: 'new.ts',
         };
 
         // Act & Assert
@@ -400,24 +411,28 @@ describe('Grouped Tools Schema Validation', () => {
         // Arrange
         const input = {
           operation: 'rename_file',
-          name: 'new.ts'
+          name: 'new.ts',
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/sourcePath is required for rename_file/);
+        expect(() => schema.parse(input)).toThrow(
+          /sourcePath is required for rename_file/,
+        );
       });
 
       it('should reject rename_file without name', () => {
         // Arrange
         const input = {
           operation: 'rename_file',
-          sourcePath: '/path/to/old.ts'
+          sourcePath: '/path/to/old.ts',
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/name is required for rename_file/);
+        expect(() => schema.parse(input)).toThrow(
+          /name is required for rename_file/,
+        );
       });
     });
 
@@ -427,7 +442,7 @@ describe('Grouped Tools Schema Validation', () => {
         const input = {
           operation: 'move_file',
           sourcePath: '/path/to/file.ts',
-          destinationPath: '/new/path/file.ts'
+          destinationPath: '/new/path/file.ts',
         };
 
         // Act & Assert
@@ -438,24 +453,28 @@ describe('Grouped Tools Schema Validation', () => {
         // Arrange
         const input = {
           operation: 'move_file',
-          destinationPath: '/new/path/file.ts'
+          destinationPath: '/new/path/file.ts',
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/sourcePath is required for move_file/);
+        expect(() => schema.parse(input)).toThrow(
+          /sourcePath is required for move_file/,
+        );
       });
 
       it('should reject move_file without destinationPath', () => {
         // Arrange
         const input = {
           operation: 'move_file',
-          sourcePath: '/path/to/file.ts'
+          sourcePath: '/path/to/file.ts',
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/destinationPath is required for move_file/);
+        expect(() => schema.parse(input)).toThrow(
+          /destinationPath is required for move_file/,
+        );
       });
     });
 
@@ -465,7 +484,7 @@ describe('Grouped Tools Schema Validation', () => {
         const input = {
           operation: 'batch_move_files',
           files: ['/path/to/file1.ts', '/path/to/file2.ts'],
-          targetFolder: '/new/folder'
+          targetFolder: '/new/folder',
         };
 
         // Act & Assert
@@ -476,24 +495,28 @@ describe('Grouped Tools Schema Validation', () => {
         // Arrange
         const input = {
           operation: 'batch_move_files',
-          targetFolder: '/new/folder'
+          targetFolder: '/new/folder',
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/files is required for batch_move_files/);
+        expect(() => schema.parse(input)).toThrow(
+          /files is required for batch_move_files/,
+        );
       });
 
       it('should reject batch_move_files without targetFolder', () => {
         // Arrange
         const input = {
           operation: 'batch_move_files',
-          files: ['/path/to/file1.ts']
+          files: ['/path/to/file1.ts'],
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/targetFolder is required for batch_move_files/);
+        expect(() => schema.parse(input)).toThrow(
+          /targetFolder is required for batch_move_files/,
+        );
       });
     });
   });
@@ -508,7 +531,7 @@ describe('Grouped Tools Schema Validation', () => {
           operation: 'find_references',
           filePath: '/path/to/file.ts',
           line: 10,
-          text: 'myFunction'
+          text: 'myFunction',
         };
 
         // Act & Assert
@@ -520,12 +543,14 @@ describe('Grouped Tools Schema Validation', () => {
         const input = {
           operation: 'find_references',
           line: 10,
-          text: 'myFunction'
+          text: 'myFunction',
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/filePath is required for find_references/);
+        expect(() => schema.parse(input)).toThrow(
+          /filePath is required for find_references/,
+        );
       });
 
       it('should reject find_references without line', () => {
@@ -533,12 +558,14 @@ describe('Grouped Tools Schema Validation', () => {
         const input = {
           operation: 'find_references',
           filePath: '/path/to/file.ts',
-          text: 'myFunction'
+          text: 'myFunction',
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/line is required for find_references/);
+        expect(() => schema.parse(input)).toThrow(
+          /line is required for find_references/,
+        );
       });
 
       it('should reject find_references without text', () => {
@@ -546,12 +573,14 @@ describe('Grouped Tools Schema Validation', () => {
         const input = {
           operation: 'find_references',
           filePath: '/path/to/file.ts',
-          line: 10
+          line: 10,
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/text is required for find_references/);
+        expect(() => schema.parse(input)).toThrow(
+          /text is required for find_references/,
+        );
       });
     });
 
@@ -561,7 +590,7 @@ describe('Grouped Tools Schema Validation', () => {
         const input = {
           operation: 'refactor_module',
           sourcePath: '/path/to/old.ts',
-          destinationPath: '/path/to/new.ts'
+          destinationPath: '/path/to/new.ts',
         };
 
         // Act & Assert
@@ -572,24 +601,28 @@ describe('Grouped Tools Schema Validation', () => {
         // Arrange
         const input = {
           operation: 'refactor_module',
-          destinationPath: '/path/to/new.ts'
+          destinationPath: '/path/to/new.ts',
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/sourcePath is required for refactor_module/);
+        expect(() => schema.parse(input)).toThrow(
+          /sourcePath is required for refactor_module/,
+        );
       });
 
       it('should reject refactor_module without destinationPath', () => {
         // Arrange
         const input = {
           operation: 'refactor_module',
-          sourcePath: '/path/to/old.ts'
+          sourcePath: '/path/to/old.ts',
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/destinationPath is required for refactor_module/);
+        expect(() => schema.parse(input)).toThrow(
+          /destinationPath is required for refactor_module/,
+        );
       });
     });
 
@@ -599,7 +632,7 @@ describe('Grouped Tools Schema Validation', () => {
         const input = {
           operation: 'cleanup_codebase',
           directory: '/path/to/src',
-          entrypoints: ['index.ts', 'main.ts']
+          entrypoints: ['index.ts', 'main.ts'],
         };
 
         // Act & Assert
@@ -610,19 +643,21 @@ describe('Grouped Tools Schema Validation', () => {
         // Arrange
         const input = {
           operation: 'cleanup_codebase',
-          entrypoints: ['index.ts', 'main.ts']
+          entrypoints: ['index.ts', 'main.ts'],
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/directory is required for cleanup_codebase/);
+        expect(() => schema.parse(input)).toThrow(
+          /directory is required for cleanup_codebase/,
+        );
       });
 
       it('should accept cleanup_codebase without entrypoints when deleteUnusedFiles is not set', () => {
         // Arrange
         const input = {
           operation: 'cleanup_codebase',
-          directory: '/path/to/src'
+          directory: '/path/to/src',
         };
 
         // Act & Assert
@@ -634,12 +669,14 @@ describe('Grouped Tools Schema Validation', () => {
         const input = {
           operation: 'cleanup_codebase',
           directory: '/path/to/src',
-          deleteUnusedFiles: true
+          deleteUnusedFiles: true,
         };
 
         // Act & Assert
         expect(() => schema.parse(input)).toThrow(z.ZodError);
-        expect(() => schema.parse(input)).toThrow(/entrypoints is required when deleteUnusedFiles: true/);
+        expect(() => schema.parse(input)).toThrow(
+          /entrypoints is required when deleteUnusedFiles: true/,
+        );
       });
     });
 
@@ -647,7 +684,7 @@ describe('Grouped Tools Schema Validation', () => {
       it('should accept valid restart_tsserver operation with no parameters', () => {
         // Arrange
         const input = {
-          operation: 'restart_tsserver'
+          operation: 'restart_tsserver',
         };
 
         // Act & Assert
@@ -658,7 +695,7 @@ describe('Grouped Tools Schema Validation', () => {
         // Arrange
         const input = {
           operation: 'restart_tsserver',
-          filePath: 'ignored.ts'
+          filePath: 'ignored.ts',
         };
 
         // Act & Assert

@@ -8,7 +8,8 @@
  * - Child process cleanup (tsserver, typingsInstaller)
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import type { OperationName } from '../operation-name.js';
 import { OperationRegistry } from '../registry.js';
 
 describe('MCP Server Lifecycle E2E', () => {
@@ -41,41 +42,47 @@ describe('MCP Server Lifecycle E2E', () => {
     // Assert
     const operations = registry.getOperationNames();
 
-    expect(operations).toContain('rename');
-    expect(operations).toContain('move_file');
-    expect(operations).toContain('organize_imports');
-    expect(operations).toContain('find_references');
-    expect(operations).toContain('cleanup_codebase');
-    expect(operations).toContain('restart_tsserver');
+    expect(operations).toContain('rename' as OperationName);
+    expect(operations).toContain('move_file' as OperationName);
+    expect(operations).toContain('organize_imports' as OperationName);
+    expect(operations).toContain('find_references' as OperationName);
+    expect(operations).toContain('cleanup_codebase' as OperationName);
+    expect(operations).toContain('restart_tsserver' as OperationName);
   });
 
   it('should cleanup tsserver and exit when stdin closes', async () => {
     // Arrange
-    const { spawn } = await import('child_process');
-    const { resolve } = await import('path');
+    const { spawn } = await import('node:child_process');
+    const { resolve } = await import('node:path');
     const serverPath = resolve(__dirname, '../../dist/index.js');
 
     const server = spawn('node', [serverPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     const serverPid = server.pid!;
 
     // Wait for server to start
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Get child process PIDs
-    const { exec } = await import('child_process');
-    const { stdout: psOutput } = await new Promise<{stdout: string}>((resolve) => {
-      exec(`ps -o pid,ppid,comm | grep ${serverPid}`, (_error, stdout) => {
-        resolve({ stdout });
-      });
-    });
+    const { exec } = await import('node:child_process');
+    const { stdout: psOutput } = await new Promise<{ stdout: string }>(
+      (resolve) => {
+        exec(`ps -o pid,ppid,comm | grep ${serverPid}`, (_error, stdout) => {
+          resolve({ stdout });
+        });
+      },
+    );
 
-    const childPids = psOutput.split('\n')
-      .filter(line => line.includes('tsserver') || line.includes('typingsInstaller'))
-      .map(line => parseInt(line.trim().split(/\s+/)[0]))
-      .filter(pid => !isNaN(pid));
+    const childPids = psOutput
+      .split('\n')
+      .filter(
+        (line) =>
+          line.includes('tsserver') || line.includes('typingsInstaller'),
+      )
+      .map((line) => parseInt(line.trim().split(/\s+/)[0], 10))
+      .filter((pid) => !Number.isNaN(pid));
 
     // Act - Close stdin to simulate client disconnect
     server.stdin?.end();
@@ -86,18 +93,26 @@ describe('MCP Server Lifecycle E2E', () => {
     });
 
     const timeout = new Promise<number>((_, reject) => {
-      setTimeout(() => reject(new Error('Server did not exit within 5 seconds - zombie process detected!')), 5000);
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              'Server did not exit within 5 seconds - zombie process detected!',
+            ),
+          ),
+        5000,
+      );
     });
 
     const exitCode = await Promise.race([exitPromise, timeout]);
     expect(exitCode).toBe(0);
 
     // Wait for cleanup
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Assert - Child tsserver processes should also be cleaned up
     for (const childPid of childPids) {
-      const { stdout } = await new Promise<{stdout: string}>((resolve) => {
+      const { stdout } = await new Promise<{ stdout: string }>((resolve) => {
         exec(`ps -p ${childPid}`, (_error, stdout) => {
           resolve({ stdout });
         });

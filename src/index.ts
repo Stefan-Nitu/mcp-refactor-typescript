@@ -1,14 +1,15 @@
 #!/usr/bin/env node
+
 /**
  * MCP Server for code refactoring
  * Entry point - delegates operations to specialized handlers
  */
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import { z } from 'zod';
 import { OperationRegistry } from './registry.js';
 import { operationsCatalog } from './resources/operations-catalog.js';
@@ -17,11 +18,13 @@ import { flushLogs, logger } from './utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, '../package.json'), 'utf-8'),
+);
 
 const server = new McpServer({
   name: 'mcp-refactor-typescript',
-  version: packageJson.version
+  version: packageJson.version,
 });
 
 const registry = new OperationRegistry();
@@ -32,23 +35,27 @@ server.registerResource(
   'operations://catalog',
   {
     title: 'Operations Catalog',
-    description: 'Detailed documentation for all refactoring operations with examples',
-    mimeType: 'text/markdown'
+    description:
+      'Detailed documentation for all refactoring operations with examples',
+    mimeType: 'text/markdown',
   },
   async () => ({
-    contents: [{
-      uri: 'operations://catalog',
-      mimeType: 'text/markdown',
-      text: operationsCatalog
-    }]
-  })
+    contents: [
+      {
+        uri: 'operations://catalog',
+        mimeType: 'text/markdown',
+        text: operationsCatalog,
+      },
+    ],
+  }),
 );
 
 // Register grouped tools (v2.0)
 for (const tool of groupedTools) {
-  const schema = 'shape' in tool.inputSchema
-    ? tool.inputSchema.shape
-    : tool.inputSchema._def.schema.shape;
+  const schema =
+    'shape' in tool.inputSchema
+      ? tool.inputSchema.shape
+      : tool.inputSchema._def.schema.shape;
 
   server.registerTool(
     tool.name,
@@ -56,7 +63,7 @@ for (const tool of groupedTools) {
       title: tool.title,
       description: tool.description,
       inputSchema: schema,
-      annotations: tool.annotations
+      annotations: tool.annotations,
     },
     async (args: Record<string, unknown>) => {
       try {
@@ -68,15 +75,17 @@ for (const tool of groupedTools) {
           status: result.success ? 'success' : 'error',
           message: result.message,
           data: {
-            filesChanged: result.filesChanged || []
-          }
+            filesChanged: result.filesChanged || [],
+          },
         };
 
         return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify(response, null, 2)
-          }]
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
         };
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -85,16 +94,18 @@ for (const tool of groupedTools) {
             operation: args.operation,
             status: 'error',
             message: 'Invalid input',
-            errors: error.errors.map(e => ({
+            errors: error.errors.map((e) => ({
               path: e.path.join('.'),
-              message: e.message
-            }))
+              message: e.message,
+            })),
           };
           return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify(response, null, 2)
-            }]
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify(response, null, 2),
+              },
+            ],
           };
         }
 
@@ -102,17 +113,19 @@ for (const tool of groupedTools) {
           tool: tool.name,
           operation: args.operation,
           status: 'error',
-          message: error instanceof Error ? error.message : String(error)
+          message: error instanceof Error ? error.message : String(error),
         };
 
         return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify(response, null, 2)
-          }]
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
         };
       }
-    }
+    },
   );
 }
 
@@ -165,7 +178,7 @@ async function main() {
   logger.info('Server started with tsserver (TypeScript/JavaScript support)');
 }
 
-main().catch(error => {
+main().catch((error) => {
   logger.error({ err: error }, 'Fatal error');
   process.exit(1);
 });

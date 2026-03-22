@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { RestartTsServerOperation } from '../restart-tsserver.js';
 

@@ -2,15 +2,15 @@
  * Cleanup codebase operation - uses tsr to remove unused exports + organize_imports
  */
 
-import { exec } from 'child_process';
-import { readdir } from 'fs/promises';
-import { extname, join, resolve } from 'path';
-import { promisify } from 'util';
+import { exec } from 'node:child_process';
+import { readdir } from 'node:fs/promises';
+import { extname, join, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { z } from 'zod';
-import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import type { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
-import { OrganizeImportsOperation } from './organize-imports.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type { OrganizeImportsOperation } from './organize-imports.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 const execAsync = promisify(exec);
 
@@ -20,22 +20,22 @@ const cleanupCodebaseSchema = z.object({
     .array(z.string())
     .optional()
     .describe(
-      'Starting files your app runs from (regex patterns). Examples: ["src/main\\\\.ts$"]. Defaults to main/index/app/server files'
+      'Starting files your app runs from (regex patterns). Examples: ["src/main\\\\.ts$"]. Defaults to main/index/app/server files',
     ),
   deleteUnusedFiles: z
     .boolean()
     .optional()
     .default(false)
     .describe(
-      'Delete files with no used exports (default: false). When false, only removes unused exports within files.'
+      'Delete files with no used exports (default: false). When false, only removes unused exports within files.',
     ),
-  preview: z.boolean().optional()
+  preview: z.boolean().optional(),
 });
 
 export class CleanupCodebaseOperation {
   constructor(
     private tsServerGuard: TSServerGuard,
-    private organizeImportsOp: OrganizeImportsOperation
+    private organizeImportsOp: OrganizeImportsOperation,
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -57,37 +57,48 @@ Try:
   1. Check the directory path is correct
   2. Ensure directory contains .ts or .tsx files
   3. Verify you have read permissions`,
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
-      const defaultEntrypoints = 'main\\.tsx?$|index\\.tsx?$|app\\.tsx?$|server\\.tsx?$';
-      const testFilePatterns = '.*\\.test\\.tsx?$|.*\\.spec\\.tsx?$|.*/__tests__/.*\\.tsx?$';
+      const defaultEntrypoints =
+        'main\\.tsx?$|index\\.tsx?$|app\\.tsx?$|server\\.tsx?$';
+      const testFilePatterns =
+        '.*\\.test\\.tsx?$|.*\\.spec\\.tsx?$|.*/__tests__/.*\\.tsx?$';
       const entrypoints =
-        validated.entrypoints?.join('|') || `${defaultEntrypoints}|${testFilePatterns}`;
+        validated.entrypoints?.join('|') ||
+        `${defaultEntrypoints}|${testFilePatterns}`;
 
       if (validated.preview) {
         if (validated.deleteUnusedFiles) {
           try {
-            const result = await execAsync(`npx tsr --recursive '${entrypoints}'`, {
-              cwd: directory,
-              maxBuffer: 10 * 1024 * 1024,
-              timeout: 60000
-            });
+            const result = await execAsync(
+              `npx tsr --recursive '${entrypoints}'`,
+              {
+                cwd: directory,
+                maxBuffer: 10 * 1024 * 1024,
+                timeout: 60000,
+              },
+            );
 
             const output = result.stdout || '';
-            const lines = output.trim().split('\n').filter(l => l.trim().length > 0);
+            const lines = output
+              .trim()
+              .split('\n')
+              .filter((l) => l.trim().length > 0);
 
             let previewMessage = `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)\n\n`;
 
             if (lines.length === 0 || output.includes('No unused')) {
-              previewMessage += 'No unused exports or files found!\n- All exports are used\n- No files would be deleted';
+              previewMessage +=
+                'No unused exports or files found!\n- All exports are used\n- No files would be deleted';
             } else {
               previewMessage += `TSR would make changes:\n${lines.slice(0, 20).join('\n')}`;
               if (lines.length > 20) {
                 previewMessage += `\n... and ${lines.length - 20} more changes`;
               }
-              previewMessage += '\n\nWill also organize imports in affected files';
+              previewMessage +=
+                '\n\nWill also organize imports in affected files';
             }
 
             return {
@@ -97,27 +108,39 @@ Try:
               preview: {
                 filesAffected: lines.length,
                 estimatedTime: `< ${Math.max(2, Math.ceil(tsFiles.length / 10))}s`,
-                command: 'Run again with preview: false to apply changes'
-              }
+                command: 'Run again with preview: false to apply changes',
+              },
             };
           } catch (error: unknown) {
-            const execError = error as { code?: number; stdout?: string; stderr?: string };
+            const execError = error as {
+              code?: number;
+              stdout?: string;
+              stderr?: string;
+            };
 
             // tsr exits with code 1 when it finds changes, which is expected
-            if (execError.code === 1 && (execError.stderr || execError.stdout)) {
+            if (
+              execError.code === 1 &&
+              (execError.stderr || execError.stdout)
+            ) {
               const output = execError.stderr || execError.stdout || '';
-              const lines = output.trim().split('\n').filter(l => l.trim().length > 0);
+              const lines = output
+                .trim()
+                .split('\n')
+                .filter((l) => l.trim().length > 0);
 
               let previewMessage = `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)\n\n`;
 
               if (output.includes('No unused')) {
-                previewMessage += 'No unused exports or files found!\n- All exports are used\n- No files would be deleted';
+                previewMessage +=
+                  'No unused exports or files found!\n- All exports are used\n- No files would be deleted';
               } else {
                 previewMessage += `TSR would make changes:\n${lines.slice(0, 20).join('\n')}`;
                 if (lines.length > 20) {
                   previewMessage += `\n... and ${lines.length - 20} more changes`;
                 }
-                previewMessage += '\n\nWill also organize imports in affected files';
+                previewMessage +=
+                  '\n\nWill also organize imports in affected files';
               }
 
               return {
@@ -127,15 +150,15 @@ Try:
                 preview: {
                   filesAffected: lines.length,
                   estimatedTime: `< ${Math.max(2, Math.ceil(tsFiles.length / 10))}s`,
-                  command: 'Run again with preview: false to apply changes'
-                }
+                  command: 'Run again with preview: false to apply changes',
+                },
               };
             }
 
             return {
               success: false,
               message: `Preview failed: ${execError.stderr || execError.stdout || 'tsr error'}\n\nTry:\n  1. Ensure tsr is installed (npm install tsr)\n  2. Check tsconfig.json is valid\n  3. Verify entry point patterns match files`,
-              filesChanged: []
+              filesChanged: [],
             };
           }
         } else {
@@ -146,8 +169,8 @@ Try:
             preview: {
               filesAffected: tsFiles.length,
               estimatedTime: `< ${Math.max(2, Math.ceil(tsFiles.length / 10))}s`,
-              command: 'Run again with preview: false to apply changes'
-            }
+              command: 'Run again with preview: false to apply changes',
+            },
           };
         }
       }
@@ -161,17 +184,23 @@ Try:
           await execAsync(`npx tsr --write --recursive '${entrypoints}'`, {
             cwd: directory,
             maxBuffer: 10 * 1024 * 1024,
-            timeout: 60000
+            timeout: 60000,
           });
           steps.push('Removed unused exports and files (tsr)');
         } catch (error: unknown) {
-          const execError = error as { code?: number; stdout?: string; stderr?: string; killed?: boolean };
+          const execError = error as {
+            code?: number;
+            stdout?: string;
+            stderr?: string;
+            killed?: boolean;
+          };
 
           if (execError.killed) {
             return {
               success: false,
-              message: 'tsr timed out after 60 seconds - project may be too large',
-              filesChanged: []
+              message:
+                'tsr timed out after 60 seconds - project may be too large',
+              filesChanged: [],
             };
           }
 
@@ -188,7 +217,9 @@ Try:
       const affectedFiles: string[] = [];
 
       for (const file of tsFiles) {
-        const organizeResult = await this.organizeImportsOp.execute({ filePath: file });
+        const organizeResult = await this.organizeImportsOp.execute({
+          filePath: file,
+        });
         if (organizeResult.success && organizeResult.filesChanged.length > 0) {
           affectedFiles.push(file);
           filesChanged.push(...organizeResult.filesChanged);
@@ -202,10 +233,12 @@ Try:
       // For large operations (>20 files), return summary to avoid token limits
       const shouldSummarize = affectedFiles.length > 20;
       const responseFilesChanged = shouldSummarize
-        ? affectedFiles.slice(0, 20).map(path => ({
+        ? affectedFiles.slice(0, 20).map((path) => ({
             file: path.split('/').pop() || path,
             path,
-            edits: [{ line: 1, old: '', new: '(imports organized, details omitted)' }]
+            edits: [
+              { line: 1, old: '', new: '(imports organized, details omitted)' },
+            ],
           }))
         : filesChanged;
 
@@ -215,7 +248,7 @@ Try:
 ${steps.join('\n')}
 
 Processed ${tsFiles.length} TypeScript file(s)${shouldSummarize ? `\n\n⚠️  Showing summary for first 20 of ${affectedFiles.length} affected files to avoid response size limits` : ''}`,
-        filesChanged: responseFilesChanged
+        filesChanged: responseFilesChanged,
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -230,7 +263,7 @@ Try:
   2. Check TypeScript project is configured
   3. Verify files can be analyzed by TypeScript
   4. Install tsr: npm install tsr`,
-        filesChanged: []
+        filesChanged: [],
       };
     }
   }
@@ -261,5 +294,4 @@ Try:
     await scan(dir);
     return files;
   }
-
 }

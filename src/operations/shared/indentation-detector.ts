@@ -17,7 +17,10 @@ export class IndentationDetector {
       if (currentIndent === null) continue;
 
       if (previousIndent !== null && currentIndent !== previousIndent) {
-        const diff = this.calculateIndentDifference(previousIndent, currentIndent);
+        const diff = this.calculateIndentDifference(
+          previousIndent,
+          currentIndent,
+        );
         if (diff && (diff.length > 1 || diff === '\t')) {
           indentCounts.set(diff, (indentCounts.get(diff) || 0) + 1);
         }
@@ -70,7 +73,10 @@ export class IndentationDetector {
     return match[1];
   }
 
-  private calculateIndentDifference(prevIndent: string, currentIndent: string): string {
+  private calculateIndentDifference(
+    prevIndent: string,
+    currentIndent: string,
+  ): string {
     if (currentIndent.length > prevIndent.length) {
       return currentIndent.substring(prevIndent.length);
     }

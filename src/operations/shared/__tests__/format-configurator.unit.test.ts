@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { TypeScriptServer } from '../../../language-servers/typescript/tsserver-client.js';
 import { FormatConfigurator } from '../format-configurator.js';
 import { IndentationDetector } from '../indentation-detector.js';
@@ -7,10 +7,12 @@ describe('FormatConfigurator', () => {
   let mockTsServer: TypeScriptServer;
   let indentDetector: IndentationDetector;
   let configurator: FormatConfigurator;
+  const sendRequestMock = mock();
 
   beforeEach(() => {
+    sendRequestMock.mockReset();
     mockTsServer = {
-      sendRequest: vi.fn()
+      sendRequest: sendRequestMock,
     } as unknown as TypeScriptServer;
 
     indentDetector = new IndentationDetector();
@@ -19,12 +21,7 @@ describe('FormatConfigurator', () => {
 
   it('should configure TSServer with 2-space indentation', async () => {
     // Arrange
-    const lines = [
-      'function test() {',
-      '  const x = 1;',
-      '  return x;',
-      '}'
-    ];
+    const lines = ['function test() {', '  const x = 1;', '  return x;', '}'];
     const filePath = '/test/file.ts';
 
     // Act
@@ -36,8 +33,8 @@ describe('FormatConfigurator', () => {
       formatOptions: {
         indentSize: 2,
         tabSize: 2,
-        convertTabsToSpaces: true
-      }
+        convertTabsToSpaces: true,
+      },
     });
   });
 
@@ -47,7 +44,7 @@ describe('FormatConfigurator', () => {
       'function test() {',
       '    const x = 1;',
       '    return x;',
-      '}'
+      '}',
     ];
     const filePath = '/test/file.ts';
 
@@ -60,19 +57,14 @@ describe('FormatConfigurator', () => {
       formatOptions: {
         indentSize: 4,
         tabSize: 4,
-        convertTabsToSpaces: true
-      }
+        convertTabsToSpaces: true,
+      },
     });
   });
 
   it('should configure TSServer with tab indentation', async () => {
     // Arrange
-    const lines = [
-      'function test() {',
-      '\tconst x = 1;',
-      '\treturn x;',
-      '}'
-    ];
+    const lines = ['function test() {', '\tconst x = 1;', '\treturn x;', '}'];
     const filePath = '/test/file.ts';
 
     // Act
@@ -84,8 +76,8 @@ describe('FormatConfigurator', () => {
       formatOptions: {
         indentSize: 4,
         tabSize: 4,
-        convertTabsToSpaces: false
-      }
+        convertTabsToSpaces: false,
+      },
     });
   });
 
@@ -103,8 +95,8 @@ describe('FormatConfigurator', () => {
       formatOptions: {
         indentSize: 2,
         tabSize: 2,
-        convertTabsToSpaces: true
-      }
+        convertTabsToSpaces: true,
+      },
     });
   });
 });

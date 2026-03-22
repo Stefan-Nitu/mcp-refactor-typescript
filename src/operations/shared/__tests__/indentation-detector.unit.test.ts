@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { IndentationDetector } from '../indentation-detector.js';
 
 describe('IndentationDetector', () => {
@@ -15,7 +15,7 @@ describe('IndentationDetector', () => {
         '    return y;',
         '  }',
         '  return x;',
-        '}'
+        '}',
       ];
 
       // Act
@@ -35,7 +35,7 @@ describe('IndentationDetector', () => {
         '        return y;',
         '    }',
         '    return x;',
-        '}'
+        '}',
       ];
 
       // Act
@@ -55,7 +55,7 @@ describe('IndentationDetector', () => {
         '\t\treturn y;',
         '\t}',
         '\treturn x;',
-        '}'
+        '}',
       ];
 
       // Act
@@ -76,7 +76,7 @@ describe('IndentationDetector', () => {
         '',
         'function test() {',
         '  return obj;',
-        '}'
+        '}',
       ];
 
       // Act
@@ -88,11 +88,7 @@ describe('IndentationDetector', () => {
 
     it('should handle file with no indentation', () => {
       // Arrange
-      const lines = [
-        'const x = 1;',
-        'const y = 2;',
-        'export { x, y };'
-      ];
+      const lines = ['const x = 1;', 'const y = 2;', 'export { x, y };'];
 
       // Act
       const indent = detector.detectIndentUnit(lines);
@@ -111,7 +107,7 @@ describe('IndentationDetector', () => {
         '  ',
         '  const x = 1;',
         '  const y = 2;',
-        '}'
+        '}',
       ];
 
       // Act
@@ -131,7 +127,7 @@ describe('IndentationDetector', () => {
         '    }',
         '    return 0;',
         '  }',
-        '}'
+        '}',
       ];
 
       // Act
@@ -152,7 +148,7 @@ describe('IndentationDetector', () => {
         '    const outlier = 5;  // 4-space indent (rare)',
         '  const e = 6;',
         '  return a + b + c + d + e;',
-        '}'
+        '}',
       ];
 
       // Act
@@ -171,7 +167,7 @@ describe('IndentationDetector', () => {
         '      const y = 2;',
         '      return y;',
         '   }',
-        '}'
+        '}',
       ];
 
       // Act
@@ -185,11 +181,7 @@ describe('IndentationDetector', () => {
   describe('getIndentAtNestingLevel', () => {
     it('should return correct indentation for nesting level 0', () => {
       // Arrange
-      const lines = [
-        'function test() {',
-        '  const x = 1;',
-        '}'
-      ];
+      const lines = ['function test() {', '  const x = 1;', '}'];
       const indentUnit = detector.detectIndentUnit(lines);
 
       // Act
@@ -201,11 +193,7 @@ describe('IndentationDetector', () => {
 
     it('should return correct indentation for nesting level 1', () => {
       // Arrange
-      const lines = [
-        'function test() {',
-        '  const x = 1;',
-        '}'
-      ];
+      const lines = ['function test() {', '  const x = 1;', '}'];
       const indentUnit = detector.detectIndentUnit(lines);
 
       // Act
@@ -222,7 +210,7 @@ describe('IndentationDetector', () => {
         '  if (true) {',
         '    const x = 1;',
         '  }',
-        '}'
+        '}',
       ];
       const indentUnit = detector.detectIndentUnit(lines);
 
@@ -235,11 +223,7 @@ describe('IndentationDetector', () => {
 
     it('should work with tab indentation', () => {
       // Arrange
-      const lines = [
-        'function test() {',
-        '\tconst x = 1;',
-        '}'
-      ];
+      const lines = ['function test() {', '\tconst x = 1;', '}'];
       const indentUnit = detector.detectIndentUnit(lines);
 
       // Act
@@ -253,11 +237,7 @@ describe('IndentationDetector', () => {
   describe('detectIndentUnitOrDefault', () => {
     it('should detect indentation when present', () => {
       // Arrange
-      const lines = [
-        'function test() {',
-        '  const x = 1;',
-        '}'
-      ];
+      const lines = ['function test() {', '  const x = 1;', '}'];
 
       // Act
       const indent = detector.detectIndentUnitOrDefault(lines);
@@ -268,10 +248,7 @@ describe('IndentationDetector', () => {
 
     it('should return default when no indentation detected', () => {
       // Arrange
-      const lines = [
-        'const x = 1;',
-        'const y = 2;'
-      ];
+      const lines = ['const x = 1;', 'const y = 2;'];
 
       // Act
       const indent = detector.detectIndentUnitOrDefault(lines);
@@ -282,11 +259,7 @@ describe('IndentationDetector', () => {
 
     it('should detect tabs when present', () => {
       // Arrange
-      const lines = [
-        'function test() {',
-        '\tconst x = 1;',
-        '}'
-      ];
+      const lines = ['function test() {', '\tconst x = 1;', '}'];
 
       // Act
       const indent = detector.detectIndentUnitOrDefault(lines);

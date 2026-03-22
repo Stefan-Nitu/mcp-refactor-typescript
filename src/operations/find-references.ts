@@ -3,17 +3,23 @@
  */
 
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import type { TSReferenceEntry, TSReferencesResponse } from '../language-servers/typescript/tsserver-types.js';
-import { FileDiscovery } from './shared/file-discovery.js';
-import { FileOperations } from './shared/file-operations.js';
-import { TextPositionConverter } from './shared/text-position-converter.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type {
+  RefactorResult,
+  TypeScriptServer,
+} from '../language-servers/typescript/tsserver-client.js';
+import type {
+  TSReferenceEntry,
+  TSReferencesResponse,
+} from '../language-servers/typescript/tsserver-types.js';
+import type { FileDiscovery } from './shared/file-discovery.js';
+import type { FileOperations } from './shared/file-operations.js';
+import type { TextPositionConverter } from './shared/text-position-converter.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const findReferencesSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
-  text: z.string().min(1, 'Text cannot be empty')
+  text: z.string().min(1, 'Text cannot be empty'),
 });
 
 export class FindReferencesOperation {
@@ -22,7 +28,7 @@ export class FindReferencesOperation {
     private fileOps: FileOperations,
     private textConverter: TextPositionConverter,
     private tsServerGuard: TSServerGuard,
-    private fileDiscovery: FileDiscovery
+    private fileDiscovery: FileDiscovery,
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -31,13 +37,17 @@ export class FindReferencesOperation {
       const filePath = this.fileOps.resolvePath(validated.filePath);
 
       const lines = await this.fileOps.readLines(filePath);
-      const positionResult = this.textConverter.findTextPosition(lines, validated.line, validated.text);
+      const positionResult = this.textConverter.findTextPosition(
+        lines,
+        validated.line,
+        validated.text,
+      );
 
       if (!positionResult.success) {
         return {
           success: false,
           message: positionResult.message,
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
@@ -48,11 +58,14 @@ export class FindReferencesOperation {
 
       await this.fileDiscovery.discoverRelatedFiles(filePath);
 
-      const references = await this.tsServer.sendRequest<TSReferencesResponse>('references', {
-        file: filePath,
-        line: validated.line,
-        offset: column
-      });
+      const references = await this.tsServer.sendRequest<TSReferencesResponse>(
+        'references',
+        {
+          file: filePath,
+          line: validated.line,
+          offset: column,
+        },
+      );
 
       if (!references?.refs || references.refs.length === 0) {
         return {
@@ -65,10 +78,11 @@ export class FindReferencesOperation {
       const fileGroups = new Map<string, TSReferenceEntry[]>();
 
       for (const ref of references.refs) {
+        const group = fileGroups.get(ref.file) ?? [];
         if (!fileGroups.has(ref.file)) {
-          fileGroups.set(ref.file, []);
+          fileGroups.set(ref.file, group);
         }
-        fileGroups.get(ref.file)!.push(ref);
+        group.push(ref);
       }
 
       let message = `Found ${references.refs.length} reference(s) in ${fileGroups.size} file(s):\n`;
@@ -99,5 +113,4 @@ Try:
       };
     }
   }
-
 }

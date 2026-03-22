@@ -1,10 +1,24 @@
-import { mkdir, readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { RenameOperation } from '../rename.js';
+import type { RenameOperation } from '../rename.js';
 import { createRenameOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -40,7 +54,7 @@ console.error(result);`;
         filePath,
         line: 1,
         text: 'calculateSum',
-        name: 'computeSum'
+        name: 'computeSum',
       });
 
       // Assert
@@ -72,15 +86,15 @@ console.error(result);`;
         filePath,
         line: 1,
         text: 'calculateSum',
-        name: 'computeSum'
+        name: 'computeSum',
       });
 
       // Assert
       expect(response.success).toBe(true);
-      expect(response.filesChanged.map(f => f.path)).toContain(filePath);
+      expect(response.filesChanged.map((f) => f.path)).toContain(filePath);
       expect(response.nextActions).toEqual([
         'organize_imports - Clean up import statements',
-        'fix_all - Fix any type errors from rename'
+        'fix_all - Fix any type errors from rename',
       ]);
       expect(response.filesChanged).toHaveLength(1);
       expect(response.filesChanged[0].edits).toEqual(
@@ -88,14 +102,14 @@ console.error(result);`;
           expect.objectContaining({
             line: 1,
             old: 'calculateSum',
-            new: 'computeSum'
+            new: 'computeSum',
           }),
           expect.objectContaining({
             line: 9,
             old: 'calculateSum',
-            new: 'computeSum'
-          })
-        ])
+            new: 'computeSum',
+          }),
+        ]),
       );
     });
 
@@ -125,7 +139,7 @@ console.error(result);`;
         filePath,
         line: 8,
         text: 'getName',
-        name: 'getDisplayName'
+        name: 'getDisplayName',
       });
 
       // Assert
@@ -135,14 +149,14 @@ console.error(result);`;
           expect.objectContaining({
             line: 8,
             old: 'getName',
-            new: 'getDisplayName'
+            new: 'getDisplayName',
           }),
           expect.objectContaining({
             line: 13,
             old: 'getName',
-            new: 'getDisplayName'
-          })
-        ])
+            new: 'getDisplayName',
+          }),
+        ]),
       );
     });
 
@@ -160,7 +174,7 @@ export { myLongVariableName };`;
         filePath,
         line: 1,
         text: 'myLongVariableName',
-        name: 'shortName'
+        name: 'shortName',
       });
 
       // Act - rename again (on new file)
@@ -169,7 +183,7 @@ export { myLongVariableName };`;
         filePath,
         line: 1,
         text: 'myLongVariableName',
-        name: 'shortName'
+        name: 'shortName',
       });
 
       // Assert - both should work
@@ -208,7 +222,7 @@ export function useHelper() {
         filePath: classPath,
         line: 1,
         text: 'MoveFileHelper',
-        name: 'FileMover'
+        name: 'FileMover',
       });
 
       // Assert
@@ -252,7 +266,7 @@ export function wrapper(input: string) {
         filePath: libPath,
         line: 1,
         text: 'processData',
-        name: 'transformData'
+        name: 'transformData',
       });
 
       // Assert
@@ -263,13 +277,13 @@ export function wrapper(input: string) {
       // In production projects with 200k+ files, indexing takes longer and the warning
       // will correctly appear. We've verified TSServer events fire properly via manual testing.
       expect(response.filesChanged.length).toBeGreaterThanOrEqual(1);
-      expect(response.filesChanged.map(f => f.path)).toContain(libPath);
+      expect(response.filesChanged.map((f) => f.path)).toContain(libPath);
 
       const libEdit = response.filesChanged.find((c) => c.path === libPath);
       expect(libEdit).toBeDefined();
       expect(libEdit!.edits[0]).toMatchObject({
         old: 'processData',
-        new: 'transformData'
+        new: 'transformData',
       });
     });
 
@@ -307,13 +321,13 @@ export class UserService {
         filePath: userPath,
         line: 8,
         text: 'getName',
-        name: 'getFullName'
+        name: 'getFullName',
       });
 
       // Assert
       expect(response.success).toBe(true);
       expect(response.filesChanged.length).toBeGreaterThanOrEqual(1);
-      expect(response.filesChanged.map(f => f.path)).toContain(userPath);
+      expect(response.filesChanged.map((f) => f.path)).toContain(userPath);
       // Note: Small test projects index too fast to trigger the warning.
       // The warning system works correctly for large production projects.
     });
@@ -327,14 +341,14 @@ export class UserService {
       await writeFile(absolutePath, content, 'utf-8');
 
       // Get actual relative path from process.cwd() to the file
-      const relativePath = absolutePath.replace(process.cwd() + '/', '');
+      const relativePath = absolutePath.replace(`${process.cwd()}/`, '');
 
       // Act - Use relative path (simulates MCP client behavior)
       const response = await operation!.execute({
         filePath: relativePath,
         line: 1,
         text: 'oldName',
-        name: 'newName'
+        name: 'newName',
       });
 
       // Assert
@@ -344,8 +358,8 @@ export class UserService {
         expect.objectContaining({
           line: 1,
           old: 'oldName',
-          new: 'newName'
-        })
+          new: 'newName',
+        }),
       ]);
 
       // Verify file was renamed
@@ -365,7 +379,7 @@ export class UserService {
         filePath: absolutePath,
         line: 1,
         text: 'oldName',
-        name: 'newName'
+        name: 'newName',
       });
 
       // Assert
@@ -375,8 +389,8 @@ export class UserService {
         expect.objectContaining({
           line: 1,
           old: 'oldName',
-          new: 'newName'
-        })
+          new: 'newName',
+        }),
       ]);
 
       // Verify file was renamed
@@ -391,7 +405,7 @@ export class UserService {
         filePath: '/nonexistent/file.ts',
         line: 1,
         text: 'anything',
-        name: 'newName'
+        name: 'newName',
       });
 
       // Assert
@@ -410,7 +424,7 @@ export class UserService {
         filePath,
         line: 1,
         text: 'nonexistent',
-        name: 'newName'
+        name: 'newName',
       });
 
       // Assert - TypeScript might find nearest identifier or return no locations
@@ -428,7 +442,7 @@ export class UserService {
         filePath,
         line: 1,
         text: 'validName',
-        name: '123invalid'
+        name: '123invalid',
       });
 
       // Assert - LSP might accept it or reject it
@@ -451,7 +465,7 @@ console.error(oldName);`;
         filePath,
         line: 1,
         text: 'oldName',
-        name: 'newName'
+        name: 'newName',
       });
 
       // Assert - should either succeed with warning or fail gracefully
@@ -474,7 +488,7 @@ export function   oldFunction   (x: number): number {
         filePath,
         line: 2,
         text: 'oldFunction',
-        name: 'newFunction'
+        name: 'newFunction',
       });
 
       // Assert
@@ -491,7 +505,7 @@ export function   oldFunction   (x: number): number {
   return user === 'admin';
 }`;
 
-    const testContent = `import { describe, it, expect, vi } from 'vitest';
+    const testContent = `import { describe, it, expect, vi } from 'bun:test';
 import { authenticate } from './auth.js';
 
 vi.mock('./auth.js');
@@ -511,7 +525,7 @@ describe('auth', () => {
       filePath: servicePath,
       line: 1,
       text: 'authenticate',
-      name: 'authenticateUser'
+      name: 'authenticateUser',
     });
 
     // Assert
@@ -543,7 +557,7 @@ const result = oldName();`;
         line: 1,
         text: 'oldName',
         name: 'newName',
-        preview: true
+        preview: true,
       });
 
       // Assert
@@ -580,7 +594,7 @@ const result = oldName();`;
         line: 1,
         text: 'oldName',
         name: 'newName',
-        preview: false
+        preview: false,
       });
 
       // Assert

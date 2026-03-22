@@ -3,21 +3,24 @@
  */
 
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import type {
+  RefactorResult,
+  TypeScriptServer,
+} from '../language-servers/typescript/tsserver-client.js';
 import type {
   TSCodeFixAction,
   TSCombinedCodeFix,
   TSDiagnostic,
   TSFileEdit,
-  TSTextChange
+  TSTextChange,
 } from '../language-servers/typescript/tsserver-types.js';
-import { EditApplicator } from './shared/edit-applicator.js';
-import { FileOperations } from './shared/file-operations.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type { EditApplicator } from './shared/edit-applicator.js';
+import type { FileOperations } from './shared/file-operations.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const fixAllSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
-  preview: z.boolean().optional()
+  preview: z.boolean().optional(),
 });
 
 export class FixAllOperation {
@@ -25,7 +28,7 @@ export class FixAllOperation {
     private tsServer: TypeScriptServer,
     private fileOps: FileOperations,
     private editApplicator: EditApplicator,
-    private tsServerGuard: TSServerGuard
+    private tsServerGuard: TSServerGuard,
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -38,16 +41,19 @@ export class FixAllOperation {
 
       await this.tsServer.openFile(filePath);
 
-      const diagnosticsResult = await this.tsServer.sendRequest<TSDiagnostic[]>('semanticDiagnosticsSync', {
-        file: filePath,
-        includeLinePosition: true
-      });
+      const diagnosticsResult = await this.tsServer.sendRequest<TSDiagnostic[]>(
+        'semanticDiagnosticsSync',
+        {
+          file: filePath,
+          includeLinePosition: true,
+        },
+      );
 
       if (!diagnosticsResult || diagnosticsResult.length === 0) {
         return {
           success: true,
           message: 'No fixes needed',
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
@@ -59,14 +65,17 @@ export class FixAllOperation {
         const endLine = diagnostic.endLocation?.line ?? startLine;
         const endOffset = diagnostic.endLocation?.offset ?? startOffset;
 
-        const fixes = await this.tsServer.sendRequest<TSCodeFixAction[]>('getCodeFixes', {
-          file: filePath,
-          startLine,
-          endLine,
-          startOffset,
-          endOffset,
-          errorCodes: [diagnostic.code]
-        });
+        const fixes = await this.tsServer.sendRequest<TSCodeFixAction[]>(
+          'getCodeFixes',
+          {
+            file: filePath,
+            startLine,
+            endLine,
+            startOffset,
+            endOffset,
+            errorCodes: [diagnostic.code],
+          },
+        );
 
         if (fixes && fixes.length > 0) {
           for (const fix of fixes) {
@@ -81,20 +90,23 @@ export class FixAllOperation {
         return {
           success: true,
           message: 'No auto-fixable errors found',
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
       let allChanges: TSFileEdit[] = [];
 
       for (const fixId of fixIdToApply) {
-        const combinedFix = await this.tsServer.sendRequest<TSCombinedCodeFix>('getCombinedCodeFix', {
-          scope: {
-            type: 'file',
-            args: { file: filePath }
+        const combinedFix = await this.tsServer.sendRequest<TSCombinedCodeFix>(
+          'getCombinedCodeFix',
+          {
+            scope: {
+              type: 'file',
+              args: { file: filePath },
+            },
+            fixId,
           },
-          fixId
-        });
+        );
 
         if (combinedFix?.changes) {
           allChanges = allChanges.concat(combinedFix.changes);
@@ -105,7 +117,7 @@ export class FixAllOperation {
         return {
           success: true,
           message: 'No fixes applied',
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
@@ -118,8 +130,15 @@ export class FixAllOperation {
 
       const originalLines = await this.fileOps.readLines(filePath);
       const sortedChanges = this.editApplicator.sortEdits(allTextChanges);
-      const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, filePath);
-      const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
+      const fileChanges = this.editApplicator.buildFileChanges(
+        originalLines,
+        sortedChanges,
+        filePath,
+      );
+      const updatedLines = this.editApplicator.applyEdits(
+        originalLines,
+        sortedChanges,
+      );
 
       if (validated.preview) {
         return {
@@ -129,8 +148,8 @@ export class FixAllOperation {
           preview: {
             filesAffected: 1,
             estimatedTime: '< 1s',
-            command: 'Run again with preview: false to apply changes'
-          }
+            command: 'Run again with preview: false to apply changes',
+          },
         };
       }
 
@@ -140,9 +159,7 @@ export class FixAllOperation {
         success: true,
         message: `Applied ${sortedChanges.length} fix(es)`,
         filesChanged: [fileChanges],
-        nextActions: [
-          'organize_imports - Clean up imports after fixes'
-        ]
+        nextActions: ['organize_imports - Clean up imports after fixes'],
       };
     } catch (error) {
       return {
@@ -153,9 +170,8 @@ Try:
   1. Ensure the file exists and is a valid TypeScript file
   2. Check that TypeScript can compile the file
   3. Some errors may not be auto-fixable`,
-        filesChanged: []
+        filesChanged: [],
       };
     }
   }
-
 }

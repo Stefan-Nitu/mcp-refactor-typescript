@@ -2,25 +2,31 @@
  * Move to file operation handler
  */
 
-import { mkdir } from 'fs/promises';
-import { basename, dirname } from 'path';
+import { mkdir } from 'node:fs/promises';
+import { basename, dirname } from 'node:path';
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRefactorEditInfo, TSRefactorInfo } from '../language-servers/typescript/tsserver-types.js';
+import type {
+  RefactorResult,
+  TypeScriptServer,
+} from '../language-servers/typescript/tsserver-client.js';
+import type {
+  TSRefactorEditInfo,
+  TSRefactorInfo,
+} from '../language-servers/typescript/tsserver-types.js';
 import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
-import { EditApplicator } from './shared/edit-applicator.js';
-import { FileOperations } from './shared/file-operations.js';
-import { FormatConfigurator } from './shared/format-configurator.js';
-import { TextPositionConverter } from './shared/text-position-converter.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type { EditApplicator } from './shared/edit-applicator.js';
+import type { FileOperations } from './shared/file-operations.js';
+import type { FormatConfigurator } from './shared/format-configurator.js';
+import type { TextPositionConverter } from './shared/text-position-converter.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const moveToFileSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
   text: z.string().min(1, 'Text cannot be empty'),
   destinationPath: z.string().optional(),
-  preview: z.boolean().optional()
+  preview: z.boolean().optional(),
 });
 
 export class MoveToFileOperation {
@@ -30,7 +36,7 @@ export class MoveToFileOperation {
     private textConverter: TextPositionConverter,
     private editApplicator: EditApplicator,
     private formatConfigurator: FormatConfigurator,
-    private tsServerGuard: TSServerGuard
+    private tsServerGuard: TSServerGuard,
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -40,13 +46,17 @@ export class MoveToFileOperation {
       const filePath = this.fileOps.resolvePath(validated.filePath);
 
       const lines = await this.fileOps.readLines(filePath);
-      const positionResult = this.textConverter.findTextPosition(lines, line, text);
+      const positionResult = this.textConverter.findTextPosition(
+        lines,
+        line,
+        text,
+      );
 
       if (!positionResult.success) {
         return {
           success: false,
           message: positionResult.message,
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
@@ -57,14 +67,17 @@ export class MoveToFileOperation {
 
       await this.tsServer.openFile(filePath);
 
-      const refactors = await this.tsServer.sendRequest('getApplicableRefactors', {
-        file: filePath,
-        startLine,
-        startOffset: startColumn,
-        endLine,
-        endOffset: endColumn,
-        ...(destinationPath ? { includeInteractiveActions: true } : {})
-      }) as TSRefactorInfo[] | null;
+      const refactors = (await this.tsServer.sendRequest(
+        'getApplicableRefactors',
+        {
+          file: filePath,
+          startLine,
+          startOffset: startColumn,
+          endLine,
+          endOffset: endColumn,
+          ...(destinationPath ? { includeInteractiveActions: true } : {}),
+        },
+      )) as TSRefactorInfo[] | null;
 
       logger.debug({ refactors }, 'Available refactorings for move');
 
@@ -77,11 +90,13 @@ Try:
   1. Select a top-level declaration (function, class, type, interface, const)
   2. Ensure the symbol is exported or a standalone declaration
   3. The selection must cover the full declaration`,
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
-      const refactorName = destinationPath ? 'Move to file' : 'Move to a new file';
+      const refactorName = destinationPath
+        ? 'Move to file'
+        : 'Move to a new file';
       const moveRefactor = refactors.find((r) => r.name === refactorName);
 
       logger.info({ actions: moveRefactor?.actions }, 'Available move actions');
@@ -98,7 +113,7 @@ Tips:
   1. Select a top-level declaration (function, class, type, interface, const)
   2. Ensure the symbol is exported or a standalone declaration
   3. The selection must cover the full declaration`,
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
@@ -107,7 +122,7 @@ Tips:
         return {
           success: false,
           message: 'No move action available',
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
@@ -117,18 +132,25 @@ Tips:
         ? this.fileOps.resolvePath(destinationPath)
         : undefined;
 
-      const edits = await this.tsServer.sendRequest<TSRefactorEditInfo>('getEditsForRefactor', {
-        file: filePath,
-        startLine,
-        startOffset: startColumn,
-        endLine,
-        endOffset: endColumn,
-        refactor: moveRefactor.name,
-        action: moveAction.name,
-        ...(resolvedDestination
-          ? { interactiveRefactorArguments: { targetFile: resolvedDestination } }
-          : {})
-      });
+      const edits = await this.tsServer.sendRequest<TSRefactorEditInfo>(
+        'getEditsForRefactor',
+        {
+          file: filePath,
+          startLine,
+          startOffset: startColumn,
+          endLine,
+          endOffset: endColumn,
+          refactor: moveRefactor.name,
+          action: moveAction.name,
+          ...(resolvedDestination
+            ? {
+                interactiveRefactorArguments: {
+                  targetFile: resolvedDestination,
+                },
+              }
+            : {}),
+        },
+      );
 
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
@@ -139,7 +161,7 @@ This might indicate:
   1. TypeScript LSP encountered an internal error
   2. The selection is invalid or too complex
   3. Try restarting the TypeScript server`,
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
@@ -149,13 +171,17 @@ This might indicate:
         if (fileEdit.textChanges.length === 0) continue;
 
         let isNewFile = false;
-        const originalLines = await this.fileOps.readLines(fileEdit.fileName).catch(() => {
-          isNewFile = true;
-          return [''];
-        });
+        const originalLines = await this.fileOps
+          .readLines(fileEdit.fileName)
+          .catch(() => {
+            isNewFile = true;
+            return [''];
+          });
 
         if (isNewFile) {
-          const newContent = fileEdit.textChanges.map(c => c.newText).join('');
+          const newContent = fileEdit.textChanges
+            .map((c) => c.newText)
+            .join('');
           const newLines = newContent.split('\n');
           const fileName = basename(fileEdit.fileName);
 
@@ -167,12 +193,21 @@ This might indicate:
           filesChanged.push({
             file: fileName,
             path: fileEdit.fileName,
-            edits: [{ line: 1, column: 1, old: '', new: newContent }]
+            edits: [{ line: 1, column: 1, old: '', new: newContent }],
           });
         } else {
-          const sortedChanges = this.editApplicator.sortEdits(fileEdit.textChanges);
-          const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, fileEdit.fileName);
-          const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
+          const sortedChanges = this.editApplicator.sortEdits(
+            fileEdit.textChanges,
+          );
+          const fileChanges = this.editApplicator.buildFileChanges(
+            originalLines,
+            sortedChanges,
+            fileEdit.fileName,
+          );
+          const updatedLines = this.editApplicator.applyEdits(
+            originalLines,
+            sortedChanges,
+          );
 
           if (!validated.preview) {
             await this.fileOps.writeLines(fileEdit.fileName, updatedLines);
@@ -190,8 +225,8 @@ This might indicate:
           preview: {
             filesAffected: filesChanged.length,
             estimatedTime: '< 1s',
-            command: 'Run again with preview: false to apply changes'
-          }
+            command: 'Run again with preview: false to apply changes',
+          },
         };
       }
 
@@ -199,9 +234,7 @@ This might indicate:
         success: true,
         message: `Moved symbol to ${destinationPath || 'new file'}`,
         filesChanged,
-        nextActions: [
-          'organize_imports - Clean up imports in affected files'
-        ]
+        nextActions: ['organize_imports - Clean up imports in affected files'],
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -216,7 +249,7 @@ Try:
   1. Check that the file is saved and syntactically valid
   2. Ensure the selected symbol is a top-level declaration
   3. Verify the destination path is valid`,
-        filesChanged: []
+        filesChanged: [],
       };
     }
   }

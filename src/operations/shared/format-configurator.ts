@@ -4,7 +4,7 @@ import type { IndentationDetector } from './indentation-detector.js';
 export class FormatConfigurator {
   constructor(
     private tsServer: TypeScriptServer,
-    private indentDetector: IndentationDetector
+    private indentDetector: IndentationDetector,
   ) {}
 
   async configureForFile(filePath: string, lines: string[]): Promise<void> {
@@ -16,8 +16,8 @@ export class FormatConfigurator {
       formatOptions: {
         indentSize,
         tabSize: indentSize,
-        convertTabsToSpaces: indentUnit !== '\t'
-      }
+        convertTabsToSpaces: indentUnit !== '\t',
+      },
     });
   }
 }

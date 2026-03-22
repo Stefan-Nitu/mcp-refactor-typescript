@@ -37,7 +37,10 @@ export class MessageParser {
       try {
         messages.push(JSON.parse(jsonBody));
       } catch (error) {
-        logger.error({ err: error, body: jsonBody }, 'Failed to parse TSServer message');
+        logger.error(
+          { err: error, body: jsonBody },
+          'Failed to parse TSServer message',
+        );
       }
     }
 

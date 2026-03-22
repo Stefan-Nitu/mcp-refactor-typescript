@@ -1,10 +1,24 @@
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { FixAllOperation } from '../fix-all.js';
+import type { FixAllOperation } from '../fix-all.js';
 import { createFixAllOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -76,11 +90,11 @@ export const value = 42;
     const absolutePath = join(testDir, 'src', 'relative-test.ts');
     await writeFile(absolutePath, `export const x = 42;`, 'utf-8');
 
-    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+    const relativePath = absolutePath.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
-      filePath: relativePath
+      filePath: relativePath,
     });
 
     // Assert
@@ -94,7 +108,7 @@ export const value = 42;
 
     // Act
     const response = await operation!.execute({
-      filePath: absolutePath
+      filePath: absolutePath,
     });
 
     // Assert

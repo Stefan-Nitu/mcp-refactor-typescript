@@ -1,10 +1,24 @@
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { RemoveUnusedOperation } from '../remove-unused.js';
+import type { RemoveUnusedOperation } from '../remove-unused.js';
 import { createRemoveUnusedOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -41,7 +55,7 @@ console.error(x);
     expect(response.message).toContain('Removed');
 
     // Verify unused variable was actually removed
-    const { readFile: read } = await import('fs/promises');
+    const { readFile: read } = await import('node:fs/promises');
     const content = await read(filePath, 'utf-8');
     expect(content).not.toContain('const y');
     expect(content).toContain('const x = 42');
@@ -79,7 +93,7 @@ export const value = 42;
     expect(response.success).toBe(true);
 
     // Verify imports were actually removed
-    const { readFile: read } = await import('fs/promises');
+    const { readFile: read } = await import('node:fs/promises');
     const content = await read(filePath, 'utf-8');
     expect(content).not.toContain('readFile');
     expect(content).not.toContain('writeFile');
@@ -89,14 +103,18 @@ export const value = 42;
   it('should work with relative file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'relative-test.ts');
-    await writeFile(absolutePath, `const unused = 42;
-export const used = 1;`, 'utf-8');
+    await writeFile(
+      absolutePath,
+      `const unused = 42;
+export const used = 1;`,
+      'utf-8',
+    );
 
-    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+    const relativePath = absolutePath.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
-      filePath: relativePath
+      filePath: relativePath,
     });
 
     // Assert
@@ -106,12 +124,16 @@ export const used = 1;`, 'utf-8');
   it('should work with absolute file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'absolute-test.ts');
-    await writeFile(absolutePath, `const unused = 99;
-export const used = 1;`, 'utf-8');
+    await writeFile(
+      absolutePath,
+      `const unused = 99;
+export const used = 1;`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
-      filePath: absolutePath
+      filePath: absolutePath,
     });
 
     // Assert

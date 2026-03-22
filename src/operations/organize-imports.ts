@@ -3,16 +3,19 @@
  */
 
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import type {
+  RefactorResult,
+  TypeScriptServer,
+} from '../language-servers/typescript/tsserver-client.js';
 import type { TSOrganizeImportsResponse } from '../language-servers/typescript/tsserver-types.js';
-import { EditApplicator } from './shared/edit-applicator.js';
-import { FileOperations } from './shared/file-operations.js';
-import { FormatConfigurator } from './shared/format-configurator.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type { EditApplicator } from './shared/edit-applicator.js';
+import type { FileOperations } from './shared/file-operations.js';
+import type { FormatConfigurator } from './shared/format-configurator.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const organizeImportsSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
-  preview: z.boolean().optional()
+  preview: z.boolean().optional(),
 });
 
 export class OrganizeImportsOperation {
@@ -21,7 +24,7 @@ export class OrganizeImportsOperation {
     private fileOps: FileOperations,
     private editApplicator: EditApplicator,
     private formatConfigurator: FormatConfigurator,
-    private tsServerGuard: TSServerGuard
+    private tsServerGuard: TSServerGuard,
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -37,24 +40,40 @@ export class OrganizeImportsOperation {
       const originalLines = await this.fileOps.readLines(filePath);
       await this.formatConfigurator.configureForFile(filePath, originalLines);
 
-      const result = await this.tsServer.sendRequest<TSOrganizeImportsResponse[]>('organizeImports', {
+      const result = await this.tsServer.sendRequest<
+        TSOrganizeImportsResponse[]
+      >('organizeImports', {
         scope: {
           type: 'file',
-          args: { file: filePath }
-        }
+          args: { file: filePath },
+        },
       });
 
-      if (!result || result.length === 0 || !result[0]?.textChanges || result[0].textChanges.length === 0) {
+      if (
+        !result ||
+        result.length === 0 ||
+        !result[0]?.textChanges ||
+        result[0].textChanges.length === 0
+      ) {
         return {
           success: true,
           message: 'No import changes needed',
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
-      const sortedChanges = this.editApplicator.sortEdits(result[0].textChanges);
-      const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, filePath);
-      const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
+      const sortedChanges = this.editApplicator.sortEdits(
+        result[0].textChanges,
+      );
+      const fileChanges = this.editApplicator.buildFileChanges(
+        originalLines,
+        sortedChanges,
+        filePath,
+      );
+      const updatedLines = this.editApplicator.applyEdits(
+        originalLines,
+        sortedChanges,
+      );
 
       if (validated.preview) {
         return {
@@ -64,8 +83,8 @@ export class OrganizeImportsOperation {
           preview: {
             filesAffected: 1,
             estimatedTime: '< 1s',
-            command: 'Run again with preview: false to apply changes'
-          }
+            command: 'Run again with preview: false to apply changes',
+          },
         };
       }
 
@@ -74,7 +93,7 @@ export class OrganizeImportsOperation {
       return {
         success: true,
         message: 'Organized imports',
-        filesChanged: [fileChanges]
+        filesChanged: [fileChanges],
       };
     } catch (error) {
       return {
@@ -85,9 +104,8 @@ Try:
   1. Ensure the file exists and has valid import statements
   2. Check that all imported modules can be resolved
   3. Verify TypeScript configuration is correct`,
-        filesChanged: []
+        filesChanged: [],
       };
     }
   }
-
 }

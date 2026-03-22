@@ -46,5 +46,12 @@ tmp/
 temp/
 .tmp/
 
+# Bun
+bun.lock
+*.bun-build
+
+# Hot reload
+hot-reload.config.json
+
 # OS files
 Thumbs.db

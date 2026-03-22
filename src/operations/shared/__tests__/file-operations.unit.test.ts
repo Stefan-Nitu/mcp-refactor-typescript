@@ -1,6 +1,6 @@
-import { mkdir, readFile, rm, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { FileOperations } from '../file-operations.js';
 
 describe('FileOperations', () => {

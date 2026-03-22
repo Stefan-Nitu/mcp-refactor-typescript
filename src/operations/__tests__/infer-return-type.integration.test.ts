@@ -1,10 +1,24 @@
-import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { InferReturnTypeOperation } from '../infer-return-type.js';
+import type { InferReturnTypeOperation } from '../infer-return-type.js';
 import { createInferReturnTypeOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -25,15 +39,19 @@ describe('inferReturnType', () => {
   it('should infer return type for simple function', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'simple.ts');
-    await writeFile(filePath, `function add(a: number, b: number) {
+    await writeFile(
+      filePath,
+      `function add(a: number, b: number) {
   return a + b;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act - Select function name
     const response = await operation!.execute({
       filePath,
       line: 1,
-      text: 'add'
+      text: 'add',
     });
 
     // Assert
@@ -45,19 +63,23 @@ describe('inferReturnType', () => {
   it('should infer complex return type', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'complex.ts');
-    await writeFile(filePath, `function getUser() {
+    await writeFile(
+      filePath,
+      `function getUser() {
   return {
     name: "John",
     age: 30,
     active: true
   };
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath,
       line: 1,
-      text: 'getUser'
+      text: 'getUser',
     });
 
     // Assert
@@ -70,15 +92,19 @@ describe('inferReturnType', () => {
   it('should return error when already has return type', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'typed.ts');
-    await writeFile(filePath, `function divide(a: number, b: number): number {
+    await writeFile(
+      filePath,
+      `function divide(a: number, b: number): number {
   return a / b;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath,
       line: 1,
-      text: 'divide'
+      text: 'divide',
     });
 
     // Assert
@@ -89,17 +115,21 @@ describe('inferReturnType', () => {
   it('should work with relative file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'relative-test.ts');
-    await writeFile(absolutePath, `export function test() {
+    await writeFile(
+      absolutePath,
+      `export function test() {
   return 42;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
-    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+    const relativePath = absolutePath.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
       filePath: relativePath,
       line: 1,
-      text: 'test'
+      text: 'test',
     });
 
     // Assert - May not be available, but should not crash with "undefined"
@@ -110,15 +140,19 @@ describe('inferReturnType', () => {
   it('should work with absolute file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'absolute-test.ts');
-    await writeFile(absolutePath, `export function test() {
+    await writeFile(
+      absolutePath,
+      `export function test() {
   return 99;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath: absolutePath,
       line: 1,
-      text: 'test'
+      text: 'test',
     });
 
     // Assert - May not be available, but should not crash with "undefined"

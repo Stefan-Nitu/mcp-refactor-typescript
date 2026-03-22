@@ -1,10 +1,24 @@
-import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { MoveToFileOperation } from '../move-to-file.js';
+import type { MoveToFileOperation } from '../move-to-file.js';
 import { createMoveToFileOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -39,7 +53,7 @@ export function farewell(name: string) {
     const response = await operation!.execute({
       filePath,
       line: 1,
-      text: 'greet'
+      text: 'greet',
     });
 
     // Assert
@@ -67,7 +81,7 @@ export interface Product {
     const response = await operation!.execute({
       filePath,
       line: 1,
-      text: 'User'
+      text: 'User',
     });
 
     // Assert
@@ -95,7 +109,7 @@ export function main() {
       filePath,
       line: 1,
       text: 'helper',
-      destinationPath: destPath
+      destinationPath: destPath,
     });
 
     // Assert
@@ -115,20 +129,24 @@ export function main() {
     const libPath = join(testDir, 'src', 'lib.ts');
     const destPath = join(testDir, 'src', 'moved.ts');
 
-    await writeFile(libPath, `export function compute(x: number) {
+    await writeFile(
+      libPath,
+      `export function compute(x: number) {
   return x * 2;
 }
 
 export function transform(x: number) {
   return x + 1;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath: libPath,
       line: 1,
       text: 'compute',
-      destinationPath: destPath
+      destinationPath: destPath,
     });
 
     // Assert
@@ -157,7 +175,7 @@ export function transform(x: number) {
     const response = await operation!.execute({
       filePath,
       line: 1,
-      text: 'nonExistentSymbol'
+      text: 'nonExistentSymbol',
     });
 
     // Assert
@@ -183,7 +201,7 @@ export function otherFunc() {
       filePath,
       line: 1,
       text: 'previewFunc',
-      preview: true
+      preview: true,
     });
 
     // Assert
@@ -214,7 +232,7 @@ export function wrap<T>(data: T): Result<T> {
     const response = await operation!.execute({
       filePath,
       line: 1,
-      text: 'Result'
+      text: 'Result',
     });
 
     // Assert
@@ -226,21 +244,25 @@ export function wrap<T>(data: T): Result<T> {
   it('should work with relative file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'relative-test.ts');
-    await writeFile(absolutePath, `export function relFunc() {
+    await writeFile(
+      absolutePath,
+      `export function relFunc() {
   return 'rel';
 }
 
 export function otherRelFunc() {
   return 'other';
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
-    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+    const relativePath = absolutePath.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
       filePath: relativePath,
       line: 1,
-      text: 'relFunc'
+      text: 'relFunc',
     });
 
     // Assert
@@ -251,19 +273,23 @@ export function otherRelFunc() {
   it('should work with absolute file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'absolute-test.ts');
-    await writeFile(absolutePath, `export function absFunc() {
+    await writeFile(
+      absolutePath,
+      `export function absFunc() {
   return 'abs';
 }
 
 export function otherAbsFunc() {
   return 'other';
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath: absolutePath,
       line: 1,
-      text: 'absFunc'
+      text: 'absFunc',
     });
 
     // Assert
@@ -276,31 +302,39 @@ export function otherAbsFunc() {
     // Arrange
     const filePath = join(testDir, 'src', 'json-detail.ts');
     const destPath = join(testDir, 'src', 'json-dest.ts');
-    await writeFile(filePath, `export function detailFunc() {
+    await writeFile(
+      filePath,
+      `export function detailFunc() {
   return 'detail';
 }
 
 export function keepFunc() {
   return 'keep';
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath,
       line: 1,
       text: 'detailFunc',
-      destinationPath: destPath
+      destinationPath: destPath,
     });
 
     // Assert
     expect(response.success).toBe(true);
     expect(response.filesChanged!.length).toBeGreaterThanOrEqual(2);
 
-    const destFileChange = response.filesChanged!.find(fc => fc.path === destPath);
+    const destFileChange = response.filesChanged!.find(
+      (fc) => fc.path === destPath,
+    );
     expect(destFileChange).toBeDefined();
     expect(destFileChange!.edits.length).toBeGreaterThan(0);
 
-    const sourceFileChange = response.filesChanged!.find(fc => fc.path === filePath);
+    const sourceFileChange = response.filesChanged!.find(
+      (fc) => fc.path === filePath,
+    );
     expect(sourceFileChange).toBeDefined();
     expect(sourceFileChange!.edits.length).toBeGreaterThan(0);
   });
@@ -322,7 +356,7 @@ export function gamma() { return 'c'; }`;
       filePath,
       line: 3,
       text: 'beta',
-      destinationPath: destPath
+      destinationPath: destPath,
     });
 
     // Assert

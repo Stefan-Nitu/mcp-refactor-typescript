@@ -1,5 +1,5 @@
 import { QUIXOTIC_DEFAULT_PRICE } from '../models/quixotic.js';
-import { Zephyr, ZephyrModel } from '../models/zephyr.js';
+import { type Zephyr, ZephyrModel } from '../models/zephyr.js';
 
 export class ZephyrService {
   private zephyrs: ZephyrModel[] = [];
@@ -17,11 +17,14 @@ export class ZephyrService {
 
   // Test extract variable: complex expression
   calculateZephyrScore(zephyr: ZephyrModel): number {
-    return (zephyr.zephyrAge * 2 + QUIXOTIC_DEFAULT_PRICE / 10) * (zephyr.isAdultZephyr() ? 1.5 : 0.75);
+    return (
+      (zephyr.zephyrAge * 2 + QUIXOTIC_DEFAULT_PRICE / 10) *
+      (zephyr.isAdultZephyr() ? 1.5 : 0.75)
+    );
   }
 
   findAdultZephyrs(): ZephyrModel[] {
-    return this.zephyrs.filter(z => z.isAdultZephyr());
+    return this.zephyrs.filter((z) => z.isAdultZephyr());
   }
 
   // Test extract function: this block could be extracted

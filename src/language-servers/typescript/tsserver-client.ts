@@ -3,9 +3,9 @@
  * Communicates with tsserver using its native protocol for full project awareness
  */
 
-import { ChildProcess, spawn } from 'child_process';
-import { readFile } from 'fs/promises';
-import { resolve } from 'path';
+import { type ChildProcess, spawn } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { logger } from '../../utils/logger.js';
 import { MessageParser } from './message-parser.js';
 
@@ -50,15 +50,16 @@ interface TSServerResponse {
 export class TypeScriptServer {
   private process: ChildProcess | null = null;
   private seq = 0;
-  private pendingRequests = new Map<number, {
-    resolve: (value: unknown) => void;
-    reject: (error: Error) => void;
-  }>();
+  private pendingRequests = new Map<
+    number,
+    {
+      resolve: (value: unknown) => void;
+      reject: (error: Error) => void;
+    }
+  >();
   private parser = new MessageParser();
   private projectLoaded = false;
   private running = false;
-
-  constructor() {}
 
   isRunning(): boolean {
     return this.running;
@@ -75,8 +76,8 @@ export class TypeScriptServer {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: projectPath,
       env: {
-        ...process.env
-      }
+        ...process.env,
+      },
     });
 
     this.process.stdout?.setEncoding('utf8');
@@ -99,8 +100,8 @@ export class TypeScriptServer {
         includeCompletionsWithInsertText: true,
         allowIncompleteCompletions: true,
         includeAutomaticOptionalChainCompletions: true,
-        allowTextChangesInNewFiles: true
-      }
+        allowTextChangesInNewFiles: true,
+      },
     });
 
     this.running = true;
@@ -109,7 +110,9 @@ export class TypeScriptServer {
     // If we don't see it within 500ms, assume project is ready
     setTimeout(() => {
       if (!this.projectLoaded && this.running) {
-        logger.debug('No project loading event received, assuming small project');
+        logger.debug(
+          'No project loading event received, assuming small project',
+        );
         this.projectLoaded = true;
       }
     }, 500);
@@ -172,26 +175,35 @@ export class TypeScriptServer {
         if (message.success) {
           pending.resolve(message.body);
         } else {
-          const errorMsg = (message.body as { message?: string })?.message || String(message.body) || 'Request failed';
+          const errorMsg =
+            (message.body as { message?: string })?.message ||
+            String(message.body) ||
+            'Request failed';
           pending.reject(new Error(errorMsg));
         }
       }
     }
   }
 
-  async sendRequest<T = unknown>(command: string, args?: Record<string, unknown>): Promise<T | null> {
+  async sendRequest<T = unknown>(
+    command: string,
+    args?: Record<string, unknown>,
+  ): Promise<T | null> {
     return new Promise<T | null>((resolve, reject) => {
       const seq = ++this.seq;
       const request: TSServerRequest = {
         seq,
         type: 'request',
         command,
-        arguments: args
+        arguments: args,
       };
 
-      this.pendingRequests.set(seq, { resolve: resolve as (value: unknown) => void, reject });
+      this.pendingRequests.set(seq, {
+        resolve: resolve as (value: unknown) => void,
+        reject,
+      });
 
-      const message = JSON.stringify(request) + '\n';
+      const message = `${JSON.stringify(request)}\n`;
       this.process?.stdin?.write(message);
 
       // Timeout after 30 seconds
@@ -208,7 +220,7 @@ export class TypeScriptServer {
     const content = await readFile(filePath, 'utf8');
     await this.sendRequest('open', {
       file: filePath,
-      fileContent: content
+      fileContent: content,
     });
   }
 
@@ -221,5 +233,4 @@ export class TypeScriptServer {
   isProjectLoaded(): boolean {
     return this.projectLoaded;
   }
-
 }

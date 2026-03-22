@@ -1,10 +1,24 @@
-import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { OrganizeImportsOperation } from '../organize-imports.js';
+import type { OrganizeImportsOperation } from '../organize-imports.js';
 import { createOrganizeImportsOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -73,15 +87,19 @@ console.error('hello');
   it('should work with relative file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'relative-test.ts');
-    await writeFile(absolutePath, `import { z } from 'unused';
+    await writeFile(
+      absolutePath,
+      `import { z } from 'unused';
 import { c, a, b } from 'used';
-export const x: a = null as any;`, 'utf-8');
+export const x: a = null as any;`,
+      'utf-8',
+    );
 
-    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+    const relativePath = absolutePath.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
-      filePath: relativePath
+      filePath: relativePath,
     });
 
     // Assert
@@ -91,13 +109,17 @@ export const x: a = null as any;`, 'utf-8');
   it('should work with absolute file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'absolute-test.ts');
-    await writeFile(absolutePath, `import { z } from 'unused';
+    await writeFile(
+      absolutePath,
+      `import { z } from 'unused';
 import { c, a, b } from 'used';
-export const x: a = null as any;`, 'utf-8');
+export const x: a = null as any;`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
-      filePath: absolutePath
+      filePath: absolutePath,
     });
 
     // Assert

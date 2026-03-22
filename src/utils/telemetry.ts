@@ -3,7 +3,7 @@
  * Logs to stderr (safe for MCP protocol)
  */
 
-import { relative } from 'path';
+import { relative } from 'node:path';
 import { logger } from './logger.js';
 
 interface TelemetryEvent {
@@ -28,12 +28,16 @@ export class Telemetry {
       event: 'tool_call',
       tool,
       operation,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
     logger.info(event, 'Tool invoked');
   }
 
-  logSuccess(tool: string, operation: string | undefined, filesAffected: number) {
+  logSuccess(
+    tool: string,
+    operation: string | undefined,
+    filesAffected: number,
+  ) {
     const durationMs = this.startTime ? Date.now() - this.startTime : undefined;
     const event: TelemetryEvent = {
       event: 'tool_success',
@@ -41,7 +45,7 @@ export class Telemetry {
       operation,
       timestamp: Date.now(),
       durationMs,
-      filesAffected
+      filesAffected,
     };
     logger.info(event, 'Tool completed successfully');
   }
@@ -54,7 +58,7 @@ export class Telemetry {
       operation,
       timestamp: Date.now(),
       durationMs,
-      errorType: error.name
+      errorType: error.name,
     };
     logger.error(event, 'Tool failed');
   }

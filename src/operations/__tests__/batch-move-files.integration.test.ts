@@ -1,11 +1,25 @@
-import { existsSync } from 'fs';
-import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { existsSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import type { BatchMoveFilesOperation } from '../batch-move-files.js';
 import { createBatchMoveFilesOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -32,14 +46,18 @@ describe('batchMoveFiles', () => {
 
     await writeFile(file1, 'export function util() { return 1; }', 'utf-8');
     await writeFile(file2, 'export function helper() { return 2; }', 'utf-8');
-    await writeFile(file3, `import { util } from './utils.js';
+    await writeFile(
+      file3,
+      `import { util } from './utils.js';
 import { helper } from './helpers.js';
-console.error(util(), helper());`, 'utf-8');
+console.error(util(), helper());`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       files: [file1, file2],
-      targetFolder
+      targetFolder,
     });
 
     // Assert
@@ -63,12 +81,16 @@ console.error(util(), helper());`, 'utf-8');
     const file1 = join(testDir, 'src', 'component.ts');
     const targetFolder = join(testDir, 'src', 'components');
 
-    await writeFile(file1, 'export const Component = () => <div>Hello</div>;', 'utf-8');
+    await writeFile(
+      file1,
+      'export const Component = () => <div>Hello</div>;',
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       files: [file1],
-      targetFolder
+      targetFolder,
     });
 
     // Assert
@@ -84,12 +106,16 @@ console.error(util(), helper());`, 'utf-8');
     const targetFolder = join(testDir, 'src', 'models', 'user');
 
     await writeFile(file1, 'export interface User { name: string; }', 'utf-8');
-    await writeFile(file2, `import { User } from './model.js';\nexport { User };`, 'utf-8');
+    await writeFile(
+      file2,
+      `import { User } from './model.js';\nexport { User };`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       files: [file1],
-      targetFolder
+      targetFolder,
     });
 
     // Assert
@@ -121,7 +147,7 @@ console.error(util(), helper());`, 'utf-8');
     const startTime = Date.now();
     const response = await operation!.execute({
       files,
-      targetFolder
+      targetFolder,
     });
     const duration = Date.now() - startTime;
 
@@ -141,7 +167,7 @@ console.error(util(), helper());`, 'utf-8');
   it('should return error when target folder is not provided', async () => {
     // Act
     const response = await operation!.execute({
-      files: ['file.ts']
+      files: ['file.ts'],
     });
 
     // Assert
@@ -153,7 +179,7 @@ console.error(util(), helper());`, 'utf-8');
     // Act
     const response = await operation!.execute({
       files: [],
-      targetFolder: '/some/folder'
+      targetFolder: '/some/folder',
     });
 
     // Assert
@@ -168,20 +194,32 @@ console.error(util(), helper());`, 'utf-8');
     const absoluteTarget = join(testDir, 'src', 'rel-lib');
     const mainPath = join(testDir, 'src', 'main.ts');
 
-    await writeFile(absoluteFile1, 'export function relUtil1() { return 1; }', 'utf-8');
-    await writeFile(absoluteFile2, 'export function relUtil2() { return 2; }', 'utf-8');
-    await writeFile(mainPath, `import { relUtil1 } from './rel-util1.js';
+    await writeFile(
+      absoluteFile1,
+      'export function relUtil1() { return 1; }',
+      'utf-8',
+    );
+    await writeFile(
+      absoluteFile2,
+      'export function relUtil2() { return 2; }',
+      'utf-8',
+    );
+    await writeFile(
+      mainPath,
+      `import { relUtil1 } from './rel-util1.js';
 import { relUtil2 } from './rel-util2.js';
-console.error(relUtil1(), relUtil2());`, 'utf-8');
+console.error(relUtil1(), relUtil2());`,
+      'utf-8',
+    );
 
-    const relativeFile1 = absoluteFile1.replace(process.cwd() + '/', '');
-    const relativeFile2 = absoluteFile2.replace(process.cwd() + '/', '');
-    const relativeTarget = absoluteTarget.replace(process.cwd() + '/', '');
+    const relativeFile1 = absoluteFile1.replace(`${process.cwd()}/`, '');
+    const relativeFile2 = absoluteFile2.replace(`${process.cwd()}/`, '');
+    const relativeTarget = absoluteTarget.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
       files: [relativeFile1, relativeFile2],
-      targetFolder: relativeTarget
+      targetFolder: relativeTarget,
     });
 
     // Assert
@@ -203,16 +241,28 @@ console.error(relUtil1(), relUtil2());`, 'utf-8');
     const absoluteTarget = join(testDir, 'src', 'abs-lib');
     const mainPath = join(testDir, 'src', 'main.ts');
 
-    await writeFile(absoluteFile1, 'export function absUtil1() { return 1; }', 'utf-8');
-    await writeFile(absoluteFile2, 'export function absUtil2() { return 2; }', 'utf-8');
-    await writeFile(mainPath, `import { absUtil1 } from './abs-util1.js';
+    await writeFile(
+      absoluteFile1,
+      'export function absUtil1() { return 1; }',
+      'utf-8',
+    );
+    await writeFile(
+      absoluteFile2,
+      'export function absUtil2() { return 2; }',
+      'utf-8',
+    );
+    await writeFile(
+      mainPath,
+      `import { absUtil1 } from './abs-util1.js';
 import { absUtil2 } from './abs-util2.js';
-console.error(absUtil1(), absUtil2());`, 'utf-8');
+console.error(absUtil1(), absUtil2());`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       files: [absoluteFile1, absoluteFile2],
-      targetFolder: absoluteTarget
+      targetFolder: absoluteTarget,
     });
 
     // Assert
@@ -236,17 +286,21 @@ console.error(absUtil1(), absUtil2());`, 'utf-8');
 
     await writeFile(file1, 'export function api1() { return 1; }', 'utf-8');
     await writeFile(file2, 'export function api2() { return 2; }', 'utf-8');
-    await writeFile(consumerPath, `import { api1 } from './api1.js';
+    await writeFile(
+      consumerPath,
+      `import { api1 } from './api1.js';
 import { api2 } from './api2.js';
 
 export function useApis() {
   return api1() + api2();
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       files: [file1, file2],
-      targetFolder
+      targetFolder,
     });
 
     // Assert
@@ -254,7 +308,9 @@ export function useApis() {
     expect(response.filesChanged.length).toBeGreaterThan(0);
 
     // Find the consumer file in filesChanged
-    const consumerFileChange = response.filesChanged.find(f => f.path === consumerPath);
+    const consumerFileChange = response.filesChanged.find(
+      (f) => f.path === consumerPath,
+    );
     expect(consumerFileChange).toBeDefined();
 
     // Should report BOTH edits (both import updates)
@@ -273,10 +329,18 @@ export function useApis() {
     const testPath = join(testDir, 'src', 'app.test.ts');
     const targetFolder = join(testDir, 'src', 'services');
 
-    await writeFile(service1Path, 'export function authenticate() { return true; }', 'utf-8');
-    await writeFile(service2Path, 'export function getData() { return []; }', 'utf-8');
+    await writeFile(
+      service1Path,
+      'export function authenticate() { return true; }',
+      'utf-8',
+    );
+    await writeFile(
+      service2Path,
+      'export function getData() { return []; }',
+      'utf-8',
+    );
 
-    const testContent = `import { describe, it, expect, vi } from 'vitest';
+    const testContent = `import { describe, it, expect, vi } from 'bun:test';
 import { authenticate } from './auth-service.js';
 import { getData } from './data-service.js';
 
@@ -298,7 +362,7 @@ describe('app', () => {
     // Act
     const response = await operation!.execute({
       files: [service1Path, service2Path],
-      targetFolder
+      targetFolder,
     });
 
     // Assert
@@ -307,8 +371,12 @@ describe('app', () => {
     expect(existsSync(join(targetFolder, 'data-service.ts'))).toBe(true);
 
     const testFileContent = await readFile(testPath, 'utf-8');
-    expect(testFileContent).toContain("import { authenticate } from './services/auth-service.js';");
-    expect(testFileContent).toContain("import { getData } from './services/data-service.js';");
+    expect(testFileContent).toContain(
+      "import { authenticate } from './services/auth-service.js';",
+    );
+    expect(testFileContent).toContain(
+      "import { getData } from './services/data-service.js';",
+    );
     expect(testFileContent).toContain("vi.mock('./services/auth-service.js');");
     expect(testFileContent).toContain("vi.mock('./services/data-service.js');");
     expect(testFileContent).not.toContain("vi.mock('./auth-service.js');");

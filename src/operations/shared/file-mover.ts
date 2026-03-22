@@ -2,9 +2,12 @@
  * Helper for performing file moves with TypeScript import updates
  */
 
-import { mkdir, rename } from 'fs/promises';
-import { dirname } from 'path';
-import type { RefactorResult, TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
+import { mkdir, rename } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import type {
+  RefactorResult,
+  TypeScriptServer,
+} from '../../language-servers/typescript/tsserver-client.js';
 import type { TSFileEdit } from '../../language-servers/typescript/tsserver-types.js';
 import { EditApplicator } from './edit-applicator.js';
 import { FileOperations } from './file-operations.js';
@@ -15,18 +18,21 @@ export class FileMover {
     private tsServer: TypeScriptServer,
     private fileOps: FileOperations = new FileOperations(),
     private editApplicator: EditApplicator = new EditApplicator(),
-    private mockUpdater: StringLiteralPathUpdater = new StringLiteralPathUpdater()
+    private mockUpdater: StringLiteralPathUpdater = new StringLiteralPathUpdater(),
   ) {}
 
   async performMove(
     sourcePath: string,
     destinationPath: string,
-    preview?: boolean
+    preview?: boolean,
   ): Promise<RefactorResult> {
-    const edits = await this.tsServer.sendRequest<TSFileEdit[]>('getEditsForFileRename', {
-      oldFilePath: sourcePath,
-      newFilePath: destinationPath
-    });
+    const edits = await this.tsServer.sendRequest<TSFileEdit[]>(
+      'getEditsForFileRename',
+      {
+        oldFilePath: sourcePath,
+        newFilePath: destinationPath,
+      },
+    );
 
     if (!edits || edits.length === 0) {
       if (preview) {
@@ -37,8 +43,8 @@ export class FileMover {
           preview: {
             filesAffected: 1,
             estimatedTime: '< 1s',
-            command: 'Run again with preview: false to apply changes'
-          }
+            command: 'Run again with preview: false to apply changes',
+          },
         };
       }
 
@@ -49,9 +55,7 @@ export class FileMover {
         success: true,
         message: 'File moved (no import updates needed)',
         filesChanged: [],
-        nextActions: [
-          'find_references - Verify no references were missed'
-        ]
+        nextActions: ['find_references - Verify no references were missed'],
       };
     }
 
@@ -66,30 +70,37 @@ export class FileMover {
         fileContent,
         fileEdit.fileName,
         sourcePath,
-        destinationPath
+        destinationPath,
       );
 
       const allTextChanges = [...fileEdit.textChanges];
       for (const mockUpdate of mockUpdates) {
         const start = {
           line: mockUpdate.line,
-          offset: mockUpdate.column
+          offset: mockUpdate.column,
         };
         const end = {
           line: mockUpdate.line,
-          offset: mockUpdate.column + mockUpdate.old.length
+          offset: mockUpdate.column + mockUpdate.old.length,
         };
 
         allTextChanges.push({
           start,
           end,
-          newText: mockUpdate.new
+          newText: mockUpdate.new,
         });
       }
 
       const sortedChanges = this.editApplicator.sortEdits(allTextChanges);
-      const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, fileEdit.fileName);
-      const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
+      const fileChanges = this.editApplicator.buildFileChanges(
+        originalLines,
+        sortedChanges,
+        fileEdit.fileName,
+      );
+      const updatedLines = this.editApplicator.applyEdits(
+        originalLines,
+        sortedChanges,
+      );
 
       if (!preview) {
         await this.fileOps.writeLines(fileEdit.fileName, updatedLines);
@@ -107,8 +118,8 @@ export class FileMover {
         preview: {
           filesAffected: filesChanged.length + 1,
           estimatedTime: '< 1s',
-          command: 'Run again with preview: false to apply changes'
-        }
+          command: 'Run again with preview: false to apply changes',
+        },
       };
     }
 
@@ -125,8 +136,8 @@ export class FileMover {
       filesChanged,
       nextActions: [
         'organize_imports - Clean up import statements',
-        'fix_all - Fix any errors from the move'
-      ]
+        'fix_all - Fix any errors from the move',
+      ],
     };
   }
 

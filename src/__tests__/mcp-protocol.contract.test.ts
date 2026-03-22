@@ -9,9 +9,9 @@
  * - Handles SIGTERM and SIGINT signals gracefully
  */
 
-import { ChildProcess, spawn } from 'child_process';
-import { resolve } from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { type ChildProcess, spawn } from 'node:child_process';
+import { resolve } from 'node:path';
 
 describe('MCP Protocol Contract', () => {
   let server: ChildProcess | null = null;
@@ -34,7 +34,7 @@ describe('MCP Protocol Contract', () => {
     // Arrange
     const serverPath = resolve(__dirname, '../../dist/index.js');
     server = spawn('node', [serverPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     server.stdout?.on('data', (data) => {
@@ -46,7 +46,7 @@ describe('MCP Protocol Contract', () => {
     });
 
     // Wait for server to start
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Act - Send initialize request (valid JSON-RPC)
     const initializeRequest = {
@@ -58,19 +58,22 @@ describe('MCP Protocol Contract', () => {
         capabilities: {},
         clientInfo: {
           name: 'test-client',
-          version: '1.0.0'
-        }
-      }
+          version: '1.0.0',
+        },
+      },
     };
 
-    server.stdin?.write(JSON.stringify(initializeRequest) + '\n');
+    server.stdin?.write(`${JSON.stringify(initializeRequest)}\n`);
 
     // Wait for response
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Assert - stdout should ONLY contain valid JSON-RPC
     const allStdout = stdoutData.join('');
-    const stdoutLines = allStdout.trim().split('\n').filter(line => line.trim());
+    const stdoutLines = allStdout
+      .trim()
+      .split('\n')
+      .filter((line) => line.trim());
 
     for (const line of stdoutLines) {
       // Each line must be valid JSON
@@ -96,7 +99,7 @@ describe('MCP Protocol Contract', () => {
     // Arrange
     const serverPath = resolve(__dirname, '../../dist/index.js');
     server = spawn('node', [serverPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     server.stdout?.on('data', (data) => {
@@ -108,7 +111,7 @@ describe('MCP Protocol Contract', () => {
     });
 
     // Wait for server to start and log messages
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Assert - stderr should contain log messages
     const allStderr = stderrData.join('');
@@ -117,7 +120,7 @@ describe('MCP Protocol Contract', () => {
     expect(allStderr.length).toBeGreaterThan(0);
 
     // Should contain structured log entries (Pino format)
-    const hasJsonLogs = allStderr.split('\n').some(line => {
+    const hasJsonLogs = allStderr.split('\n').some((line) => {
       try {
         const parsed = JSON.parse(line);
         return parsed.level !== undefined && parsed.time !== undefined;
@@ -144,7 +147,7 @@ describe('MCP Protocol Contract', () => {
     const stderrLines: string[] = [];
 
     server = spawn('node', [serverPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     server.stderr?.on('data', (data) => {
@@ -152,27 +155,35 @@ describe('MCP Protocol Contract', () => {
     });
 
     // Wait for server to start
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Act - Close stdin to simulate client disconnect
     server.stdin?.end();
 
     // Assert - Server should exit within 5 seconds
-    const exitPromise = new Promise<{ code: number; signal: string | null }>((resolve) => {
-      server!.on('exit', (code, signal) => {
-        console.error(`Process exited with code=${code} signal=${signal}`);
-        resolve({ code: code ?? 0, signal });
-      });
-    });
+    const exitPromise = new Promise<{ code: number; signal: string | null }>(
+      (resolve) => {
+        server!.on('exit', (code, signal) => {
+          console.error(`Process exited with code=${code} signal=${signal}`);
+          resolve({ code: code ?? 0, signal });
+        });
+      },
+    );
 
-    const timeout = new Promise<{ code: number; signal: string | null }>((_, reject) => {
-      setTimeout(() => {
-        console.error('\n=== STDERR OUTPUT ===');
-        console.error(stderrLines.join(''));
-        console.error('=== END STDERR ===\n');
-        reject(new Error('Server did not exit within 5 seconds - zombie process detected!'));
-      }, 5000);
-    });
+    const timeout = new Promise<{ code: number; signal: string | null }>(
+      (_, reject) => {
+        setTimeout(() => {
+          console.error('\n=== STDERR OUTPUT ===');
+          console.error(stderrLines.join(''));
+          console.error('=== END STDERR ===\n');
+          reject(
+            new Error(
+              'Server did not exit within 5 seconds - zombie process detected!',
+            ),
+          );
+        }, 5000);
+      },
+    );
 
     const result = await Promise.race([exitPromise, timeout]);
     expect(result.code).toBe(0);
@@ -182,7 +193,7 @@ describe('MCP Protocol Contract', () => {
     // Arrange
     const serverPath = resolve(__dirname, '../../dist/index.js');
     server = spawn('node', [serverPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     interface InitializeResult {
@@ -191,7 +202,12 @@ describe('MCP Protocol Contract', () => {
       serverInfo: { name: string; version: string };
     }
 
-    const responses: Array<{ jsonrpc: string; id?: number; result?: InitializeResult; method?: string }> = [];
+    const responses: Array<{
+      jsonrpc: string;
+      id?: number;
+      result?: InitializeResult;
+      method?: string;
+    }> = [];
 
     server.stdout?.on('data', (data) => {
       const lines = data.toString().trim().split('\n');
@@ -207,7 +223,7 @@ describe('MCP Protocol Contract', () => {
     });
 
     // Wait for server to be ready
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Act - Send initialize request
     const initializeRequest = {
@@ -219,18 +235,18 @@ describe('MCP Protocol Contract', () => {
         capabilities: {},
         clientInfo: {
           name: 'test-client',
-          version: '1.0.0'
-        }
-      }
+          version: '1.0.0',
+        },
+      },
     };
 
-    server.stdin?.write(JSON.stringify(initializeRequest) + '\n');
+    server.stdin?.write(`${JSON.stringify(initializeRequest)}\n`);
 
     // Wait for response
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Assert - Should have received valid initialize response
-    const initResponse = responses.find(r => r.id === 1);
+    const initResponse = responses.find((r) => r.id === 1);
 
     expect(initResponse).toBeDefined();
     expect(initResponse!.jsonrpc).toBe('2.0');
@@ -239,19 +255,20 @@ describe('MCP Protocol Contract', () => {
     expect(initResponse!.result?.protocolVersion).toBeDefined();
     expect(initResponse!.result?.capabilities).toBeDefined();
     expect(initResponse!.result?.serverInfo).toBeDefined();
-    expect(initResponse!.result?.serverInfo.name).toBe('mcp-refactor-typescript');
+    expect(initResponse!.result?.serverInfo.name).toBe(
+      'mcp-refactor-typescript',
+    );
   });
-
 
   it('should handle SIGTERM and exit gracefully within 5 seconds', async () => {
     // Arrange
     const serverPath = resolve(__dirname, '../../dist/index.js');
     server = spawn('node', [serverPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     // Wait for server to start
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Act - Send SIGTERM
     server.kill('SIGTERM');
@@ -262,7 +279,13 @@ describe('MCP Protocol Contract', () => {
     });
 
     const timeout = new Promise<number>((_, reject) => {
-      setTimeout(() => reject(new Error('Server did not exit within 5 seconds after SIGTERM')), 5000);
+      setTimeout(
+        () =>
+          reject(
+            new Error('Server did not exit within 5 seconds after SIGTERM'),
+          ),
+        5000,
+      );
     });
 
     const exitCode = await Promise.race([exitPromise, timeout]);
@@ -273,11 +296,11 @@ describe('MCP Protocol Contract', () => {
     // Arrange
     const serverPath = resolve(__dirname, '../../dist/index.js');
     server = spawn('node', [serverPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     // Wait for server to start
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Act - Send SIGINT (Ctrl+C)
     server.kill('SIGINT');
@@ -288,7 +311,13 @@ describe('MCP Protocol Contract', () => {
     });
 
     const timeout = new Promise<number>((_, reject) => {
-      setTimeout(() => reject(new Error('Server did not exit within 5 seconds after SIGINT')), 5000);
+      setTimeout(
+        () =>
+          reject(
+            new Error('Server did not exit within 5 seconds after SIGINT'),
+          ),
+        5000,
+      );
     });
 
     const exitCode = await Promise.race([exitPromise, timeout]);
@@ -299,7 +328,7 @@ describe('MCP Protocol Contract', () => {
     // Arrange
     const serverPath = resolve(__dirname, '../../dist/index.js');
     server = spawn('node', [serverPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let stdoutReceived = false;
@@ -309,7 +338,7 @@ describe('MCP Protocol Contract', () => {
     });
 
     // Act - Wait without sending any requests
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Assert - stdout should be completely empty (no unsolicited output)
     expect(stdoutReceived).toBe(false);

@@ -1,11 +1,25 @@
-import { existsSync } from 'fs';
-import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { existsSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import type { MoveFileOperation } from '../move-file.js';
 import { createMoveFileOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -29,13 +43,21 @@ describe('moveFile', () => {
     const mainPath = join(testDir, 'src', 'main.ts');
     const newUtilsPath = join(testDir, 'src', 'helpers', 'utils.ts');
 
-    await writeFile(utilsPath, 'export function helper() { return 42; }', 'utf-8');
-    await writeFile(mainPath, `import { helper } from './utils.js';\nconsole.error(helper());`, 'utf-8');
+    await writeFile(
+      utilsPath,
+      'export function helper() { return 42; }',
+      'utf-8',
+    );
+    await writeFile(
+      mainPath,
+      `import { helper } from './utils.js';\nconsole.error(helper());`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       sourcePath: utilsPath,
-      destinationPath: newUtilsPath
+      destinationPath: newUtilsPath,
     });
 
     // Assert
@@ -55,15 +77,28 @@ describe('moveFile', () => {
     // Arrange
     const componentPath = join(testDir, 'src', 'Component.tsx');
     const indexPath = join(testDir, 'src', 'index.ts');
-    const newComponentPath = join(testDir, 'src', 'components', 'Component.tsx');
+    const newComponentPath = join(
+      testDir,
+      'src',
+      'components',
+      'Component.tsx',
+    );
 
-    await writeFile(componentPath, 'export const Component = () => <div>Hello</div>;', 'utf-8');
-    await writeFile(indexPath, `import { Component } from './Component.js';\nexport { Component };`, 'utf-8');
+    await writeFile(
+      componentPath,
+      'export const Component = () => <div>Hello</div>;',
+      'utf-8',
+    );
+    await writeFile(
+      indexPath,
+      `import { Component } from './Component.js';\nexport { Component };`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       sourcePath: componentPath,
-      destinationPath: newComponentPath
+      destinationPath: newComponentPath,
     });
 
     // Assert
@@ -84,7 +119,7 @@ describe('moveFile', () => {
     // Act
     const response = await operation!.execute({
       sourcePath: filePath,
-      destinationPath: newFilePath
+      destinationPath: newFilePath,
     });
 
     // Assert
@@ -96,19 +131,35 @@ describe('moveFile', () => {
   it('should work with relative file paths', async () => {
     // Arrange
     const absoluteSourcePath = join(testDir, 'src', 'relative-source.ts');
-    const absoluteDestPath = join(testDir, 'src', 'helpers', 'relative-dest.ts');
+    const absoluteDestPath = join(
+      testDir,
+      'src',
+      'helpers',
+      'relative-dest.ts',
+    );
     const mainPath = join(testDir, 'src', 'main.ts');
 
-    await writeFile(absoluteSourcePath, 'export function relFunc() { return 42; }', 'utf-8');
-    await writeFile(mainPath, `import { relFunc } from './relative-source.js';\nconsole.error(relFunc());`, 'utf-8');
+    await writeFile(
+      absoluteSourcePath,
+      'export function relFunc() { return 42; }',
+      'utf-8',
+    );
+    await writeFile(
+      mainPath,
+      `import { relFunc } from './relative-source.js';\nconsole.error(relFunc());`,
+      'utf-8',
+    );
 
-    const relativeSourcePath = absoluteSourcePath.replace(process.cwd() + '/', '');
-    const relativeDestPath = absoluteDestPath.replace(process.cwd() + '/', '');
+    const relativeSourcePath = absoluteSourcePath.replace(
+      `${process.cwd()}/`,
+      '',
+    );
+    const relativeDestPath = absoluteDestPath.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
       sourcePath: relativeSourcePath,
-      destinationPath: relativeDestPath
+      destinationPath: relativeDestPath,
     });
 
     // Assert
@@ -124,16 +175,29 @@ describe('moveFile', () => {
   it('should work with absolute file paths', async () => {
     // Arrange
     const absoluteSourcePath = join(testDir, 'src', 'absolute-source.ts');
-    const absoluteDestPath = join(testDir, 'src', 'helpers', 'absolute-dest.ts');
+    const absoluteDestPath = join(
+      testDir,
+      'src',
+      'helpers',
+      'absolute-dest.ts',
+    );
     const mainPath = join(testDir, 'src', 'main.ts');
 
-    await writeFile(absoluteSourcePath, 'export function absFunc() { return 42; }', 'utf-8');
-    await writeFile(mainPath, `import { absFunc } from './absolute-source.js';\nconsole.error(absFunc());`, 'utf-8');
+    await writeFile(
+      absoluteSourcePath,
+      'export function absFunc() { return 42; }',
+      'utf-8',
+    );
+    await writeFile(
+      mainPath,
+      `import { absFunc } from './absolute-source.js';\nconsole.error(absFunc());`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       sourcePath: absoluteSourcePath,
-      destinationPath: absoluteDestPath
+      destinationPath: absoluteDestPath,
     });
 
     // Assert
@@ -156,7 +220,7 @@ describe('moveFile', () => {
   return { data: 'test' };
 }`;
 
-    const testContent = `import { describe, it, expect, vi } from 'vitest';
+    const testContent = `import { describe, it, expect, vi } from 'bun:test';
 import { fetchData } from './api.js';
 
 vi.mock('./api.js');
@@ -174,7 +238,7 @@ describe('api', () => {
     // Act
     const response = await operation!.execute({
       sourcePath: apiPath,
-      destinationPath: newApiPath
+      destinationPath: newApiPath,
     });
 
     // Assert
@@ -182,7 +246,9 @@ describe('api', () => {
     expect(existsSync(newApiPath)).toBe(true);
 
     const testFileContent = await readFile(testPath, 'utf-8');
-    expect(testFileContent).toContain("import { fetchData } from './services/api.js';");
+    expect(testFileContent).toContain(
+      "import { fetchData } from './services/api.js';",
+    );
     expect(testFileContent).toContain("vi.mock('./services/api.js');");
     expect(testFileContent).not.toContain("vi.mock('./api.js');");
   });
@@ -192,13 +258,21 @@ describe('api', () => {
     const dataPath = join(testDir, 'src', 'data.ts');
     const mainPath = join(testDir, 'src', 'main.ts');
 
-    await writeFile(dataPath, 'export function getData() { return [1,2,3]; }', 'utf-8');
-    await writeFile(mainPath, `import { getData } from './data.js';\nconsole.log(getData());`, 'utf-8');
+    await writeFile(
+      dataPath,
+      'export function getData() { return [1,2,3]; }',
+      'utf-8',
+    );
+    await writeFile(
+      mainPath,
+      `import { getData } from './data.js';\nconsole.log(getData());`,
+      'utf-8',
+    );
 
     // Act - First move
     const firstMove = await operation!.execute({
       sourcePath: dataPath,
-      destinationPath: join(testDir, 'src', 'services', 'data.ts')
+      destinationPath: join(testDir, 'src', 'services', 'data.ts'),
     });
 
     // Assert first move worked
@@ -209,7 +283,7 @@ describe('api', () => {
     // Act - Second consecutive move
     const secondMove = await operation!.execute({
       sourcePath: join(testDir, 'src', 'services', 'data.ts'),
-      destinationPath: join(testDir, 'src', 'utils', 'data.ts')
+      destinationPath: join(testDir, 'src', 'utils', 'data.ts'),
     });
 
     // Assert second move should also update imports

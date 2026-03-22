@@ -3,33 +3,34 @@
 const renamedVortexQuantum = 42;
 // Test organize imports: unused imports above (fs)
 class VortexManager {
-    vortexLabel;
-    vortexIntensity;
-    constructor(label, intensity) {
-        this.vortexLabel = label;
-        this.vortexIntensity = intensity;
-    }
-    // Test extract function: select lines 22-25 and extract
-    getVortexDetails() {
-        const details = `Label: ${this.vortexLabel}, Intensity: ${this.vortexIntensity}`;
-        const timestamp = new Date().toISOString();
-        const logEntry = `[${timestamp}] Vortex: ${details}`;
-        console.log(logEntry);
-        return details;
-    }
-    // Test extract variable: select the expression inside
-    calculateVortexPower(baseValue) {
-        return baseValue * 0.9 * (1 - 0.1);
-    }
+  vortexLabel;
+  vortexIntensity;
+  constructor(label, intensity) {
+    this.vortexLabel = label;
+    this.vortexIntensity = intensity;
+  }
+  // Test extract function: select lines 22-25 and extract
+  getVortexDetails() {
+    const details = `Label: ${this.vortexLabel}, Intensity: ${this.vortexIntensity}`;
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] Vortex: ${details}`;
+    console.log(logEntry);
+    return details;
+  }
+  // Test extract variable: select the expression inside
+  calculateVortexPower(baseValue) {
+    return baseValue * 0.9 * (1 - 0.1);
+  }
 }
 // Test fix all: missing type annotation
 function processVortexData(vortexArray) {
-    return vortexArray.map(vortex => vortex * 2);
+  return vortexArray.map((vortex) => vortex * 2);
 }
 // Test remove unused: this function is never called
 function unusedVortexOperation() {
-    console.log('This vortex operation is never used');
+  console.log('This vortex operation is never used');
 }
 // Using the variable to test rename
 console.log(renamedVortexQuantum);
+
 export { VortexManager };

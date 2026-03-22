@@ -1,19 +1,26 @@
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo } from '../language-servers/typescript/tsserver-types.js';
-import { Operation } from '../registry.js';
+import type {
+  RefactorResult,
+  TypeScriptServer,
+} from '../language-servers/typescript/tsserver-client.js';
+import type {
+  TSRefactorAction,
+  TSRefactorEditInfo,
+  TSRefactorInfo,
+} from '../language-servers/typescript/tsserver-types.js';
+import type { Operation } from '../registry.js';
 import { logger } from '../utils/logger.js';
 import { formatValidationError } from '../utils/validation-error.js';
-import { EditApplicator } from './shared/edit-applicator.js';
-import { FileOperations } from './shared/file-operations.js';
-import { TextPositionConverter } from './shared/text-position-converter.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type { EditApplicator } from './shared/edit-applicator.js';
+import type { FileOperations } from './shared/file-operations.js';
+import type { TextPositionConverter } from './shared/text-position-converter.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const inferReturnTypeSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
   text: z.string().min(1, 'Text cannot be empty'),
-  preview: z.boolean().optional()
+  preview: z.boolean().optional(),
 });
 
 export class InferReturnTypeOperation implements Operation {
@@ -22,9 +29,8 @@ export class InferReturnTypeOperation implements Operation {
     private fileOps: FileOperations,
     private textConverter: TextPositionConverter,
     private editApplicator: EditApplicator,
-    private tsServerGuard: TSServerGuard
+    private tsServerGuard: TSServerGuard,
   ) {}
-
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
@@ -33,13 +39,17 @@ export class InferReturnTypeOperation implements Operation {
       const filePath = this.fileOps.resolvePath(validated.filePath);
 
       const lines = await this.fileOps.readLines(filePath);
-      const positionResult = this.textConverter.findTextPosition(lines, line, text);
+      const positionResult = this.textConverter.findTextPosition(
+        lines,
+        line,
+        text,
+      );
 
       if (!positionResult.success) {
         return {
           success: false,
           message: positionResult.message,
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
@@ -50,15 +60,18 @@ export class InferReturnTypeOperation implements Operation {
 
       await this.tsServer.openFile(filePath);
 
-      const refactors = await this.tsServer.sendRequest('getApplicableRefactors', {
-        file: filePath,
-        startLine: line,
-        startOffset: column,
-        endLine: line,
-        endOffset: column,
-        triggerReason: 'invoked',
-        kind: 'refactor.rewrite.function.returnType'
-      }) as TSRefactorInfo[] | null;
+      const refactors = (await this.tsServer.sendRequest(
+        'getApplicableRefactors',
+        {
+          file: filePath,
+          startLine: line,
+          startOffset: column,
+          endLine: line,
+          endOffset: column,
+          triggerReason: 'invoked',
+          kind: 'refactor.rewrite.function.returnType',
+        },
+      )) as TSRefactorInfo[] | null;
 
       logger.debug({ refactors }, 'Available refactorings');
 
@@ -75,8 +88,10 @@ Try:
         };
       }
 
-      const inferRefactor = refactors.find((r) =>
-        r.name.toLowerCase().includes('infer') || r.name.toLowerCase().includes('return')
+      const inferRefactor = refactors.find(
+        (r) =>
+          r.name.toLowerCase().includes('infer') ||
+          r.name.toLowerCase().includes('return'),
       );
 
       if (!inferRefactor) {
@@ -84,16 +99,19 @@ Try:
           success: false,
           message: `Infer return type refactor not available at ${filePath}:${line}:${column}
 
-Available refactorings: ${refactors.map(r => r.name).join(', ')}
+Available refactorings: ${refactors.map((r) => r.name).join(', ')}
 
 Try a different location or use one of the available refactorings`,
           filesChanged: [],
         };
       }
 
-      const inferAction = inferRefactor.actions.find((a: TSRefactorAction) =>
-        a.description.toLowerCase().includes('infer') || a.description.toLowerCase().includes('return')
-      ) || inferRefactor.actions[0];
+      const inferAction =
+        inferRefactor.actions.find(
+          (a: TSRefactorAction) =>
+            a.description.toLowerCase().includes('infer') ||
+            a.description.toLowerCase().includes('return'),
+        ) || inferRefactor.actions[0];
 
       if (!inferAction) {
         return {
@@ -108,15 +126,18 @@ Try:
         };
       }
 
-      const edits = await this.tsServer.sendRequest<TSRefactorEditInfo>('getEditsForRefactor', {
-        file: filePath,
-        startLine: line,
-        startOffset: column,
-        endLine: line,
-        endOffset: column,
-        refactor: inferRefactor.name,
-        action: inferAction.name
-      });
+      const edits = await this.tsServer.sendRequest<TSRefactorEditInfo>(
+        'getEditsForRefactor',
+        {
+          file: filePath,
+          startLine: line,
+          startOffset: column,
+          endLine: line,
+          endOffset: column,
+          refactor: inferRefactor.name,
+          action: inferAction.name,
+        },
+      );
 
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
@@ -135,10 +156,19 @@ Try:
 
       for (const fileEdit of edits.edits) {
         const originalLines = await this.fileOps.readLines(fileEdit.fileName);
-        const sortedChanges = this.editApplicator.sortEdits(fileEdit.textChanges);
+        const sortedChanges = this.editApplicator.sortEdits(
+          fileEdit.textChanges,
+        );
 
-        const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, fileEdit.fileName);
-        const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
+        const fileChanges = this.editApplicator.buildFileChanges(
+          originalLines,
+          sortedChanges,
+          fileEdit.fileName,
+        );
+        const updatedLines = this.editApplicator.applyEdits(
+          originalLines,
+          sortedChanges,
+        );
 
         if (!validated.preview) {
           await this.fileOps.writeLines(fileEdit.fileName, updatedLines);
@@ -156,8 +186,8 @@ Try:
           preview: {
             filesAffected: filesChanged.length,
             estimatedTime: '< 1s',
-            command: 'Run again with preview: false to apply changes'
-          }
+            command: 'Run again with preview: false to apply changes',
+          },
         };
       }
 
@@ -165,11 +195,8 @@ Try:
         success: true,
         message: 'Inferred return type successfully',
         filesChanged,
-        nextActions: [
-          'organize_imports - Add any missing type imports'
-        ]
+        nextActions: ['organize_imports - Add any missing type imports'],
       };
-
     } catch (error) {
       if (error instanceof z.ZodError) {
         return formatValidationError(error);

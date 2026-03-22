@@ -2,7 +2,10 @@
 import { NebulaComponent } from './components/nebula-component.js';
 import { QUIXOTIC_DEFAULT_PRICE } from './models/quixotic.js';
 import { ZephyrService } from './services/zephyr-service.js';
-import { calculateXylophoneFrequency, performXylophoneTransform } from './utils/xylophone-helpers.js';
+import {
+  calculateXylophoneFrequency,
+  performXylophoneTransform,
+} from './utils/xylophone-helpers.js';
 
 // Test file showing cross-file dependencies
 
@@ -15,7 +18,7 @@ function quasarMain() {
   const zephyr = zephyrService.addZephyr({
     zephyrName: 'Zephyr Alpha',
     zephyrAge: 25,
-    zephyrEmail: 'alpha@zephyr.test'
+    zephyrEmail: 'alpha@zephyr.test',
   });
 
   console.log('Zephyr name:', zephyr.getZephyrDisplayName());
@@ -29,8 +32,10 @@ function quasarMain() {
   console.log('Transformed:', transformed);
 
   // Test extract variable: complex expression
-  const complexCalculation = (zephyr.zephyrAge * 2 + QUIXOTIC_DEFAULT_PRICE / 10) *
-    (zephyr.isAdultZephyr() ? 1.5 : 0.75) + calculateXylophoneFrequency('A');
+  const complexCalculation =
+    (zephyr.zephyrAge * 2 + QUIXOTIC_DEFAULT_PRICE / 10) *
+      (zephyr.isAdultZephyr() ? 1.5 : 0.75) +
+    calculateXylophoneFrequency('A');
   console.log('Complex result:', complexCalculation);
 
   // Generate report

@@ -1,10 +1,24 @@
-import { mkdir, readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { CleanupCodebaseOperation } from '../cleanup-codebase.js';
+import type { CleanupCodebaseOperation } from '../cleanup-codebase.js';
 import { createCleanupCodebaseOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 describe('cleanupCodebase', () => {
   let operation: CleanupCodebaseOperation | null = null;
@@ -31,23 +45,35 @@ describe('cleanupCodebase', () => {
     const file2Path = join(testDir, 'src', 'file2.ts');
 
     // Use unsorted imports that can be organized
-    await writeFile(file1Path, `import { c, a, b } from './utils.js';
+    await writeFile(
+      file1Path,
+      `import { c, a, b } from './utils.js';
 
 const x = a + b + c;
-console.error(x);`, 'utf-8');
+console.error(x);`,
+      'utf-8',
+    );
 
-    await writeFile(file2Path, `import { b, a, c } from './utils.js';
+    await writeFile(
+      file2Path,
+      `import { b, a, c } from './utils.js';
 
 const result = a + b + c;
-console.error(result);`, 'utf-8');
+console.error(result);`,
+      'utf-8',
+    );
 
-    await writeFile(join(testDir, 'src', 'utils.ts'), `export const a = 1;
+    await writeFile(
+      join(testDir, 'src', 'utils.ts'),
+      `export const a = 1;
 export const b = 2;
-export const c = 3;`, 'utf-8');
+export const c = 3;`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
-      directory: join(testDir, 'src')
+      directory: join(testDir, 'src'),
     });
 
     // Assert
@@ -76,14 +102,18 @@ const x = a + b + c;
 console.error(x);`;
 
     await writeFile(file1Path, originalContent, 'utf-8');
-    await writeFile(join(testDir, 'src', 'utils.ts'), `export const a = 1;
+    await writeFile(
+      join(testDir, 'src', 'utils.ts'),
+      `export const a = 1;
 export const b = 2;
-export const c = 3;`, 'utf-8');
+export const c = 3;`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       directory: join(testDir, 'src'),
-      preview: true
+      preview: true,
     });
 
     // Assert
@@ -106,7 +136,7 @@ export const c = 3;`, 'utf-8');
 
     // Act
     const response = await operation!.execute({
-      directory: emptyDir
+      directory: emptyDir,
     });
 
     // Assert
@@ -119,27 +149,39 @@ export const c = 3;`, 'utf-8');
     const mainPath = join(testDir, 'src', 'main.ts');
     const utilsPath = join(testDir, 'src', 'utils.ts');
 
-    await writeFile(mainPath, `import { usedFunc } from './utils.js';
-console.log(usedFunc());`, 'utf-8');
+    await writeFile(
+      mainPath,
+      `import { usedFunc } from './utils.js';
+console.log(usedFunc());`,
+      'utf-8',
+    );
 
-    await writeFile(utilsPath, `export function usedFunc() {
+    await writeFile(
+      utilsPath,
+      `export function usedFunc() {
   return 42;
 }
 
 export function unusedFunc() {
   return 100;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
-    await writeFile(join(testDir, 'package.json'), JSON.stringify({
-      name: 'test',
-      type: 'module'
-    }), 'utf-8');
+    await writeFile(
+      join(testDir, 'package.json'),
+      JSON.stringify({
+        name: 'test',
+        type: 'module',
+      }),
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       directory: join(testDir, 'src'),
       entrypoints: ['main\\.ts$'],
-      deleteUnusedFiles: true
+      deleteUnusedFiles: true,
     });
 
     // Assert
@@ -157,15 +199,23 @@ export function unusedFunc() {
     const nodeModulesDir = join(srcDir, 'node_modules');
     await mkdir(nodeModulesDir, { recursive: true });
 
-    await writeFile(join(srcDir, 'file.ts'), `const x = 1;
-console.error(x);`, 'utf-8');
+    await writeFile(
+      join(srcDir, 'file.ts'),
+      `const x = 1;
+console.error(x);`,
+      'utf-8',
+    );
 
-    await writeFile(join(nodeModulesDir, 'library.ts'), `const y = 2;
-console.error(y);`, 'utf-8');
+    await writeFile(
+      join(nodeModulesDir, 'library.ts'),
+      `const y = 2;
+console.error(y);`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
-      directory: srcDir
+      directory: srcDir,
     });
 
     // Assert
@@ -180,24 +230,36 @@ console.error(y);`, 'utf-8');
     const file2Path = join(testDir, 'src', 'needs-cleanup.ts');
 
     // File with already-organized imports (no changes needed)
-    await writeFile(file1Path, `import { a, b, c } from './utils.js';
+    await writeFile(
+      file1Path,
+      `import { a, b, c } from './utils.js';
 
 const x = a + b + c;
-console.error(x);`, 'utf-8');
+console.error(x);`,
+      'utf-8',
+    );
 
     // File with unsorted imports (needs organizing)
-    await writeFile(file2Path, `import { c, b, a } from './utils.js';
+    await writeFile(
+      file2Path,
+      `import { c, b, a } from './utils.js';
 
 const y = a + b + c;
-console.error(y);`, 'utf-8');
+console.error(y);`,
+      'utf-8',
+    );
 
-    await writeFile(join(testDir, 'src', 'utils.ts'), `export const a = 1;
+    await writeFile(
+      join(testDir, 'src', 'utils.ts'),
+      `export const a = 1;
 export const b = 2;
-export const c = 3;`, 'utf-8');
+export const c = 3;`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
-      directory: join(testDir, 'src')
+      directory: join(testDir, 'src'),
     });
 
     // Assert
@@ -216,7 +278,7 @@ export const c = 3;`, 'utf-8');
     expect(changedFile.edits.length).toBeGreaterThan(0);
 
     // file1 should NOT be in filesChanged (was already clean)
-    expect(response.filesChanged.every(f => f.path !== file1Path)).toBe(true);
+    expect(response.filesChanged.every((f) => f.path !== file1Path)).toBe(true);
   });
 
   it('should work with relative directory path', async () => {
@@ -224,20 +286,28 @@ export const c = 3;`, 'utf-8');
     const srcDir = join(testDir, 'src');
     const file1Path = join(srcDir, 'rel-file1.ts');
 
-    await writeFile(file1Path, `import { c, a, b } from './utils.js';
+    await writeFile(
+      file1Path,
+      `import { c, a, b } from './utils.js';
 
 const x = a + b + c;
-console.error(x);`, 'utf-8');
+console.error(x);`,
+      'utf-8',
+    );
 
-    await writeFile(join(srcDir, 'utils.ts'), `export const a = 1;
+    await writeFile(
+      join(srcDir, 'utils.ts'),
+      `export const a = 1;
 export const b = 2;
-export const c = 3;`, 'utf-8');
+export const c = 3;`,
+      'utf-8',
+    );
 
-    const relativeSrcDir = srcDir.replace(process.cwd() + '/', '');
+    const relativeSrcDir = srcDir.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
-      directory: relativeSrcDir
+      directory: relativeSrcDir,
     });
 
     // Assert
@@ -254,18 +324,26 @@ export const c = 3;`, 'utf-8');
     const srcDir = join(testDir, 'src');
     const file1Path = join(srcDir, 'abs-file1.ts');
 
-    await writeFile(file1Path, `import { c, a, b } from './utils.js';
+    await writeFile(
+      file1Path,
+      `import { c, a, b } from './utils.js';
 
 const x = a + b + c;
-console.error(x);`, 'utf-8');
+console.error(x);`,
+      'utf-8',
+    );
 
-    await writeFile(join(srcDir, 'utils.ts'), `export const a = 1;
+    await writeFile(
+      join(srcDir, 'utils.ts'),
+      `export const a = 1;
 export const b = 2;
-export const c = 3;`, 'utf-8');
+export const c = 3;`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
-      directory: srcDir
+      directory: srcDir,
     });
 
     // Assert
@@ -285,19 +363,27 @@ export const c = 3;`, 'utf-8');
     // Create 25 files with unsorted imports
     for (let i = 1; i <= 25; i++) {
       const filePath = join(largeDir, `file${i}.ts`);
-      await writeFile(filePath, `import { z, b, a } from './utils.js';
+      await writeFile(
+        filePath,
+        `import { z, b, a } from './utils.js';
 
 const value${i} = a + b;
-console.error(value${i}, z);`, 'utf-8');
+console.error(value${i}, z);`,
+        'utf-8',
+      );
     }
 
-    await writeFile(join(largeDir, 'utils.ts'), `export const a = 1;
+    await writeFile(
+      join(largeDir, 'utils.ts'),
+      `export const a = 1;
 export const b = 2;
-export const z = 3;`, 'utf-8');
+export const z = 3;`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
-      directory: largeDir
+      directory: largeDir,
     });
 
     // Assert

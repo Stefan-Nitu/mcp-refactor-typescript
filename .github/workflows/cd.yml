@@ -21,6 +21,9 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
@@ -28,10 +31,10 @@ jobs:
         registry-url: 'https://registry.npmjs.org'
 
     - name: Install dependencies
-      run: npm ci
+      run: bun install
 
     - name: Build
-      run: npm run build
+      run: bun run build
 
     - name: Check if version changed
       id: version
@@ -42,10 +45,10 @@ jobs:
         echo "local=$LOCAL_VERSION" >> $GITHUB_OUTPUT
         if [ "$PUBLISHED_VERSION" != "$LOCAL_VERSION" ]; then
           echo "changed=true" >> $GITHUB_OUTPUT
-          echo "🚀 Version changed from $PUBLISHED_VERSION to $LOCAL_VERSION"
+          echo "Version changed from $PUBLISHED_VERSION to $LOCAL_VERSION"
         else
           echo "changed=false" >> $GITHUB_OUTPUT
-          echo "✅ Version unchanged ($LOCAL_VERSION)"
+          echo "Version unchanged ($LOCAL_VERSION)"
         fi
 
     - name: Publish to npm
@@ -53,7 +56,7 @@ jobs:
       run: |
         echo "Publishing version ${{ steps.version.outputs.local }} to npm..."
         npm publish
-        echo "✅ Successfully published to https://www.npmjs.com/package/mcp-refactor-typescript"
+        echo "Successfully published to https://www.npmjs.com/package/mcp-refactor-typescript"
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -64,10 +67,10 @@ jobs:
         git config --global user.name "github-actions[bot]"
         TAG="v${{ steps.version.outputs.local }}"
         if git rev-parse "$TAG" >/dev/null 2>&1; then
-          echo "✅ Tag $TAG already exists, skipping tag creation"
+          echo "Tag $TAG already exists, skipping tag creation"
         else
           git tag -a "$TAG" -m "Release $TAG"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git push origin "$TAG"
-          echo "✅ Created and pushed tag $TAG"
+          echo "Created and pushed tag $TAG"
         fi

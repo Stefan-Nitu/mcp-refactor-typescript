@@ -5,7 +5,7 @@
  * For readiness checking and waiting logic, see tsserver-guard.unit.test.ts
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { TSServerGuard } from '../../../operations/shared/tsserver-guard.js';
 import { TypeScriptServer } from '../tsserver-client.js';
 
@@ -28,7 +28,7 @@ describe('TypeScript Project Indexing', () => {
     it('should track project loading via events', async () => {
       // Arrange & Act
       await tsServer.start(process.cwd());
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Assert
       expect(tsServer.isProjectLoaded()).toBe(true);
@@ -82,7 +82,7 @@ describe('TypeScript Project Indexing', () => {
       await tsServer.openFile(__filename);
       const result = await tsServer.sendRequest('projectInfo', {
         file: __filename,
-        needFileNameList: false
+        needFileNameList: false,
       });
 
       // Assert

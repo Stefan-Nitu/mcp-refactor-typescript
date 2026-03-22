@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { MessageParser } from '../message-parser.js';
 
 function buildMessage(body: object): string {
@@ -22,8 +22,18 @@ describe('MessageParser', () => {
   it('should parse batched messages in a single chunk', () => {
     // Arrange
     const parser = new MessageParser();
-    const body1 = { seq: 1, type: 'response', success: true, body: { first: true } };
-    const body2 = { seq: 2, type: 'response', success: true, body: { second: true } };
+    const body1 = {
+      seq: 1,
+      type: 'response',
+      success: true,
+      body: { first: true },
+    };
+    const body2 = {
+      seq: 2,
+      type: 'response',
+      success: true,
+      body: { second: true },
+    };
 
     // Act
     const messages = parser.feed(buildMessage(body1) + buildMessage(body2));
@@ -39,7 +49,9 @@ describe('MessageParser', () => {
     const body2 = { seq: 2, type: 'response', request_seq: 2, success: true };
 
     // Act
-    const messages = parser.feed(buildMessage(body1) + '\r\n' + buildMessage(body2));
+    const messages = parser.feed(
+      `${buildMessage(body1)}\r\n${buildMessage(body2)}`,
+    );
 
     // Assert
     expect(messages).toEqual([body1, body2]);
@@ -48,7 +60,12 @@ describe('MessageParser', () => {
   it('should handle partial messages across multiple chunks', () => {
     // Arrange
     const parser = new MessageParser();
-    const body = { seq: 1, type: 'response', success: true, body: { chunked: true } };
+    const body = {
+      seq: 1,
+      type: 'response',
+      success: true,
+      body: { chunked: true },
+    };
     const full = buildMessage(body);
     const mid = Math.floor(full.length / 2);
 

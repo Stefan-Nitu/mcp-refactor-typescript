@@ -13,8 +13,8 @@ import { OrganizeImportsOperation } from '../organize-imports.js';
 import { RefactorModuleOperation } from '../refactor-module.js';
 import { RefactoringProcessor } from '../refactoring-processor.js';
 import { RemoveUnusedOperation } from '../remove-unused.js';
-import { RenameFileOperation } from '../rename-file.js';
 import { RenameOperation } from '../rename.js';
+import { RenameFileOperation } from '../rename-file.js';
 import { RestartTsServerOperation } from '../restart-tsserver.js';
 import { EditApplicator } from './edit-applicator.js';
 import { FileDiscovery } from './file-discovery.js';
@@ -29,7 +29,7 @@ export function createRenameFileOperation(tsServer: TypeScriptServer) {
   return new RenameFileOperation(
     new TSServerGuard(tsServer),
     new FileDiscovery(tsServer),
-    new FileMover(tsServer)
+    new FileMover(tsServer),
   );
 }
 
@@ -37,7 +37,7 @@ export function createMoveFileOperation(tsServer: TypeScriptServer) {
   return new MoveFileOperation(
     new TSServerGuard(tsServer),
     new FileDiscovery(tsServer),
-    new FileMover(tsServer)
+    new FileMover(tsServer),
   );
 }
 
@@ -45,7 +45,7 @@ export function createBatchMoveFilesOperation(tsServer: TypeScriptServer) {
   return new BatchMoveFilesOperation(
     new TSServerGuard(tsServer),
     new FileDiscovery(tsServer),
-    new FileMover(tsServer)
+    new FileMover(tsServer),
   );
 }
 
@@ -56,7 +56,7 @@ export function createRenameOperation(tsServer: TypeScriptServer) {
     new TextPositionConverter(),
     new EditApplicator(),
     new TSServerGuard(tsServer),
-    new FileDiscovery(tsServer)
+    new FileDiscovery(tsServer),
   );
 }
 
@@ -66,7 +66,7 @@ export function createOrganizeImportsOperation(tsServer: TypeScriptServer) {
     new FileOperations(),
     new EditApplicator(),
     new FormatConfigurator(tsServer, new IndentationDetector()),
-    new TSServerGuard(tsServer)
+    new TSServerGuard(tsServer),
   );
 }
 
@@ -75,7 +75,7 @@ export function createFixAllOperation(tsServer: TypeScriptServer) {
     tsServer,
     new FileOperations(),
     new EditApplicator(),
-    new TSServerGuard(tsServer)
+    new TSServerGuard(tsServer),
   );
 }
 
@@ -84,7 +84,7 @@ export function createRemoveUnusedOperation(tsServer: TypeScriptServer) {
     tsServer,
     new FileOperations(),
     new EditApplicator(),
-    new TSServerGuard(tsServer)
+    new TSServerGuard(tsServer),
   );
 }
 
@@ -94,7 +94,7 @@ export function createFindReferencesOperation(tsServer: TypeScriptServer) {
     new FileOperations(),
     new TextPositionConverter(),
     new TSServerGuard(tsServer),
-    new FileDiscovery(tsServer)
+    new FileDiscovery(tsServer),
   );
 }
 
@@ -106,7 +106,7 @@ export function createExtractFunctionOperation(tsServer: TypeScriptServer) {
     new TextPositionConverter(),
     new EditApplicator(),
     new FormatConfigurator(tsServer, new IndentationDetector()),
-    new TSServerGuard(tsServer)
+    new TSServerGuard(tsServer),
   );
 }
 
@@ -118,7 +118,7 @@ export function createExtractConstantOperation(tsServer: TypeScriptServer) {
     new TextPositionConverter(),
     new EditApplicator(),
     new FormatConfigurator(tsServer, new IndentationDetector()),
-    new TSServerGuard(tsServer)
+    new TSServerGuard(tsServer),
   );
 }
 
@@ -130,7 +130,7 @@ export function createExtractVariableOperation(tsServer: TypeScriptServer) {
     new TextPositionConverter(),
     new EditApplicator(),
     new FormatConfigurator(tsServer, new IndentationDetector()),
-    new TSServerGuard(tsServer)
+    new TSServerGuard(tsServer),
   );
 }
 
@@ -141,7 +141,7 @@ export function createMoveToFileOperation(tsServer: TypeScriptServer) {
     new TextPositionConverter(),
     new EditApplicator(),
     new FormatConfigurator(tsServer, new IndentationDetector()),
-    new TSServerGuard(tsServer)
+    new TSServerGuard(tsServer),
   );
 }
 
@@ -151,7 +151,7 @@ export function createInferReturnTypeOperation(tsServer: TypeScriptServer) {
     new FileOperations(),
     new TextPositionConverter(),
     new EditApplicator(),
-    new TSServerGuard(tsServer)
+    new TSServerGuard(tsServer),
   );
 }
 
@@ -160,14 +160,14 @@ export function createRefactorModuleOperation(tsServer: TypeScriptServer) {
     new TSServerGuard(tsServer),
     createMoveFileOperation(tsServer),
     createOrganizeImportsOperation(tsServer),
-    createFixAllOperation(tsServer)
+    createFixAllOperation(tsServer),
   );
 }
 
 export function createCleanupCodebaseOperation(tsServer: TypeScriptServer) {
   return new CleanupCodebaseOperation(
     new TSServerGuard(tsServer),
-    createOrganizeImportsOperation(tsServer)
+    createOrganizeImportsOperation(tsServer),
   );
 }
 

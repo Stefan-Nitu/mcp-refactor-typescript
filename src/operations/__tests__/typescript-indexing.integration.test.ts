@@ -1,10 +1,24 @@
-import { mkdir, rm, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { RenameOperation } from '../rename.js';
+import type { RenameOperation } from '../rename.js';
 import { createRenameOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -29,14 +43,26 @@ describe('TypeScript Indexing and Project Loading', () => {
       const mainPath = join(testDir, 'src', 'main.ts');
       const utilsPath = join(testDir, 'src', 'utils.ts');
 
-      await writeFile(libPath, `export function processData(data: string): string {
+      await writeFile(
+        libPath,
+        `export function processData(data: string): string {
   return data.toUpperCase();
-}`, 'utf-8');
+}`,
+        'utf-8',
+      );
 
-      await writeFile(mainPath, `import { processData } from './lib.js';
-const result = processData('hello');`, 'utf-8');
+      await writeFile(
+        mainPath,
+        `import { processData } from './lib.js';
+const result = processData('hello');`,
+        'utf-8',
+      );
 
-      await writeFile(utilsPath, `export function helper() { return 42; }`, 'utf-8');
+      await writeFile(
+        utilsPath,
+        `export function helper() { return 42; }`,
+        'utf-8',
+      );
 
       if (!testServer) throw new Error('testServer is null');
 
@@ -48,15 +74,14 @@ const result = processData('hello');`, 'utf-8');
         fileNames?: string[];
       }>('projectInfo', {
         file: libPath,
-        needFileNameList: true
+        needFileNameList: true,
       });
 
       // Assert
       expect(projectInfo?.fileNames).toBeDefined();
 
-      const projectFiles = projectInfo!.fileNames!.filter(f =>
-        !f.includes('node_modules') &&
-        !f.match(/\/lib\.[^/]+\.d\.ts$/)
+      const projectFiles = projectInfo!.fileNames!.filter(
+        (f) => !f.includes('node_modules') && !f.match(/\/lib\.[^/]+\.d\.ts$/),
       );
 
       expect(projectFiles).toContain(libPath);
@@ -69,12 +94,20 @@ const result = processData('hello');`, 'utf-8');
       const libPath = join(testDir, 'src', 'lib.ts');
       const mainPath = join(testDir, 'src', 'main.ts');
 
-      await writeFile(libPath, `export function processData(data: string): string {
+      await writeFile(
+        libPath,
+        `export function processData(data: string): string {
   return data.toUpperCase();
-}`, 'utf-8');
+}`,
+        'utf-8',
+      );
 
-      await writeFile(mainPath, `import { processData } from './lib.js';
-const result = processData('hello');`, 'utf-8');
+      await writeFile(
+        mainPath,
+        `import { processData } from './lib.js';
+const result = processData('hello');`,
+        'utf-8',
+      );
 
       if (!testServer) throw new Error('testServer is null');
 
@@ -82,13 +115,17 @@ const result = processData('hello');`, 'utf-8');
 
       // Act
       const fileRefsResponse = await testServer.sendRequest<{
-        refs: Array<{ file: string; start: { line: number; offset: number }; end: { line: number; offset: number } }>;
+        refs: Array<{
+          file: string;
+          start: { line: number; offset: number };
+          end: { line: number; offset: number };
+        }>;
         symbolName: string;
       }>('fileReferences', { file: libPath });
 
       // Assert
       if (fileRefsResponse?.refs) {
-        const importingFiles = fileRefsResponse.refs.map(ref => ref.file);
+        const importingFiles = fileRefsResponse.refs.map((ref) => ref.file);
 
         for (const file of importingFiles) {
           await testServer.openFile(file);
@@ -98,13 +135,17 @@ const result = processData('hello');`, 'utf-8');
           filePath: libPath,
           line: 1,
           text: 'processData',
-          name: 'transformData'
+          name: 'transformData',
         });
 
         expect(renameResponse.success).toBe(true);
         expect(renameResponse.filesChanged).toHaveLength(2);
-        expect(renameResponse.filesChanged.map(f => f.path)).toContain(libPath);
-        expect(renameResponse.filesChanged.map(f => f.path)).toContain(mainPath);
+        expect(renameResponse.filesChanged.map((f) => f.path)).toContain(
+          libPath,
+        );
+        expect(renameResponse.filesChanged.map((f) => f.path)).toContain(
+          mainPath,
+        );
       } else {
         expect(fileRefsResponse).toBeDefined();
       }
@@ -123,20 +164,32 @@ const result = processData('hello');`, 'utf-8');
           compilerOptions: {
             target: 'ES2022',
             module: 'NodeNext',
-            moduleResolution: 'NodeNext'
+            moduleResolution: 'NodeNext',
           },
-          include: ['src/**/*']
+          include: ['src/**/*'],
         }),
-        'utf-8'
+        'utf-8',
       );
 
       const lib1Path = join(testDir, 'src', 'lib1.ts');
       const lib2Path = join(testDir, 'src', 'lib2.ts');
       const mainPath = join(testDir, 'src', 'main.ts');
 
-      await writeFile(lib1Path, 'export function processData(data: string): string {\n  return data.toUpperCase();\n}', 'utf-8');
-      await writeFile(lib2Path, 'export function helperFunc() { return 42; }', 'utf-8');
-      await writeFile(mainPath, 'import { processData } from \'./lib1.js\';\nconst result = processData(\'test\');', 'utf-8');
+      await writeFile(
+        lib1Path,
+        'export function processData(data: string): string {\n  return data.toUpperCase();\n}',
+        'utf-8',
+      );
+      await writeFile(
+        lib2Path,
+        'export function helperFunc() { return 42; }',
+        'utf-8',
+      );
+      await writeFile(
+        mainPath,
+        "import { processData } from './lib1.js';\nconst result = processData('test');",
+        'utf-8',
+      );
 
       const freshServer = new TypeScriptServer();
       const freshOperation = createRenameOperation(freshServer);
@@ -149,14 +202,16 @@ const result = processData('hello');`, 'utf-8');
           filePath: lib1Path,
           line: 1,
           text: 'processData',
-          name: 'transformData'
+          name: 'transformData',
         });
 
         // Assert
         expect(response.success).toBe(true);
 
         if (response.message.includes('TypeScript is still indexing')) {
-          expect(response.message).toContain('Some references may have been missed');
+          expect(response.message).toContain(
+            'Some references may have been missed',
+          );
         } else {
           expect(response.message).toContain('Renamed to "transformData"');
         }

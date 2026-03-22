@@ -1,5 +1,5 @@
-import { readdir } from 'fs/promises';
-import { dirname, join } from 'path';
+import { readdir } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import type { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { logger } from '../../utils/logger.js';
 
@@ -13,7 +13,9 @@ export class FileDiscovery {
 
   constructor(private tsServer: TypeScriptServer) {}
 
-  async discoverRelatedFiles(filePath: string | string[]): Promise<ProjectStatus> {
+  async discoverRelatedFiles(
+    filePath: string | string[],
+  ): Promise<ProjectStatus> {
     const files = Array.isArray(filePath) ? filePath : [filePath];
 
     for (const file of files) {
@@ -28,11 +30,14 @@ export class FileDiscovery {
 
     return {
       isFullyLoaded: this.tsServer.isProjectLoaded(),
-      didScanTimeout: this.lastScanTimedOut
+      didScanTimeout: this.lastScanTimedOut,
     };
   }
 
-  private async waitForFileIndexing(filePath: string, maxAttempts = 30): Promise<{ refs: Array<{ file: string }> } | null> {
+  private async waitForFileIndexing(
+    filePath: string,
+    maxAttempts = 30,
+  ): Promise<{ refs: Array<{ file: string }> } | null> {
     for (let i = 0; i < maxAttempts; i++) {
       try {
         const refs = await this.tsServer.sendRequest<{
@@ -40,17 +45,27 @@ export class FileDiscovery {
         }>('fileReferences', { file: filePath });
 
         if (refs !== null) {
-          logger.debug({ attempt: i + 1, refsCount: refs.refs?.length || 0, file: filePath }, 'File indexed');
+          logger.debug(
+            {
+              attempt: i + 1,
+              refsCount: refs.refs?.length || 0,
+              file: filePath,
+            },
+            'File indexed',
+          );
           return refs;
         }
       } catch {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
     return null;
   }
 
-  private async scanTypeScriptFiles(dir: string, timeoutMs = 5000): Promise<string[]> {
+  private async scanTypeScriptFiles(
+    dir: string,
+    timeoutMs = 5000,
+  ): Promise<string[]> {
     const files: string[] = [];
     const startTime = Date.now();
     let timedOut = false;
@@ -58,7 +73,10 @@ export class FileDiscovery {
     const scan = async (currentDir: string): Promise<void> => {
       if (Date.now() - startTime > timeoutMs) {
         timedOut = true;
-        logger.debug({ elapsed: Date.now() - startTime, filesFound: files.length }, 'Filesystem scan timeout');
+        logger.debug(
+          { elapsed: Date.now() - startTime, filesFound: files.length },
+          'Filesystem scan timeout',
+        );
         return;
       }
 
@@ -74,11 +92,19 @@ export class FileDiscovery {
           const fullPath = join(currentDir, entry.name);
 
           if (entry.isDirectory()) {
-            if (entry.name === 'node_modules' || entry.name.startsWith('.') || entry.name === 'dist') {
+            if (
+              entry.name === 'node_modules' ||
+              entry.name.startsWith('.') ||
+              entry.name === 'dist'
+            ) {
               continue;
             }
             await scan(fullPath);
-          } else if (entry.isFile() && /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
+          } else if (
+            entry.isFile() &&
+            /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(entry.name) &&
+            !entry.name.endsWith('.d.ts')
+          ) {
             files.push(fullPath);
           }
         }
@@ -91,9 +117,15 @@ export class FileDiscovery {
     this.lastScanTimedOut = timedOut;
 
     if (timedOut) {
-      logger.debug({ filesFound: files.length, elapsed: Date.now() - startTime }, 'Filesystem scan incomplete (timeout)');
+      logger.debug(
+        { filesFound: files.length, elapsed: Date.now() - startTime },
+        'Filesystem scan incomplete (timeout)',
+      );
     } else {
-      logger.debug({ filesFound: files.length, elapsed: Date.now() - startTime }, 'Filesystem scan complete');
+      logger.debug(
+        { filesFound: files.length, elapsed: Date.now() - startTime },
+        'Filesystem scan complete',
+      );
     }
 
     return files;
@@ -106,21 +138,27 @@ export class FileDiscovery {
       const refs = await this.waitForFileIndexing(file);
 
       if (refs?.refs?.length) {
-        logger.debug({ file, importersCount: refs.refs.length }, 'Found files that reference this file');
-        refs.refs.forEach(ref => {
+        logger.debug(
+          { file, importersCount: refs.refs.length },
+          'Found files that reference this file',
+        );
+        refs.refs.forEach((ref) => {
           if (ref.file !== file) {
             importingFiles.add(ref.file);
           }
         });
       } else if (!refs || refs.refs.length === 0) {
-        logger.debug({ file }, 'File not indexed or has no refs, scanning for undiscovered files');
+        logger.debug(
+          { file },
+          'File not indexed or has no refs, scanning for undiscovered files',
+        );
 
         const projectInfo = await this.tsServer.sendRequest<{
           configFileName: string;
           fileNames?: string[];
         }>('projectInfo', {
           file,
-          needFileNameList: true
+          needFileNameList: true,
         });
 
         if (!projectInfo?.configFileName) continue;
@@ -130,20 +168,23 @@ export class FileDiscovery {
         const allFiles = await this.scanTypeScriptFiles(projectRoot);
 
         allFiles
-          .filter(f => !knownFiles.has(f) && !files.includes(f))
-          .forEach(f => importingFiles.add(f));
+          .filter((f) => !knownFiles.has(f) && !files.includes(f))
+          .forEach((f) => importingFiles.add(f));
       }
     }
 
     if (importingFiles.size > 0) {
-      logger.debug({ count: importingFiles.size }, 'Opening importing files in parallel');
+      logger.debug(
+        { count: importingFiles.size },
+        'Opening importing files in parallel',
+      );
 
       await Promise.all(
-        Array.from(importingFiles).map(file =>
-          this.tsServer.openFile(file).catch(error => {
+        Array.from(importingFiles).map((file) =>
+          this.tsServer.openFile(file).catch((error) => {
             logger.debug({ file, error }, 'Failed to open importing file');
-          })
-        )
+          }),
+        ),
       );
     }
   }
@@ -160,7 +201,8 @@ export class FileDiscovery {
     }
 
     if (warningMessage) {
-      warningMessage += ' If results seem incomplete, try running the operation again.';
+      warningMessage +=
+        ' If results seem incomplete, try running the operation again.';
     }
 
     return warningMessage;

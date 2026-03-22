@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { batchMoveFilesSchema } from '../batch-move-files.js';
 import { extractFunctionSchema } from '../extract-function.js';
 import { findReferencesSchema } from '../find-references.js';
@@ -17,7 +17,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: 10,
         text: 'oldName',
-        name: 'newVariableName'
+        name: 'newVariableName',
       });
       expect(result.success).toBe(true);
     });
@@ -26,7 +26,7 @@ describe('Schema Validation', () => {
       const result = renameSchema.safeParse({
         line: 10,
         text: 'oldName',
-        name: 'newName'
+        name: 'newName',
       });
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -39,7 +39,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: '10',
         text: 'oldName',
-        name: 'newName'
+        name: 'newName',
       });
       expect(result.success).toBe(false);
     });
@@ -49,7 +49,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: 10,
         text: 'oldName',
-        name: ''
+        name: '',
       });
       expect(result.success).toBe(false);
     });
@@ -59,7 +59,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: -1,
         text: 'oldName',
-        name: 'newName'
+        name: 'newName',
       });
       expect(result.success).toBe(false);
     });
@@ -69,14 +69,14 @@ describe('Schema Validation', () => {
     it('should validate correct input', () => {
       const result = moveFileSchema.safeParse({
         sourcePath: '/path/to/source.ts',
-        destinationPath: '/path/to/dest.ts'
+        destinationPath: '/path/to/dest.ts',
       });
       expect(result.success).toBe(true);
     });
 
     it('should reject missing sourcePath', () => {
       const result = moveFileSchema.safeParse({
-        destinationPath: '/path/to/dest.ts'
+        destinationPath: '/path/to/dest.ts',
       });
       expect(result.success).toBe(false);
     });
@@ -84,7 +84,7 @@ describe('Schema Validation', () => {
     it('should reject empty strings', () => {
       const result = moveFileSchema.safeParse({
         sourcePath: '',
-        destinationPath: '/path/to/dest.ts'
+        destinationPath: '/path/to/dest.ts',
       });
       expect(result.success).toBe(false);
     });
@@ -94,7 +94,7 @@ describe('Schema Validation', () => {
     it('should validate correct input', () => {
       const result = batchMoveFilesSchema.safeParse({
         files: ['/path/to/file1.ts', '/path/to/file2.ts'],
-        targetFolder: '/path/to/folder'
+        targetFolder: '/path/to/folder',
       });
       expect(result.success).toBe(true);
     });
@@ -102,7 +102,7 @@ describe('Schema Validation', () => {
     it('should reject empty files array', () => {
       const result = batchMoveFilesSchema.safeParse({
         files: [],
-        targetFolder: '/path/to/folder'
+        targetFolder: '/path/to/folder',
       });
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -113,7 +113,7 @@ describe('Schema Validation', () => {
     it('should reject non-array files', () => {
       const result = batchMoveFilesSchema.safeParse({
         files: '/path/to/file.ts',
-        targetFolder: '/path/to/folder'
+        targetFolder: '/path/to/folder',
       });
       expect(result.success).toBe(false);
     });
@@ -121,7 +121,7 @@ describe('Schema Validation', () => {
     it('should reject empty targetFolder', () => {
       const result = batchMoveFilesSchema.safeParse({
         files: ['/path/to/file.ts'],
-        targetFolder: ''
+        targetFolder: '',
       });
       expect(result.success).toBe(false);
     });
@@ -130,7 +130,7 @@ describe('Schema Validation', () => {
   describe('organizeImportsSchema', () => {
     it('should validate correct input', () => {
       const result = organizeImportsSchema.safeParse({
-        filePath: '/path/to/file.ts'
+        filePath: '/path/to/file.ts',
       });
       expect(result.success).toBe(true);
     });
@@ -142,7 +142,7 @@ describe('Schema Validation', () => {
 
     it('should reject empty filePath', () => {
       const result = organizeImportsSchema.safeParse({
-        filePath: ''
+        filePath: '',
       });
       expect(result.success).toBe(false);
     });
@@ -151,7 +151,7 @@ describe('Schema Validation', () => {
   describe('fixAllSchema', () => {
     it('should validate correct input', () => {
       const result = fixAllSchema.safeParse({
-        filePath: '/path/to/file.ts'
+        filePath: '/path/to/file.ts',
       });
       expect(result.success).toBe(true);
     });
@@ -165,7 +165,7 @@ describe('Schema Validation', () => {
   describe('removeUnusedSchema', () => {
     it('should validate correct input', () => {
       const result = removeUnusedSchema.safeParse({
-        filePath: '/path/to/file.ts'
+        filePath: '/path/to/file.ts',
       });
       expect(result.success).toBe(true);
     });
@@ -181,14 +181,14 @@ describe('Schema Validation', () => {
       const result = findReferencesSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        text: 'identifier'
+        text: 'identifier',
       });
       expect(result.success).toBe(true);
     });
 
     it('should reject missing position info', () => {
       const result = findReferencesSchema.safeParse({
-        filePath: '/path/to/file.ts'
+        filePath: '/path/to/file.ts',
       });
       expect(result.success).toBe(false);
     });
@@ -197,7 +197,7 @@ describe('Schema Validation', () => {
       const result = findReferencesSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: -1,
-        text: 'identifier'
+        text: 'identifier',
       });
       expect(result.success).toBe(false);
     });
@@ -206,7 +206,7 @@ describe('Schema Validation', () => {
       const result = findReferencesSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        text: ''
+        text: '',
       });
       expect(result.success).toBe(false);
     });
@@ -217,7 +217,7 @@ describe('Schema Validation', () => {
       const result = extractFunctionSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        text: 'codeToExtract'
+        text: 'codeToExtract',
       });
       expect(result.success).toBe(true);
     });
@@ -227,7 +227,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: 10,
         text: 'codeToExtract',
-        name: 'myFunction'
+        name: 'myFunction',
       });
       expect(result.success).toBe(true);
     });
@@ -236,7 +236,7 @@ describe('Schema Validation', () => {
       const result = extractFunctionSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        text: ''
+        text: '',
       });
       expect(result.success).toBe(false);
     });
@@ -245,7 +245,7 @@ describe('Schema Validation', () => {
       const result = extractFunctionSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: -1,
-        text: 'codeToExtract'
+        text: 'codeToExtract',
       });
       expect(result.success).toBe(false);
     });
@@ -258,7 +258,7 @@ describe('Schema Validation', () => {
         line: 10,
         text: 'export function myFunc',
         destinationPath: '/path/to/dest.ts',
-        preview: false
+        preview: false,
       });
       expect(result.success).toBe(true);
     });
@@ -267,7 +267,7 @@ describe('Schema Validation', () => {
       const result = moveToFileSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        text: 'export function myFunc'
+        text: 'export function myFunc',
       });
       expect(result.success).toBe(true);
     });
@@ -276,7 +276,7 @@ describe('Schema Validation', () => {
       const result = moveToFileSchema.safeParse({
         filePath: '',
         line: 10,
-        text: 'export function myFunc'
+        text: 'export function myFunc',
       });
       expect(result.success).toBe(false);
     });
@@ -285,7 +285,7 @@ describe('Schema Validation', () => {
       const result = moveToFileSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 0,
-        text: 'export function myFunc'
+        text: 'export function myFunc',
       });
       expect(result.success).toBe(false);
     });
@@ -294,7 +294,7 @@ describe('Schema Validation', () => {
       const result = moveToFileSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        text: ''
+        text: '',
       });
       expect(result.success).toBe(false);
     });
@@ -303,7 +303,7 @@ describe('Schema Validation', () => {
       const result = moveToFileSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: -1,
-        text: 'export function myFunc'
+        text: 'export function myFunc',
       });
       expect(result.success).toBe(false);
     });
@@ -314,7 +314,7 @@ describe('Schema Validation', () => {
       const result = inferReturnTypeSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        text: 'functionName'
+        text: 'functionName',
       });
       expect(result.success).toBe(true);
     });
@@ -324,7 +324,7 @@ describe('Schema Validation', () => {
         filePath: '/path/to/file.ts',
         line: 10,
         text: 'functionName',
-        preview: true
+        preview: true,
       });
       expect(result.success).toBe(true);
     });
@@ -333,7 +333,7 @@ describe('Schema Validation', () => {
       const result = inferReturnTypeSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: 10,
-        text: ''
+        text: '',
       });
       expect(result.success).toBe(false);
     });
@@ -342,7 +342,7 @@ describe('Schema Validation', () => {
       const result = inferReturnTypeSchema.safeParse({
         filePath: '/path/to/file.ts',
         line: -1,
-        text: 'functionName'
+        text: 'functionName',
       });
       expect(result.success).toBe(false);
     });

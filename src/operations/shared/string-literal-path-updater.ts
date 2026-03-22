@@ -4,17 +4,22 @@
  * More robust than pattern matching - catches mocks, requires, dynamic imports, etc.
  */
 
-import { dirname, relative } from 'path';
+import { dirname, relative } from 'node:path';
 
 export class StringLiteralPathUpdater {
   findMockPathUpdates(
     fileContent: string,
     filePath: string,
     oldFilePath: string,
-    newFilePath: string
+    newFilePath: string,
   ): Array<{ line: number; column: number; old: string; new: string }> {
     const lines = fileContent.split('\n');
-    const updates: Array<{ line: number; column: number; old: string; new: string }> = [];
+    const updates: Array<{
+      line: number;
+      column: number;
+      old: string;
+      new: string;
+    }> = [];
 
     const oldRelativePath = this.getRelativeImportPath(filePath, oldFilePath);
     const newRelativePath = this.getRelativeImportPath(filePath, newFilePath);
@@ -32,10 +37,13 @@ export class StringLiteralPathUpdater {
         continue;
       }
 
-      const regex = new RegExp(stringLiteralPattern.source, stringLiteralPattern.flags);
-      let match;
+      const regex = new RegExp(
+        stringLiteralPattern.source,
+        stringLiteralPattern.flags,
+      );
+      let match: RegExpExecArray | null = null;
 
-      while ((match = regex.exec(line)) !== null) {
+      while ((match = regex.exec(line))) {
         const quotedPath = match[2];
 
         if (quotedPath === oldRelativePath) {
@@ -43,7 +51,7 @@ export class StringLiteralPathUpdater {
             line: lineIndex + 1,
             column: match.index + 1 + 1,
             old: quotedPath,
-            new: newRelativePath
+            new: newRelativePath,
           });
         }
       }
@@ -57,7 +65,7 @@ export class StringLiteralPathUpdater {
     let relativePath = relative(fromDir, toFile);
 
     if (!relativePath.startsWith('.')) {
-      relativePath = './' + relativePath;
+      relativePath = `./${relativePath}`;
     }
 
     relativePath = relativePath.replace(/\\/g, '/');

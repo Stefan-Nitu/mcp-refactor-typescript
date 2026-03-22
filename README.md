@@ -32,11 +32,11 @@ The package will be globally installed and available as `mcp-refactor-typescript
 ```bash
 git clone https://github.com/Stefan-Nitu/mcp-refactor-typescript.git
 cd mcp-refactor-typescript
-npm install
-npm run build
+bun install
+bun run build
 ```
 
-> ⚠️ Requires Node.js v18.x or higher
+> ⚠️ Requires Bun v1.3.8+ (development) and Node.js v18+ (runtime)
 
 ## Quick Start
 
@@ -305,19 +305,19 @@ mcp-refactor-typescript/
 
 ```bash
 # Run all tests
-npm test
+bun test
 
 # Run specific test file
-npm test -- --run rename
+bun test --filter rename
 
 # Run in watch mode
-npm run test:watch
+bun test --watch
 
 # Type checking
-npm run typecheck
+bun run typecheck
 
 # Linting
-npm run lint
+bun run lint
 ```
 
 ### Test Coverage
@@ -394,11 +394,10 @@ If `move_file` doesn't update some imports:
 2. Create a feature branch
 3. **Write tests first** (TDD approach)
 4. Implement the feature
-5. Ensure all tests pass (`npm test`)
-6. Run linting (`npm run lint`)
+5. Ensure all tests pass (`bun test`)
+6. Run linting (`bun run lint`)
 7. Submit a pull request
 
-See [CLAUDE.md](CLAUDE.md) for development guidelines.
 
 ## License
 

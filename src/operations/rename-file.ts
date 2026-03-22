@@ -2,24 +2,24 @@
  * Rename file operation handler (in-place rename)
  */
 
-import { dirname, join, resolve } from 'path';
+import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
-import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
-import { FileDiscovery } from './shared/file-discovery.js';
-import { FileMover } from './shared/file-mover.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import type { FileDiscovery } from './shared/file-discovery.js';
+import type { FileMover } from './shared/file-mover.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 const renameFileSchema = z.object({
   sourcePath: z.string().min(1, 'Source path cannot be empty'),
   name: z.string().min(1, 'Name cannot be empty'),
-  preview: z.boolean().optional()
+  preview: z.boolean().optional(),
 });
 
 export class RenameFileOperation {
   constructor(
     private guard: TSServerGuard,
     private discovery: FileDiscovery,
-    private helper: FileMover
+    private helper: FileMover,
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -32,14 +32,22 @@ export class RenameFileOperation {
       const guardResult = await this.guard.ensureReady();
       if (guardResult) return guardResult;
 
-      const projectStatus = await this.discovery.discoverRelatedFiles(sourcePath);
-      const result = await this.helper.performMove(sourcePath, destinationPath, validated.preview);
+      const projectStatus =
+        await this.discovery.discoverRelatedFiles(sourcePath);
+      const result = await this.helper.performMove(
+        sourcePath,
+        destinationPath,
+        validated.preview,
+      );
 
-      const warningMessage = this.discovery.buildWarningMessage(projectStatus, 'import updates');
+      const warningMessage = this.discovery.buildWarningMessage(
+        projectStatus,
+        'import updates',
+      );
 
       return {
         ...result,
-        message: result.message + warningMessage
+        message: result.message + warningMessage,
       };
     } catch (error) {
       return {

@@ -770,7 +770,7 @@ The MCP specification states:
 
 ```bash
 # Install the inspector
-npm install -D @modelcontextprotocol/inspector
+bun add -d @modelcontextprotocol/inspector
 
 # Run your server with the inspector
 npx @modelcontextprotocol/inspector node dist/index.js

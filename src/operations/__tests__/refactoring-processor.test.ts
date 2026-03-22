@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import type { TSTextChange } from '../../language-servers/typescript/tsserver-types.js';
 import { RefactoringProcessor } from '../refactoring-processor.js';
 
@@ -11,8 +11,8 @@ describe('RefactoringProcessor', () => {
         {
           start: { line: 2, offset: 1 },
           end: { line: 2, offset: 1 },
-          newText: '  const newLocal = 42;\n'
-        }
+          newText: '  const newLocal = 42;\n',
+        },
       ];
 
       // Act
@@ -22,7 +22,7 @@ describe('RefactoringProcessor', () => {
       expect(result).toEqual({
         name: 'newLocal',
         line: 2,
-        column: 9
+        column: 9,
       });
     });
 
@@ -33,8 +33,8 @@ describe('RefactoringProcessor', () => {
         {
           start: { line: 1, offset: 5 },
           end: { line: 1, offset: 7 },
-          newText: 'newLocal'
-        }
+          newText: 'newLocal',
+        },
       ];
 
       // Act
@@ -51,8 +51,8 @@ describe('RefactoringProcessor', () => {
         {
           start: { line: 5, offset: 1 },
           end: { line: 5, offset: 1 },
-          newText: '\n  const myVar = value;\n'
-        }
+          newText: '\n  const myVar = value;\n',
+        },
       ];
 
       // Act
@@ -62,7 +62,7 @@ describe('RefactoringProcessor', () => {
       expect(result).toEqual({
         name: 'myVar',
         line: 6, // 5 + 1 (second line in newText)
-        column: 9
+        column: 9,
       });
     });
   });
@@ -75,8 +75,8 @@ describe('RefactoringProcessor', () => {
         {
           start: { line: 10, offset: 1 },
           end: { line: 10, offset: 1 },
-          newText: 'function newFunction() {\n  return 42;\n}\n'
-        }
+          newText: 'function newFunction() {\n  return 42;\n}\n',
+        },
       ];
 
       // Act
@@ -86,7 +86,7 @@ describe('RefactoringProcessor', () => {
       expect(result).toEqual({
         name: 'newFunction',
         line: 10,
-        column: 10
+        column: 10,
       });
     });
 
@@ -97,8 +97,8 @@ describe('RefactoringProcessor', () => {
         {
           start: { line: 1, offset: 1 },
           end: { line: 1, offset: 10 },
-          newText: 'myFunc()'
-        }
+          newText: 'myFunc()',
+        },
       ];
 
       // Act
@@ -117,18 +117,18 @@ describe('RefactoringProcessor', () => {
         {
           start: { line: 1, offset: 5 },
           end: { line: 1, offset: 7 },
-          newText: 'x'
+          newText: 'x',
         },
         {
           start: { line: 2, offset: 1 },
           end: { line: 2, offset: 1 },
-          newText: '  const first = 1;\n'
+          newText: '  const first = 1;\n',
         },
         {
           start: { line: 3, offset: 1 },
           end: { line: 3, offset: 1 },
-          newText: '  const second = 2;\n'
-        }
+          newText: '  const second = 2;\n',
+        },
       ];
 
       // Act
@@ -138,7 +138,7 @@ describe('RefactoringProcessor', () => {
       expect(result).toEqual({
         name: 'first',
         line: 2,
-        column: 9
+        column: 9,
       });
     });
   });
@@ -147,17 +147,24 @@ describe('RefactoringProcessor', () => {
     it('should update edits with renamed identifier', () => {
       // Arrange
       const processor = new RefactoringProcessor('const');
-      const filesChanged = [{
-        file: 'test.ts',
-        path: '/test.ts',
-        edits: [
-          { line: 1, old: '42', new: 'newLocal' },
-          { line: 2, old: 'x + y', new: 'newLocal' }
-        ]
-      }];
+      const filesChanged = [
+        {
+          file: 'test.ts',
+          path: '/test.ts',
+          edits: [
+            { line: 1, old: '42', new: 'newLocal' },
+            { line: 2, old: 'x + y', new: 'newLocal' },
+          ],
+        },
+      ];
 
       // Act
-      processor.updateFilesChangedAfterRename(filesChanged, 'newLocal', 'MY_CONSTANT', '/test.ts');
+      processor.updateFilesChangedAfterRename(
+        filesChanged,
+        'newLocal',
+        'MY_CONSTANT',
+        '/test.ts',
+      );
 
       // Assert
       expect(filesChanged[0].edits[0].new).toBe('MY_CONSTANT');
@@ -171,17 +178,22 @@ describe('RefactoringProcessor', () => {
         {
           file: 'test1.ts',
           path: '/test1.ts',
-          edits: [{ line: 1, old: '42', new: 'newLocal' }]
+          edits: [{ line: 1, old: '42', new: 'newLocal' }],
         },
         {
           file: 'test2.ts',
           path: '/test2.ts',
-          edits: [{ line: 1, old: '99', new: 'newLocal' }]
-        }
+          edits: [{ line: 1, old: '99', new: 'newLocal' }],
+        },
       ];
 
       // Act
-      processor.updateFilesChangedAfterRename(filesChanged, 'newLocal', 'CONST_ONE', '/test1.ts');
+      processor.updateFilesChangedAfterRename(
+        filesChanged,
+        'newLocal',
+        'CONST_ONE',
+        '/test1.ts',
+      );
 
       // Assert
       expect(filesChanged[0].edits[0].new).toBe('CONST_ONE');
@@ -191,21 +203,34 @@ describe('RefactoringProcessor', () => {
     it('should only replace whole word matches', () => {
       // Arrange
       const processor = new RefactoringProcessor('function');
-      const filesChanged = [{
-        file: 'test.ts',
-        path: '/test.ts',
-        edits: [
-          { line: 1, old: 'x + y', new: 'newFunction(x, y)' },
-          { line: 2, old: '', new: 'function newFunction(x, y) { return x + y; }' }
-        ]
-      }];
+      const filesChanged = [
+        {
+          file: 'test.ts',
+          path: '/test.ts',
+          edits: [
+            { line: 1, old: 'x + y', new: 'newFunction(x, y)' },
+            {
+              line: 2,
+              old: '',
+              new: 'function newFunction(x, y) { return x + y; }',
+            },
+          ],
+        },
+      ];
 
       // Act
-      processor.updateFilesChangedAfterRename(filesChanged, 'newFunction', 'addNumbers', '/test.ts');
+      processor.updateFilesChangedAfterRename(
+        filesChanged,
+        'newFunction',
+        'addNumbers',
+        '/test.ts',
+      );
 
       // Assert
       expect(filesChanged[0].edits[0].new).toBe('addNumbers(x, y)');
-      expect(filesChanged[0].edits[1].new).toBe('function addNumbers(x, y) { return x + y; }');
+      expect(filesChanged[0].edits[1].new).toBe(
+        'function addNumbers(x, y) { return x + y; }',
+      );
     });
   });
 });

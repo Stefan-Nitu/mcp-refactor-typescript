@@ -2,32 +2,34 @@
  * Batch move files operation handler
  */
 
-import { mkdir } from 'fs/promises';
-import { basename, join, resolve } from 'path';
+import { mkdir } from 'node:fs/promises';
+import { basename, join, resolve } from 'node:path';
 import { z } from 'zod';
-import { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import type { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
-import { FileDiscovery } from './shared/file-discovery.js';
-import { FileMover } from './shared/file-mover.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type { FileDiscovery } from './shared/file-discovery.js';
+import type { FileMover } from './shared/file-mover.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 export const batchMoveFilesSchema = z.object({
-  files: z.array(z.string().min(1)).min(1, 'At least one file must be provided'),
+  files: z
+    .array(z.string().min(1))
+    .min(1, 'At least one file must be provided'),
   targetFolder: z.string().min(1, 'Target folder cannot be empty'),
-  preview: z.boolean().optional()
+  preview: z.boolean().optional(),
 });
 
 export class BatchMoveFilesOperation {
   constructor(
     private guard: TSServerGuard,
     private discovery: FileDiscovery,
-    private helper: FileMover
+    private helper: FileMover,
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
       const validated = batchMoveFilesSchema.parse(input);
-      const files = validated.files.map(f => resolve(f));
+      const files = validated.files.map((f) => resolve(f));
       const targetFolder = resolve(validated.targetFolder);
 
       const guardResult = await this.guard.ensureReady();
@@ -46,13 +48,19 @@ export class BatchMoveFilesOperation {
         const destinationPath = join(targetFolder, fileName);
 
         try {
-          const result = await this.helper.performMove(sourceFile, destinationPath, validated.preview);
+          const result = await this.helper.performMove(
+            sourceFile,
+            destinationPath,
+            validated.preview,
+          );
 
           if (result.success) {
             successCount++;
             if (result.filesChanged) {
               for (const fileChange of result.filesChanged) {
-                const existingFile = allFilesChanged.find(f => f.path === fileChange.path);
+                const existingFile = allFilesChanged.find(
+                  (f) => f.path === fileChange.path,
+                );
                 if (existingFile) {
                   existingFile.edits.push(...fileChange.edits);
                 } else {
@@ -64,7 +72,9 @@ export class BatchMoveFilesOperation {
             errors.push(`${fileName}: ${result.message}`);
           }
         } catch (error) {
-          errors.push(`${fileName}: ${error instanceof Error ? error.message : String(error)}`);
+          errors.push(
+            `${fileName}: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
       }
 
@@ -82,7 +92,10 @@ Try:
         };
       }
 
-      const warningMessage = this.discovery.buildWarningMessage(projectStatus, 'import updates');
+      const warningMessage = this.discovery.buildWarningMessage(
+        projectStatus,
+        'import updates',
+      );
 
       // Return preview if requested
       if (validated.preview) {
@@ -93,14 +106,15 @@ Try:
           preview: {
             filesAffected: successCount,
             estimatedTime: '< 2s',
-            command: 'Run again with preview: false to apply changes'
-          }
+            command: 'Run again with preview: false to apply changes',
+          },
         };
       }
 
-      const message = errors.length > 0
-        ? `Moved ${successCount} file(s), ${errors.length} failed:\n${errors.join('\n')}`
-        : `Moved ${successCount} file(s) to ${basename(validated.targetFolder)}`;
+      const message =
+        errors.length > 0
+          ? `Moved ${successCount} file(s), ${errors.length} failed:\n${errors.join('\n')}`
+          : `Moved ${successCount} file(s) to ${basename(validated.targetFolder)}`;
 
       return {
         success: true,
@@ -108,8 +122,8 @@ Try:
         filesChanged: allFilesChanged,
         nextActions: [
           'organize_imports - Clean up all import statements',
-          'fix_all - Fix any errors from the moves'
-        ]
+          'fix_all - Fix any errors from the moves',
+        ],
       };
     } catch (error) {
       if (error instanceof z.ZodError) {

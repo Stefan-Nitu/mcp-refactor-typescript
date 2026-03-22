@@ -1,10 +1,24 @@
-import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import type { RenameFileOperation } from '../rename-file.js';
 import { createRenameFileOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -45,7 +59,7 @@ export function useHelper() {
       // Act
       const response = await operation!.execute({
         sourcePath: oldPath,
-        name: 'new-name.ts'
+        name: 'new-name.ts',
       });
 
       // Assert
@@ -83,7 +97,7 @@ export const version = getVersion();`;
       // Act
       const response = await operation!.execute({
         sourcePath: oldPath,
-        name: 'utilities.ts'
+        name: 'utilities.ts',
       });
 
       // Assert
@@ -112,7 +126,7 @@ export const version = getVersion();`;
       const response = await operation!.execute({
         sourcePath: oldPath,
         name: 'preview-renamed.ts',
-        preview: true
+        preview: true,
       });
 
       // Assert
@@ -120,7 +134,9 @@ export const version = getVersion();`;
       expect(response.message).toContain('Preview:');
       expect(response.preview).toBeDefined();
 
-      const fileStillExists = await readFile(oldPath, 'utf-8').then(() => true).catch(() => false);
+      const fileStillExists = await readFile(oldPath, 'utf-8')
+        .then(() => true)
+        .catch(() => false);
       expect(fileStillExists).toBe(true);
 
       const content = await readFile(oldPath, 'utf-8');
@@ -135,12 +151,12 @@ export const version = getVersion();`;
       const content = `export const VALUE = 42;`;
       await writeFile(absolutePath, content, 'utf-8');
 
-      const relativePath = absolutePath.replace(process.cwd() + '/', '');
+      const relativePath = absolutePath.replace(`${process.cwd()}/`, '');
 
       // Act
       const response = await operation!.execute({
         sourcePath: relativePath,
-        name: 'relative-renamed.ts'
+        name: 'relative-renamed.ts',
       });
 
       // Assert
@@ -157,7 +173,7 @@ export const version = getVersion();`;
       // Act
       const response = await operation!.execute({
         sourcePath: absolutePath,
-        name: 'absolute-renamed.ts'
+        name: 'absolute-renamed.ts',
       });
 
       // Assert
@@ -171,7 +187,7 @@ export const version = getVersion();`;
       // Act
       const response = await operation!.execute({
         sourcePath: '/nonexistent/file.ts',
-        name: 'renamed.ts'
+        name: 'renamed.ts',
       });
 
       // Assert
@@ -190,7 +206,7 @@ export const version = getVersion();`;
   return 'work';
 }`;
 
-      const testContent = `import { describe, it, expect, vi } from 'vitest';
+      const testContent = `import { describe, it, expect, vi } from 'bun:test';
 import { doWork } from './service.js';
 
 vi.mock('./service.js');
@@ -207,14 +223,16 @@ describe('service', () => {
       // Act
       const response = await operation!.execute({
         sourcePath: oldPath,
-        name: 'app-service.ts'
+        name: 'app-service.ts',
       });
 
       // Assert
       expect(response.success).toBe(true);
 
       const testFileContent = await readFile(testFilePath, 'utf-8');
-      expect(testFileContent).toContain("import { doWork } from './app-service.js';");
+      expect(testFileContent).toContain(
+        "import { doWork } from './app-service.js';",
+      );
       expect(testFileContent).toContain("vi.mock('./app-service.js');");
       expect(testFileContent).not.toContain("vi.mock('./service.js');");
     });
@@ -228,7 +246,7 @@ describe('service', () => {
       // Act
       const response = await operation!.execute({
         sourcePath: oldPath,
-        name: 'no-importers-renamed.ts'
+        name: 'no-importers-renamed.ts',
       });
 
       // Assert
@@ -247,14 +265,16 @@ describe('service', () => {
       // Act
       const response = await operation!.execute({
         sourcePath: oldPath,
-        name: 'renamed-with-ext.ts'
+        name: 'renamed-with-ext.ts',
       });
 
       // Assert
       expect(response.success).toBe(true);
       expect(response.message).toContain('moved');
 
-      const fileExists = await readFile(newPath, 'utf-8').then(() => true).catch(() => false);
+      const fileExists = await readFile(newPath, 'utf-8')
+        .then(() => true)
+        .catch(() => false);
       expect(fileExists).toBe(true);
     });
   });

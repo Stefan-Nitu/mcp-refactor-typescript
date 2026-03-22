@@ -13,7 +13,7 @@ interface DeclarationConfig {
 
 const DECLARATION_CONFIGS: Record<DeclarationType, DeclarationConfig> = {
   const: { pattern: /const\s+(\w+)\s*=/ },
-  function: { pattern: /function\s+(\w+)\s*\(/ }
+  function: { pattern: /function\s+(\w+)\s*\(/ },
 };
 
 interface DeclarationInfo {
@@ -42,7 +42,7 @@ export class RefactoringProcessor {
         const line = textLines[lineIndex];
         const match = line.match(this.config.pattern);
 
-        if (match && match[1]) {
+        if (match?.[1]) {
           const name = match[1];
           const column = line.indexOf(name) + 1;
           const lineNumber = change.start.line + lineIndex;
@@ -64,10 +64,14 @@ export class RefactoringProcessor {
    * @param filePath - The file path to update (only updates this file)
    */
   updateFilesChangedAfterRename(
-    filesChanged: Array<{ file: string; path: string; edits: Array<{ line: number; old: string; new: string }> }>,
+    filesChanged: Array<{
+      file: string;
+      path: string;
+      edits: Array<{ line: number; old: string; new: string }>;
+    }>,
     oldName: string,
     newName: string,
-    filePath: string
+    filePath: string,
   ): void {
     for (const fileChange of filesChanged) {
       if (fileChange.path === filePath) {
@@ -75,7 +79,7 @@ export class RefactoringProcessor {
           if (edit.new.includes(oldName)) {
             edit.new = edit.new.replace(
               new RegExp(`\\b${oldName}\\b`, 'g'),
-              newName
+              newName,
             );
           }
         }

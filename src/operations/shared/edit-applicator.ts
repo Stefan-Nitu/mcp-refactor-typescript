@@ -40,7 +40,11 @@ export class EditApplicator {
       } else {
         const before = result[startLine].substring(0, startOffset);
         const after = result[endLine].substring(endOffset);
-        result.splice(startLine, endLine - startLine + 1, before + change.newText + after);
+        result.splice(
+          startLine,
+          endLine - startLine + 1,
+          before + change.newText + after,
+        );
       }
     }
 
@@ -50,7 +54,7 @@ export class EditApplicator {
   buildFileChanges(
     originalLines: string[],
     changes: TSTextChange[],
-    filePath: string
+    filePath: string,
   ): FileChanges {
     const edits: FileEdit[] = [];
 
@@ -60,22 +64,29 @@ export class EditApplicator {
       const startOffset = change.start.offset - 1;
       const endOffset = change.end.offset - 1;
 
-      const oldText = startLine === endLine
-        ? originalLines[startLine].substring(startOffset, endOffset)
-        : this.extractMultiLineText(originalLines, startLine, startOffset, endLine, endOffset);
+      const oldText =
+        startLine === endLine
+          ? originalLines[startLine].substring(startOffset, endOffset)
+          : this.extractMultiLineText(
+              originalLines,
+              startLine,
+              startOffset,
+              endLine,
+              endOffset,
+            );
 
       edits.push({
         line: change.start.line,
         column: change.start.offset,
         old: oldText,
-        new: change.newText
+        new: change.newText,
       });
     }
 
     return {
       file: filePath.split('/').pop() || filePath,
       path: filePath,
-      edits
+      edits,
     };
   }
 
@@ -84,7 +95,7 @@ export class EditApplicator {
     startLine: number,
     startOffset: number,
     endLine: number,
-    endOffset: number
+    endOffset: number,
   ): string {
     const parts: string[] = [];
 

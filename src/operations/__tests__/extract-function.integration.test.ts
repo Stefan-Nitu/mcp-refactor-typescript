@@ -1,10 +1,24 @@
-import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { ExtractFunctionOperation } from '../extract-function.js';
+import type { ExtractFunctionOperation } from '../extract-function.js';
 import { createExtractFunctionOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 const testDir = createTestDir();
 
@@ -39,7 +53,7 @@ describe('extractFunction', () => {
       filePath,
       line: 4,
       text: 'const result = x + y;',
-      name: 'addNumbers'
+      name: 'addNumbers',
     });
 
     // Assert
@@ -62,7 +76,7 @@ describe('extractFunction', () => {
       filePath,
       line: 2,
       text: 'const x = 1 + 2;',
-      name: 'addNumbers'
+      name: 'addNumbers',
     });
 
     // Assert
@@ -75,18 +89,22 @@ describe('extractFunction', () => {
   it('should extract multiple functions with correct custom names', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'multi-funcs.ts');
-    await writeFile(filePath, `function process(x: number, y: number) {
+    await writeFile(
+      filePath,
+      `function process(x: number, y: number) {
   const sum = x + y;
   const diff = x - y;
   return sum * diff;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act - Extract first function
     const response1 = await operation!.execute({
       filePath,
       line: 2,
       text: 'x + y',
-      name: 'addNums'
+      name: 'addNums',
     });
 
     // Assert first extraction
@@ -100,7 +118,7 @@ describe('extractFunction', () => {
       filePath,
       line: 3,
       text: 'x - y',
-      name: 'subtractNums'
+      name: 'subtractNums',
     });
 
     // Assert both functions have correct names
@@ -129,7 +147,7 @@ describe('extractFunction', () => {
       filePath,
       line: 2,
       text: 'x + y',
-      name: 'addNumbers'
+      name: 'addNumbers',
     });
 
     // Assert - filesChanged should reflect the final state after rename
@@ -139,7 +157,7 @@ describe('extractFunction', () => {
 
     // Find the edit that replaces the extracted code with the function call
     const callSiteEdit = response.filesChanged![0].edits.find(
-      edit => edit.old === 'x + y'
+      (edit) => edit.old === 'x + y',
     );
 
     expect(callSiteEdit).toBeDefined();
@@ -174,7 +192,7 @@ describe('extractFunction', () => {
       filePath,
       line: 9,
       text: 'subtotal * 0.15',
-      name: 'calculatePremiumDiscount'
+      name: 'calculatePremiumDiscount',
     });
 
     // Assert
@@ -201,29 +219,35 @@ describe('extractFunction', () => {
       filePath,
       line: 1,
       text: 'const',
-      name: 'extracted'
+      name: 'extracted',
     });
 
     // Assert - should fail gracefully
     expect(response.success).toBe(false);
-    expect(response.message).toMatch(/Cannot extract function|Extract function not available/);
+    expect(response.message).toMatch(
+      /Cannot extract function|Extract function not available/,
+    );
   });
 
   it('should work with relative file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'relative-test.ts');
-    await writeFile(absolutePath, `export function main() {
+    await writeFile(
+      absolutePath,
+      `export function main() {
   const result = 1 + 2;
   return result;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
-    const relativePath = absolutePath.replace(process.cwd() + '/', '');
+    const relativePath = absolutePath.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
       filePath: relativePath,
       line: 2,
-      text: '1 + 2'
+      text: '1 + 2',
     });
 
     // Assert - May not be available, but should not crash with "undefined"
@@ -234,16 +258,20 @@ describe('extractFunction', () => {
   it('should work with absolute file paths', async () => {
     // Arrange
     const absolutePath = join(testDir, 'src', 'absolute-test.ts');
-    await writeFile(absolutePath, `export function main() {
+    await writeFile(
+      absolutePath,
+      `export function main() {
   const result = 3 + 4;
   return result;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       filePath: absolutePath,
       line: 2,
-      text: '3 + 4'
+      text: '3 + 4',
     });
 
     // Assert - May not be available, but should not crash with "undefined"
@@ -269,7 +297,7 @@ describe('extractFunction', () => {
       filePath,
       line: 3,
       text: 'x + y',
-      name: 'add'
+      name: 'add',
     });
 
     // Assert
@@ -277,7 +305,7 @@ describe('extractFunction', () => {
     const content = await readFile(filePath, 'utf-8');
     const lines = content.split('\n');
 
-    const functionDeclLine = lines.findIndex(l => l.includes('function add'));
+    const functionDeclLine = lines.findIndex((l) => l.includes('function add'));
     expect(functionDeclLine).toBeGreaterThan(-1);
 
     const functionBodyLine = functionDeclLine + 1;

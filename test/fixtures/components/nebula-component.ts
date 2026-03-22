@@ -1,6 +1,9 @@
 import { QUIXOTIC_DEFAULT_PRICE, QuixoticModel } from '../models/quixotic.js';
 import { ZephyrService } from '../services/zephyr-service.js';
-import { performXylophoneTransform, XYLOPHONE_CONSTANTS } from '../utils/xylophone-helpers.js';
+import {
+  performXylophoneTransform,
+  XYLOPHONE_CONSTANTS,
+} from '../utils/xylophone-helpers.js';
 
 export class NebulaComponent {
   private zephyrService: ZephyrService;
@@ -28,7 +31,7 @@ export class NebulaComponent {
   createQuixoticItem(): QuixoticModel {
     return new QuixoticModel({
       quixoticName: 'Nebula Item',
-      quixoticPrice: this.calculateNebulaDensity()
+      quixoticPrice: this.calculateNebulaDensity(),
     });
   }
 }

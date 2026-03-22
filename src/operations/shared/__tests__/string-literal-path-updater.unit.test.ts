@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { StringLiteralPathUpdater } from '../string-literal-path-updater.js';
 
 describe('StringLiteralPathUpdater', () => {
@@ -19,13 +19,18 @@ describe('test', () => {
     const oldFilePath = '/project/src/service.ts';
     const newFilePath = '/project/src/api-service.ts';
 
-    const updates = updater.findMockPathUpdates(content, testFilePath, oldFilePath, newFilePath);
+    const updates = updater.findMockPathUpdates(
+      content,
+      testFilePath,
+      oldFilePath,
+      newFilePath,
+    );
 
     expect(updates).toHaveLength(1);
     expect(updates[0]).toMatchObject({
       line: 3,
       old: './service.js',
-      new: './api-service.js'
+      new: './api-service.js',
     });
   });
 
@@ -36,7 +41,12 @@ describe('test', () => {
     const oldFilePath = '/project/src/service.ts';
     const newFilePath = '/project/src/api-service.ts';
 
-    const updates = updater.findMockPathUpdates(content, testFilePath, oldFilePath, newFilePath);
+    const updates = updater.findMockPathUpdates(
+      content,
+      testFilePath,
+      oldFilePath,
+      newFilePath,
+    );
 
     expect(updates).toHaveLength(1);
     expect(updates[0].old).toBe('./service.js');
@@ -50,7 +60,12 @@ describe('test', () => {
     const oldFilePath = '/project/src/service.ts';
     const newFilePath = '/project/src/api-service.ts';
 
-    const updates = updater.findMockPathUpdates(content, testFilePath, oldFilePath, newFilePath);
+    const updates = updater.findMockPathUpdates(
+      content,
+      testFilePath,
+      oldFilePath,
+      newFilePath,
+    );
 
     expect(updates).toHaveLength(0);
   });
@@ -62,7 +77,12 @@ describe('test', () => {
     const oldFilePath = '/project/src/service.ts';
     const newFilePath = '/project/src/api-service.ts';
 
-    const updates = updater.findMockPathUpdates(content, testFilePath, oldFilePath, newFilePath);
+    const updates = updater.findMockPathUpdates(
+      content,
+      testFilePath,
+      oldFilePath,
+      newFilePath,
+    );
 
     expect(updates).toHaveLength(1);
     expect(updates[0].old).toBe('./service.js');
@@ -76,7 +96,12 @@ describe('test', () => {
     const oldFilePath = '/project/src/service.ts';
     const newFilePath = '/project/src/api-service.ts';
 
-    const updates = updater.findMockPathUpdates(content, testFilePath, oldFilePath, newFilePath);
+    const updates = updater.findMockPathUpdates(
+      content,
+      testFilePath,
+      oldFilePath,
+      newFilePath,
+    );
 
     expect(updates).toHaveLength(1);
     expect(updates[0].old).toBe('./service.js');
@@ -90,7 +115,12 @@ describe('test', () => {
     const oldFilePath = '/project/src/service.ts';
     const newFilePath = '/project/src/api-service.ts';
 
-    const updates = updater.findMockPathUpdates(content, testFilePath, oldFilePath, newFilePath);
+    const updates = updater.findMockPathUpdates(
+      content,
+      testFilePath,
+      oldFilePath,
+      newFilePath,
+    );
 
     expect(updates).toHaveLength(2);
     expect(updates[0].old).toBe('./service.js');
@@ -104,7 +134,12 @@ describe('test', () => {
     const oldFilePath = '/project/src/service.ts';
     const newFilePath = '/project/src/api-service.ts';
 
-    const updates = updater.findMockPathUpdates(content, testFilePath, oldFilePath, newFilePath);
+    const updates = updater.findMockPathUpdates(
+      content,
+      testFilePath,
+      oldFilePath,
+      newFilePath,
+    );
 
     expect(updates).toHaveLength(0);
   });
@@ -117,7 +152,12 @@ export { bar } from './service.js';`;
     const oldFilePath = '/project/src/service.ts';
     const newFilePath = '/project/src/api-service.ts';
 
-    const updates = updater.findMockPathUpdates(content, testFilePath, oldFilePath, newFilePath);
+    const updates = updater.findMockPathUpdates(
+      content,
+      testFilePath,
+      oldFilePath,
+      newFilePath,
+    );
 
     expect(updates).toHaveLength(0);
   });
@@ -131,13 +171,18 @@ vi.mock('./service.js');`;
     const oldFilePath = '/project/src/service.ts';
     const newFilePath = '/project/src/api-service.ts';
 
-    const updates = updater.findMockPathUpdates(content, testFilePath, oldFilePath, newFilePath);
+    const updates = updater.findMockPathUpdates(
+      content,
+      testFilePath,
+      oldFilePath,
+      newFilePath,
+    );
 
     expect(updates).toHaveLength(1);
     expect(updates[0]).toMatchObject({
       line: 3,
       old: './service.js',
-      new: './api-service.js'
+      new: './api-service.js',
     });
   });
 });

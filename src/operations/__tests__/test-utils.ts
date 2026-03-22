@@ -1,14 +1,17 @@
-import { randomBytes } from 'crypto';
-import { mkdir, rm, writeFile } from 'fs/promises';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { randomBytes } from 'node:crypto';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export function createTestDir(): string {
-  return join(__dirname, `../../../.test-workspace-${randomBytes(8).toString('hex')}`);
+  return join(
+    __dirname,
+    `../../../.test-workspace-${randomBytes(8).toString('hex')}`,
+  );
 }
 
 export interface TestContext {
@@ -24,14 +27,18 @@ export async function setupTestWorkspace(testDir: string): Promise<void> {
 
   const tsconfig = {
     compilerOptions: {
-      target: "ES2022",
-      module: "NodeNext",
-      moduleResolution: "NodeNext",
-      jsx: "react"
+      target: 'ES2022',
+      module: 'NodeNext',
+      moduleResolution: 'NodeNext',
+      jsx: 'react',
     },
-    include: ["src/**/*"]
+    include: ['src/**/*'],
   };
-  await writeFile(join(testDir, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2), 'utf-8');
+  await writeFile(
+    join(testDir, 'tsconfig.json'),
+    JSON.stringify(tsconfig, null, 2),
+    'utf-8',
+  );
 }
 
 /**
@@ -44,8 +51,13 @@ export async function cleanupTestWorkspace(testDir: string): Promise<void> {
 /**
  * Prepare clean src directory and fresh TypeScript server before each test
  */
-export async function setupTestCase(testDir: string, TypeScriptServerClass: new () => TypeScriptServer): Promise<TypeScriptServer> {
-  await rm(join(testDir, 'src'), { recursive: true, force: true }).catch(() => {});
+export async function setupTestCase(
+  testDir: string,
+  TypeScriptServerClass: new () => TypeScriptServer,
+): Promise<TypeScriptServer> {
+  await rm(join(testDir, 'src'), { recursive: true, force: true }).catch(
+    () => {},
+  );
   await mkdir(join(testDir, 'src'), { recursive: true });
 
   const server = new TypeScriptServerClass();
@@ -56,7 +68,9 @@ export async function setupTestCase(testDir: string, TypeScriptServerClass: new 
 /**
  * Stop TypeScript server after each test
  */
-export async function cleanupTestCase(server: TypeScriptServer | null): Promise<void> {
+export async function cleanupTestCase(
+  server: TypeScriptServer | null,
+): Promise<void> {
   if (server?.isRunning()) {
     await server.stop();
   }

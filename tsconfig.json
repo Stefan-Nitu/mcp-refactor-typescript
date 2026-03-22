@@ -16,7 +16,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "types": ["node", "vitest/globals"],
+    "types": ["node", "bun"],
     "typeRoots": ["./node_modules/@types", "./node_modules"]
   },
   "include": ["src/**/*"],

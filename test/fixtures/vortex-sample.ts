@@ -1,6 +1,5 @@
 // Vortex sample TypeScript file for testing refactoring operations
 
-
 // Test rename: rename this variable
 const renamedVortexQuantum = 42;
 
@@ -32,7 +31,7 @@ class VortexManager {
 
 // Test fix all: missing type annotation
 function processVortexData(vortexArray: number[]): number[] {
-  return vortexArray.map(vortex => vortex * 2);
+  return vortexArray.map((vortex) => vortex * 2);
 }
 
 // Test remove unused: this function is never called

@@ -1,10 +1,24 @@
-import { mkdir, readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'bun:test';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import { RefactorModuleOperation } from '../refactor-module.js';
+import type { RefactorModuleOperation } from '../refactor-module.js';
 import { createRefactorModuleOperation } from '../shared/operation-factory.js';
-import { cleanupTestCase, cleanupTestWorkspace, createTestDir, setupTestCase, setupTestWorkspace } from './test-utils.js';
+import {
+  cleanupTestCase,
+  cleanupTestWorkspace,
+  createTestDir,
+  setupTestCase,
+  setupTestWorkspace,
+} from './test-utils.js';
 
 describe('refactorModule', () => {
   let operation: RefactorModuleOperation | null = null;
@@ -32,19 +46,27 @@ describe('refactorModule', () => {
     const destPath = join(testDir, 'src', 'new', 'service.ts');
     const mainPath = join(testDir, 'src', 'main.ts');
 
-    await writeFile(sourcePath, `export function helper() {
+    await writeFile(
+      sourcePath,
+      `export function helper() {
   return 42;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
-    await writeFile(mainPath, `import { helper } from './service.js';
+    await writeFile(
+      mainPath,
+      `import { helper } from './service.js';
 
 const result = helper();
-console.error(result);`, 'utf-8');
+console.error(result);`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       sourcePath,
-      destinationPath: destPath
+      destinationPath: destPath,
     });
 
     // Assert
@@ -67,15 +89,19 @@ console.error(result);`, 'utf-8');
     const sourcePath = join(testDir, 'src', 'service.ts');
     const destPath = join(testDir, 'src', 'new', 'service.ts');
 
-    await writeFile(sourcePath, `export function helper() {
+    await writeFile(
+      sourcePath,
+      `export function helper() {
   return 42;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       sourcePath,
       destinationPath: destPath,
-      preview: true
+      preview: true,
     });
 
     // Assert
@@ -87,7 +113,9 @@ console.error(result);`, 'utf-8');
     expect(response.preview?.estimatedTime).toBe('< 2s');
 
     // Verify file was NOT moved
-    const sourceExists = await readFile(sourcePath, 'utf-8').then(() => true).catch(() => false);
+    const sourceExists = await readFile(sourcePath, 'utf-8')
+      .then(() => true)
+      .catch(() => false);
     expect(sourceExists).toBe(true);
   });
 
@@ -95,7 +123,7 @@ console.error(result);`, 'utf-8');
     // Act
     const response = await operation!.execute({
       sourcePath: '/nonexistent/file.ts',
-      destinationPath: join(testDir, 'src', 'new', 'file.ts')
+      destinationPath: join(testDir, 'src', 'new', 'file.ts'),
     });
 
     // Assert
@@ -109,22 +137,33 @@ console.error(result);`, 'utf-8');
     const absoluteDestPath = join(testDir, 'src', 'new', 'rel-service.ts');
     const mainPath = join(testDir, 'src', 'main.ts');
 
-    await writeFile(absoluteSourcePath, `export function relHelper() {
+    await writeFile(
+      absoluteSourcePath,
+      `export function relHelper() {
   return 42;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
-    await writeFile(mainPath, `import { relHelper } from './rel-service.js';
+    await writeFile(
+      mainPath,
+      `import { relHelper } from './rel-service.js';
 
 const result = relHelper();
-console.error(result);`, 'utf-8');
+console.error(result);`,
+      'utf-8',
+    );
 
-    const relativeSourcePath = absoluteSourcePath.replace(process.cwd() + '/', '');
-    const relativeDestPath = absoluteDestPath.replace(process.cwd() + '/', '');
+    const relativeSourcePath = absoluteSourcePath.replace(
+      `${process.cwd()}/`,
+      '',
+    );
+    const relativeDestPath = absoluteDestPath.replace(`${process.cwd()}/`, '');
 
     // Act
     const response = await operation!.execute({
       sourcePath: relativeSourcePath,
-      destinationPath: relativeDestPath
+      destinationPath: relativeDestPath,
     });
 
     // Assert
@@ -144,19 +183,27 @@ console.error(result);`, 'utf-8');
     const absoluteDestPath = join(testDir, 'src', 'new', 'abs-service.ts');
     const mainPath = join(testDir, 'src', 'main.ts');
 
-    await writeFile(absoluteSourcePath, `export function absHelper() {
+    await writeFile(
+      absoluteSourcePath,
+      `export function absHelper() {
   return 42;
-}`, 'utf-8');
+}`,
+      'utf-8',
+    );
 
-    await writeFile(mainPath, `import { absHelper } from './abs-service.js';
+    await writeFile(
+      mainPath,
+      `import { absHelper } from './abs-service.js';
 
 const result = absHelper();
-console.error(result);`, 'utf-8');
+console.error(result);`,
+      'utf-8',
+    );
 
     // Act
     const response = await operation!.execute({
       sourcePath: absoluteSourcePath,
-      destinationPath: absoluteDestPath
+      destinationPath: absoluteDestPath,
     });
 
     // Assert

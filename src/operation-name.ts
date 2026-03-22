@@ -19,5 +19,5 @@ export enum OperationName {
   INFER_RETURN_TYPE = 'infer_return_type',
   REFACTOR_MODULE = 'refactor_module',
   CLEANUP_CODEBASE = 'cleanup_codebase',
-  RESTART_TSSERVER = 'restart_tsserver'
+  RESTART_TSSERVER = 'restart_tsserver',
 }

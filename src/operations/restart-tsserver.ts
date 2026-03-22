@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
+import type {
+  RefactorResult,
+  TypeScriptServer,
+} from '../language-servers/typescript/tsserver-client.js';
 import { logger } from '../utils/logger.js';
 
 export const restartTsServerSchema = z.object({});
@@ -32,5 +35,4 @@ export class RestartTsServerOperation {
       };
     }
   }
-
 }

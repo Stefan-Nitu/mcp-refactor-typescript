@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { TextPositionConverter } from '../text-position-converter.js';
 
 describe('TextPositionConverter', () => {
@@ -10,7 +10,7 @@ describe('TextPositionConverter', () => {
       const lines = [
         'export function calculateSum(a: number, b: number): number {',
         '  return a + b;',
-        '}'
+        '}',
       ];
 
       // Act
@@ -74,7 +74,7 @@ describe('TextPositionConverter', () => {
       const lines = [
         'export function calculateSum(a: number, b: number): number {',
         '  return a + b;',
-        '}'
+        '}',
       ];
 
       // Act
@@ -83,7 +83,9 @@ describe('TextPositionConverter', () => {
       // Assert
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.message).toContain('Text "nonexistent" not found on line 1');
+        expect(result.message).toContain(
+          'Text "nonexistent" not found on line 1',
+        );
         expect(result.message).toContain('Line content:');
         expect(result.message).toContain('calculateSum');
       }

@@ -1,21 +1,30 @@
 import { z } from 'zod';
-import { RefactorResult, TypeScriptServer } from '../language-servers/typescript/tsserver-client.js';
-import type { TSRefactorAction, TSRefactorEditInfo, TSRefactorInfo, TSRenameLoc, TSRenameResponse } from '../language-servers/typescript/tsserver-types.js';
-import { Operation } from '../registry.js';
+import type {
+  RefactorResult,
+  TypeScriptServer,
+} from '../language-servers/typescript/tsserver-client.js';
+import type {
+  TSRefactorAction,
+  TSRefactorEditInfo,
+  TSRefactorInfo,
+  TSRenameLoc,
+  TSRenameResponse,
+} from '../language-servers/typescript/tsserver-types.js';
+import type { Operation } from '../registry.js';
 import { formatValidationError } from '../utils/validation-error.js';
-import { RefactoringProcessor } from './refactoring-processor.js';
-import { EditApplicator } from './shared/edit-applicator.js';
-import { FileOperations } from './shared/file-operations.js';
-import { FormatConfigurator } from './shared/format-configurator.js';
-import { TextPositionConverter } from './shared/text-position-converter.js';
-import { TSServerGuard } from './shared/tsserver-guard.js';
+import type { RefactoringProcessor } from './refactoring-processor.js';
+import type { EditApplicator } from './shared/edit-applicator.js';
+import type { FileOperations } from './shared/file-operations.js';
+import type { FormatConfigurator } from './shared/format-configurator.js';
+import type { TextPositionConverter } from './shared/text-position-converter.js';
+import type { TSServerGuard } from './shared/tsserver-guard.js';
 
 const extractVariableSchema = z.object({
   filePath: z.string().min(1, 'File path cannot be empty'),
   line: z.number().int().positive('Line must be a positive integer'),
   text: z.string().min(1, 'Text cannot be empty'),
   name: z.string().optional(),
-  preview: z.boolean().optional()
+  preview: z.boolean().optional(),
 });
 
 export class ExtractVariableOperation implements Operation {
@@ -26,9 +35,8 @@ export class ExtractVariableOperation implements Operation {
     private textConverter: TextPositionConverter,
     private editApplicator: EditApplicator,
     private formatConfigurator: FormatConfigurator,
-    private tsServerGuard: TSServerGuard
+    private tsServerGuard: TSServerGuard,
   ) {}
-
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
     try {
@@ -37,13 +45,17 @@ export class ExtractVariableOperation implements Operation {
       const filePath = this.fileOps.resolvePath(validated.filePath);
 
       const lines = await this.fileOps.readLines(filePath);
-      const positionResult = this.textConverter.findTextPosition(lines, line, text);
+      const positionResult = this.textConverter.findTextPosition(
+        lines,
+        line,
+        text,
+      );
 
       if (!positionResult.success) {
         return {
           success: false,
           message: positionResult.message,
-          filesChanged: []
+          filesChanged: [],
         };
       }
 
@@ -57,15 +69,18 @@ export class ExtractVariableOperation implements Operation {
 
       await this.tsServer.openFile(filePath);
 
-      const refactors = await this.tsServer.sendRequest('getApplicableRefactors', {
-        file: filePath,
-        startLine,
-        startOffset: startColumn,
-        endLine,
-        endOffset: endColumn,
-        triggerReason: 'invoked',
-        kind: 'refactor.extract.constant'
-      }) as TSRefactorInfo[] | null;
+      const refactors = (await this.tsServer.sendRequest(
+        'getApplicableRefactors',
+        {
+          file: filePath,
+          startLine,
+          startOffset: startColumn,
+          endLine,
+          endOffset: endColumn,
+          triggerReason: 'invoked',
+          kind: 'refactor.extract.constant',
+        },
+      )) as TSRefactorInfo[] | null;
 
       if (!refactors || refactors.length === 0) {
         return {
@@ -80,8 +95,8 @@ Try:
         };
       }
 
-      const extractRefactor = refactors.find((r) =>
-        r.name === 'Extract Symbol' || r.name === 'Extract to constant'
+      const extractRefactor = refactors.find(
+        (r) => r.name === 'Extract Symbol' || r.name === 'Extract to constant',
       );
 
       if (!extractRefactor) {
@@ -89,16 +104,17 @@ Try:
           success: false,
           message: `Extract variable not available at this location
 
-Available refactorings: ${refactors.map(r => r.name).join(', ')}
+Available refactorings: ${refactors.map((r) => r.name).join(', ')}
 
 Try a different selection or use one of the available refactorings`,
           filesChanged: [],
         };
       }
 
-      const variableAction = extractRefactor.actions.find((a: TSRefactorAction) =>
-        a.name.startsWith('constant_scope_')
-      ) || extractRefactor.actions[0];
+      const variableAction =
+        extractRefactor.actions.find((a: TSRefactorAction) =>
+          a.name.startsWith('constant_scope_'),
+        ) || extractRefactor.actions[0];
 
       if (!variableAction) {
         return {
@@ -115,15 +131,18 @@ This might happen if:
 
       await this.formatConfigurator.configureForFile(filePath, lines);
 
-      const edits = await this.tsServer.sendRequest<TSRefactorEditInfo>('getEditsForRefactor', {
-        file: filePath,
-        startLine,
-        startOffset: startColumn,
-        endLine,
-        endOffset: endColumn,
-        refactor: extractRefactor.name,
-        action: variableAction.name
-      });
+      const edits = await this.tsServer.sendRequest<TSRefactorEditInfo>(
+        'getEditsForRefactor',
+        {
+          file: filePath,
+          startLine,
+          startOffset: startColumn,
+          endLine,
+          endOffset: endColumn,
+          refactor: extractRefactor.name,
+          action: variableAction.name,
+        },
+      );
 
       if (!edits || !edits.edits || edits.edits.length === 0) {
         return {
@@ -146,10 +165,19 @@ This might indicate:
       // Apply edits - TSServer now respects our formatOptions from configure()
       for (const fileEdit of edits.edits) {
         const originalLines = await this.fileOps.readLines(fileEdit.fileName);
-        const sortedChanges = this.editApplicator.sortEdits(fileEdit.textChanges);
+        const sortedChanges = this.editApplicator.sortEdits(
+          fileEdit.textChanges,
+        );
 
-        const fileChanges = this.editApplicator.buildFileChanges(originalLines, sortedChanges, fileEdit.fileName);
-        const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
+        const fileChanges = this.editApplicator.buildFileChanges(
+          originalLines,
+          sortedChanges,
+          fileEdit.fileName,
+        );
+        const updatedLines = this.editApplicator.applyEdits(
+          originalLines,
+          sortedChanges,
+        );
 
         if (!validated.preview) {
           await this.fileOps.writeLines(fileEdit.fileName, updatedLines);
@@ -176,21 +204,27 @@ This might indicate:
           preview: {
             filesAffected: filesChanged.length,
             estimatedTime: '< 1s',
-            command: 'Run again with preview: false to apply changes'
-          }
+            command: 'Run again with preview: false to apply changes',
+          },
         };
       }
 
-      if (variableName && generatedVariableName && generatedVariableName !== variableName && variableDeclarationLine && variableColumn) {
+      if (
+        variableName &&
+        generatedVariableName &&
+        generatedVariableName !== variableName &&
+        variableDeclarationLine &&
+        variableColumn
+      ) {
         await this.tsServer.openFile(filePath);
 
-        const renameResult = await this.tsServer.sendRequest('rename', {
+        const renameResult = (await this.tsServer.sendRequest('rename', {
           file: filePath,
           line: variableDeclarationLine,
           offset: variableColumn,
           findInComments: false,
-          findInStrings: false
-        }) as TSRenameResponse | null;
+          findInStrings: false,
+        })) as TSRenameResponse | null;
 
         if (renameResult?.locs) {
           for (const fileLoc of renameResult.locs) {
@@ -199,15 +233,23 @@ This might indicate:
             const renamedChanges = fileLoc.locs.map((loc: TSRenameLoc) => ({
               start: loc.start,
               end: loc.end,
-              newText: variableName
+              newText: variableName,
             }));
 
             const sortedChanges = this.editApplicator.sortEdits(renamedChanges);
-            const updatedLines = this.editApplicator.applyEdits(originalLines, sortedChanges);
+            const updatedLines = this.editApplicator.applyEdits(
+              originalLines,
+              sortedChanges,
+            );
 
             await this.fileOps.writeLines(fileLoc.file, updatedLines);
 
-            this.processor.updateFilesChangedAfterRename(filesChanged, generatedVariableName, variableName, fileLoc.file);
+            this.processor.updateFilesChangedAfterRename(
+              filesChanged,
+              generatedVariableName,
+              variableName,
+              fileLoc.file,
+            );
           }
         }
       }
@@ -216,11 +258,8 @@ This might indicate:
         success: true,
         message: `Extracted variable${variableName ? ` "${variableName}"` : ''}`,
         filesChanged,
-        nextActions: [
-          'organize_imports - Clean up imports if needed'
-        ]
+        nextActions: ['organize_imports - Clean up imports if needed'],
       };
-
     } catch (error) {
       if (error instanceof z.ZodError) {
         return formatValidationError(error);

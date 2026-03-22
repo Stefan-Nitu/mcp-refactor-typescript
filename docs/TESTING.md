@@ -60,21 +60,21 @@ export default defineConfig({
 
 ```typescript
 // test/setup.ts
-import { vi } from 'vitest';
+import { vi } from 'bun:test';
 
 // Mock console methods to avoid cluttering test output
 globalThis.console = {
   ...console,
-  log: vi.fn(),
-  error: vi.fn(),
-  warn: vi.fn(),
-  info: vi.fn(),
-  debug: vi.fn()
+  log: mock(),
+  error: mock(),
+  warn: mock(),
+  info: mock(),
+  debug: mock()
 };
 
 // Reset all mocks after each test
 afterEach(() => {
-  vi.clearAllMocks();
+  mock.restore();
 });
 ```
 
@@ -221,7 +221,7 @@ it('uses Prisma ORM correctly', async () => {
 
 #### ✅ CAN Be Unit Tested (with proper mocking)
 - **Business Logic**: Calculations, validations, transformations
-- **Time-based Logic**: Using Vitest's `vi.useFakeTimers()`
+- **Time-based Logic**: Using Vitest's `mock.setSystemTime()`
 - **API Calls**: Mock the fetch/axios calls
 - **Browser Storage**: Mock localStorage/sessionStorage
 - **DOM Events**: Using Testing Library's fireEvent
@@ -230,7 +230,7 @@ it('uses Prisma ORM correctly', async () => {
 // Time-based code IS testable with Vitest!
 describe('Debounced search', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    mock.setSystemTime();
   });
 
   afterEach(() => {
@@ -238,7 +238,7 @@ describe('Debounced search', () => {
   });
 
   it('delays search by 300ms', async () => {
-    const searchFn = vi.fn();
+    const searchFn = mock();
     const debouncedSearch = debounce(searchFn, 300);
 
     debouncedSearch('query');
@@ -300,12 +300,12 @@ For servers using STDIO transport, critical requirements:
 
 ```typescript
 // test/stdio.test.ts
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'bun:test';
 
 describe('STDIO Transport Compliance', () => {
   it('should NEVER write logs to stdout', () => {
     // Arrange
-    const stdoutSpy = vi.spyOn(process.stdout, 'write');
+    const stdoutSpy = spyOn(process.stdout, 'write');
     const server = new MCPServer();
 
     // Act
@@ -319,7 +319,7 @@ describe('STDIO Transport Compliance', () => {
 
   it('should write all logs to stderr', () => {
     // Arrange
-    const stderrSpy = vi.spyOn(process.stderr, 'write');
+    const stderrSpy = spyOn(process.stderr, 'write');
 
     // Act
     logger.info('Server started');
@@ -336,7 +336,7 @@ Test MCP tools as isolated functions with clear inputs and outputs:
 
 ```typescript
 // tools/__tests__/build.test.ts
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from 'bun:test';
 import { buildTool, buildSchema } from '../build';
 import { z } from 'zod';
 
@@ -369,7 +369,7 @@ describe('Build Tool', () => {
   describe('Tool Execution', () => {
     it('should return MCP-formatted response on success', async () => {
       // Arrange
-      const mockExec = vi.fn().mockResolvedValue({
+      const mockExec = mock().mockResolvedValue({
         stdout: 'Build Succeeded',
         stderr: ''
       });
@@ -393,7 +393,7 @@ describe('Build Tool', () => {
 
     it('should handle build failures gracefully', async () => {
       // Arrange
-      const mockExec = vi.fn().mockRejectedValue(
+      const mockExec = mock().mockRejectedValue(
         new Error('Build failed: No such module')
       );
 
@@ -451,14 +451,14 @@ npx @modelcontextprotocol/inspector node dist/index.js --config ./config.json
 ### Testing Tool Functions
 
 ```typescript
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { MockedFunction } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'bun:test';
+import type { MockedFunction } from 'bun:test';
 
 describe('Simulator Tool', () => {
   let mockExecutor: MockedFunction<ExecuteCommand>;
 
   beforeEach(() => {
-    mockExecutor = vi.fn();
+    mockExecutor = mock();
   });
 
   it('should list available simulators', async () => {
@@ -487,7 +487,7 @@ describe('Simulator Tool', () => {
 ### Testing Schema Validation
 
 ```typescript
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { z } from 'zod';
 
 describe('Input Validation', () => {
@@ -519,7 +519,7 @@ describe('Input Validation', () => {
 ### Testing Server Initialization
 
 ```typescript
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'bun:test';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
@@ -883,12 +883,12 @@ jobs:
 
 ## Vitest TypeScript Mocking Best Practices
 
-### 1. Modern vi.fn() Type Signatures
+### 1. Modern mock() Type Signatures
 
 Vitest uses a simplified generic type system for mock functions:
 
 ```typescript
-import { vi, type Mock, type MockedFunction } from 'vitest';
+import { vi, type Mock, type MockedFunction } from 'bun:test';
 
 // ✅ GOOD - Modern Vitest approach with function type
 const mockFunction = vi.fn<() => Promise<{ success: boolean }>>();
@@ -902,7 +902,7 @@ const mockCallback = vi.fn<(error: Error | null, data?: string) => void>();
 
 // Using MockedFunction type for better inference
 let mockExecutor: MockedFunction<(cmd: string) => Promise<string>>;
-mockExecutor = vi.fn();
+mockExecutor = mock();
 
 // ✅ BEST - Use interface method types directly
 interface MyService {
@@ -917,8 +917,8 @@ When mocking modules that use variables from the test scope, use `vi.hoisted()`:
 
 ```typescript
 // ❌ BAD - Causes "Cannot access before initialization" error
-const mockExecAsync = vi.fn();
-vi.mock('util', () => ({
+const mockExecAsync = mock();
+mock.module('util', () => ({
   promisify: () => mockExecAsync // Error: mockExecAsync not available yet
 }));
 
@@ -927,25 +927,25 @@ const { mockExecAsync } = vi.hoisted(() => ({
   mockExecAsync: vi.fn<(cmd: string) => Promise<{ stdout: string; stderr: string }>>()
 }));
 
-vi.mock('util', () => ({
+mock.module('util', () => ({
   promisify: () => mockExecAsync // Now mockExecAsync is available
 }));
 
 // ✅ ALTERNATIVE - Use "mock" prefix (Vitest doesn't hoist these)
-const mockExecAsync = vi.fn(); // Note: "mock" prefix
-vi.mock('util', () => ({
+const mockExecAsync = mock(); // Note: "mock" prefix
+mock.module('util', () => ({
   promisify: () => mockExecAsync
 }));
 
 // ✅ ALTERNATIVE - Use vi.doMock() for non-hoisted mocking
-const mockExecAsync = vi.fn();
+const mockExecAsync = mock();
 vi.doMock('util', () => ({
   promisify: () => mockExecAsync
 }));
 // Note: Must import the module AFTER vi.doMock()
 ```
 
-### 2. Mocking ESM Modules with vi.mock()
+### 2. Mocking ESM Modules with mock.module()
 
 For ESM modules, use async factory functions with proper typing:
 
@@ -953,23 +953,23 @@ For ESM modules, use async factory functions with proper typing:
 import type * as NavigationModule from './navigation';
 
 // Mock ESM module with type safety
-vi.mock('./navigation', async () => {
+mock.module('./navigation', async () => {
   const actual = await vi.importActual<typeof NavigationModule>('./navigation');
   return {
     ...actual,
-    navigate: vi.fn(),
+    navigate: mock(),
   };
 });
 
 // For Node.js built-in modules
-vi.mock('fs/promises', () => ({
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
+mock.module('fs/promises', () => ({
+  readFile: mock(),
+  writeFile: mock(),
 }));
 
-// Access mocked functions with vi.mocked()
+// Access mocked functions with mock( // bun:test equivalent of vi.mocked()
 import { navigate } from './navigation';
-const mockedNavigate = vi.mocked(navigate);
+const mockedNavigate = mock( // bun:test equivalent of vi.mocked(navigate);
 mockedNavigate.mockResolvedValue({ success: true });
 ```
 
@@ -994,7 +994,7 @@ mockAsync
 ### 4. Factory Pattern with Vitest (Recommended for Type Safety)
 
 ```typescript
-import { vi } from 'vitest';
+import { vi } from 'bun:test';
 
 // ✅ BEST - Type-safe factory patterns without type assertions
 function createMockService(): MyService {
@@ -1008,8 +1008,8 @@ function createMockService(): MyService {
 // With partial mocking using satisfies
 function createPartialMock() {
   return {
-    execute: vi.fn(),
-    query: vi.fn()
+    execute: mock(),
+    query: mock()
   } satisfies Partial<MyService>;
 }
 
@@ -1022,7 +1022,7 @@ function createMockChildProcess(overrides: Partial<ChildProcess> = {}): ChildPro
     stdout: new PassThrough(),
     stderr: null,
     pid: 123,
-    kill: vi.fn().mockReturnValue(true),
+    kill: mock().mockReturnValue(true),
     ...overrides
   }) as ChildProcess;
 }
@@ -1031,8 +1031,8 @@ function createMockChildProcess(overrides: Partial<ChildProcess> = {}): ChildPro
 function createTestContext() {
   const mockExecute = vi.fn<(cmd: string) => Promise<{ stdout: string }>>();
   const mockLogger = {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: mock(),
+    error: mock(),
   };
 
   return {
@@ -1058,36 +1058,36 @@ describe('MyService', () => {
 });
 ```
 
-### 5. Using vi.mocked() for Type Safety
+### 5. Using mock( // bun:test equivalent of vi.mocked() for Type Safety
 
 ```typescript
 import { readFile } from 'fs/promises';
-import { vi } from 'vitest';
+import { vi } from 'bun:test';
 
-vi.mock('fs/promises');
+mock.module('fs/promises');
 
 // vi.mocked provides proper type inference
-const mockedReadFile = vi.mocked(readFile);
+const mockedReadFile = mock( // bun:test equivalent of vi.mocked(readFile);
 mockedReadFile.mockResolvedValue(Buffer.from('content'));
 
 // Works with deep mocking
-vi.mocked(console.log).mockImplementation(() => {});
+mock( // bun:test equivalent of vi.mocked(console.log).mockImplementation(() => {});
 ```
 
 ### 6. Handling Partial Mocks and Spies
 
 ```typescript
-import { vi } from 'vitest';
+import { vi } from 'bun:test';
 
 // Spy on existing object methods
-const spy = vi.spyOn(console, 'log');
+const spy = spyOn(console, 'log');
 
 // Partial mock of a module
-vi.mock('./utils', async (importOriginal) => {
+mock.module('./utils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./utils')>();
   return {
     ...actual,
-    heavyFunction: vi.fn().mockReturnValue('mocked'),
+    heavyFunction: mock().mockReturnValue('mocked'),
   };
 });
 
@@ -1097,13 +1097,13 @@ class Service {
 }
 
 const service = new Service();
-vi.spyOn(service, 'fetch').mockResolvedValue({ id: '1', name: 'Test' });
+spyOn(service, 'fetch').mockResolvedValue({ id: '1', name: 'Test' });
 ```
 
 ### 7. Concurrent and Parallel Testing
 
 ```typescript
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 
 // Run all tests in this suite concurrently
 describe.concurrent('Parallel API tests', () => {
@@ -1135,11 +1135,11 @@ export default defineConfig({
 ### 8. Vitest-Specific Features for MCP Testing
 
 ```typescript
-import { vi, expect, beforeAll, afterEach } from 'vitest';
+import { vi, expect, beforeAll, afterEach } from 'bun:test';
 
 // Fake timers for timeout testing
 beforeAll(() => {
-  vi.useFakeTimers();
+  mock.setSystemTime();
 });
 
 afterEach(() => {
@@ -1191,7 +1191,7 @@ if (import.meta.vitest) {
 ```typescript
 // BAD - Loses type safety and hides potential issues
 const mockService = {
-  execute: vi.fn()
+  execute: mock()
 } as unknown as MyService;
 
 // BAD - Multiple assertions are a code smell
@@ -1212,14 +1212,14 @@ function createMockService(): MyService {
 
 // GOOD - Use satisfies for partial mocks
 const partialMock = {
-  execute: vi.fn(),
-  query: vi.fn()
+  execute: mock(),
+  query: mock()
 } satisfies Partial<MyService>;
 
-// GOOD - Use vi.mocked() for module mocks
+// GOOD - Use mock( // bun:test equivalent of vi.mocked() for module mocks
 import { service } from './service';
-vi.mock('./service');
-const mockedService = vi.mocked(service);
+mock.module('./service');
+const mockedService = mock( // bun:test equivalent of vi.mocked(service);
 ```
 
 ### When Type Assertions Are Acceptable
@@ -1242,9 +1242,9 @@ const invalidInput = { foo: 'bar' } as ValidInput; // Testing schema validation
 ## Best Practices Summary
 
 1. **Always test stderr vs stdout compliance** - Critical for STDIO transport
-2. **Use explicit type signatures for vi.fn()** - Ensures TypeScript type safety
+2. **Use explicit type signatures for mock()** - Ensures TypeScript type safety
 3. **Mock ESM modules with async factories** - Use vi.importActual for partial mocks
-4. **Leverage vi.mocked() for type inference** - Better than type assertions
+4. **Leverage mock( // bun:test equivalent of vi.mocked() for type inference** - Better than type assertions
 5. **Test schemas separately from logic** - Ensures validation works correctly
 6. **Test error paths explicitly** - Users need clear error messages
 7. **Validate MCP response format** - Must match protocol specification
