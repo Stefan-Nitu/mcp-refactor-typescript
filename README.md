@@ -334,6 +334,11 @@ bun run lint
 - Valid TypeScript/JavaScript files
 - ESM module resolution (`.js` extensions in imports)
 
+Your project does **not** need TypeScript installed — the server ships its own. When
+your project does have one, that copy is used instead so refactors match the language
+version you compile with. Projects on TypeScript 7 fall back to the bundled TypeScript 5,
+because TypeScript 7 no longer ships the `tsserver` this server drives.
+
 ## Architecture
 
 The server uses TypeScript's native `tsserver` for all refactoring operations:

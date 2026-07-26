@@ -5,9 +5,9 @@
 
 import { type ChildProcess, spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { logger } from '../../utils/logger.js';
 import { MessageParser } from './message-parser.js';
+import { resolveTsserverPath } from './resolve-tsserver-path.js';
 
 export interface RefactorResult {
   success: boolean;
@@ -47,6 +47,15 @@ interface TSServerResponse {
   event?: string;
 }
 
+/** A crashing tsserver prints a full stack trace; the Error line carries the cause */
+function summarizeStderr(stderr: string): string {
+  const lines = stderr
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.find((line) => /Error(:|\s)/.test(line)) ?? lines[0] ?? '';
+}
+
 export class TypeScriptServer {
   private process: ChildProcess | null = null;
   private seq = 0;
@@ -61,6 +70,12 @@ export class TypeScriptServer {
   private projectLoaded = false;
   private running = false;
 
+  constructor(
+    private readonly resolveTsserver: (
+      projectPath: string,
+    ) => string = resolveTsserverPath,
+  ) {}
+
   isRunning(): boolean {
     return this.running;
   }
@@ -70,7 +85,7 @@ export class TypeScriptServer {
       throw new Error('TypeScript server is already running');
     }
 
-    const tsserverPath = resolve('node_modules/typescript/lib/tsserver.js');
+    const tsserverPath = this.resolveTsserver(projectPath);
 
     this.process = spawn('node', [tsserverPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -83,14 +98,35 @@ export class TypeScriptServer {
     this.process.stdout?.setEncoding('utf8');
     this.process.stdout?.on('data', (data) => this.handleData(data));
 
+    let stderrOutput = '';
     this.process.stderr?.setEncoding('utf8');
     this.process.stderr?.on('data', (data) => {
+      stderrOutput += data.toString();
       logger.debug({ stderr: data.toString() }, 'TSServer stderr');
+    });
+
+    // A tsserver that dies never answers, so fail its callers now instead of
+    // leaving them to wait out the 30s request timeout
+    this.process.on('error', (error) => {
+      this.running = false;
+      this.failPendingRequests(
+        new Error(
+          `Could not spawn tsserver at ${tsserverPath}: ${error.message}`,
+        ),
+      );
     });
 
     this.process.on('exit', (code) => {
       logger.info({ code }, 'TSServer process exited');
       this.running = false;
+      const cause = summarizeStderr(stderrOutput);
+      this.failPendingRequests(
+        new Error(
+          `tsserver at ${tsserverPath} exited with code ${code}${
+            cause ? `: ${cause}` : ''
+          }`,
+        ),
+      );
     });
 
     // Configure preferences
@@ -146,6 +182,13 @@ export class TypeScriptServer {
         }
       }, 2000);
     });
+  }
+
+  private failPendingRequests(reason: Error): void {
+    for (const [seq, pending] of this.pendingRequests) {
+      this.pendingRequests.delete(seq);
+      pending.reject(reason);
+    }
   }
 
   private handleData(data: string): void {
