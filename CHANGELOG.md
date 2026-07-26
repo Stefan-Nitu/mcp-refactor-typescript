@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-07-26
+
+### 🐛 Fixed
+
+- **Server was unusable on a fresh install**: `tsserver` was located with a `process.cwd()`-relative path while `typescript` was only a devDependency, so an installed copy had no `tsserver.js` to spawn and every operation failed after a 30-second timeout with a misleading "ensure the file exists" message. It worked during development only because this repo has its own `node_modules/typescript`.
+- **TypeScript 7 in a user's project no longer breaks refactoring**: `tsr` declares `typescript: >=4.0.0` as a peer dependency, which npm resolved to TypeScript 7 — the Go port, which ships no `tsserver.js`. `typescript` is now a direct dependency pinned to `~5.9.3`, and projects on TypeScript 7 fall back to the bundled copy.
+- **A tsserver that dies is reported immediately**: process `error` and `exit` now reject in-flight requests with the tsserver path and the underlying cause, instead of leaving callers to wait out the 30-second request timeout. Also covers tsserver crashing mid-session.
+
+### 🔧 Changed
+
+- **tsserver resolution prefers the project's own TypeScript**: refactors match the language version the project compiles with, falling back to the bundled TypeScript 5 when the project has none. See `src/language-servers/typescript/resolve-tsserver-path.ts`.
+- **`typescript` moved from devDependencies to dependencies** (`~5.9.3`), so the server ships the tsserver it drives.
+
+### ✅ Testing
+
+- **`bun run test:fresh-install`**: packs the tarball, installs it outside the repo, and drives a real rename against a project with no TypeScript installed — the case every in-repo test is blind to. Runs as its own CI job.
+- Unit tests for tsserver path resolution and startup failure reporting.
+
 ## [2.1.0] - 2026-03-22
 
 ### ✨ Added
@@ -170,7 +188,8 @@ Replaced 15 individual MCP tools with 4 grouped tools, reducing token overhead b
 - Preview mode for all destructive operations
 - MCP protocol compliance (stderr logging only)
 
-[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.0.0...v1.1.0
