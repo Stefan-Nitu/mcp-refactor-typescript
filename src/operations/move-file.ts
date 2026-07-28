@@ -5,6 +5,7 @@
 import { resolve } from 'node:path';
 import { z } from 'zod';
 import type { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import { formatValidationError } from '../utils/validation-error.js';
 import type { FileDiscovery } from './shared/file-discovery.js';
 import type { FileMover } from './shared/file-mover.js';
 import type { TSServerGuard } from './shared/tsserver-guard.js';
@@ -49,6 +50,10 @@ export class MoveFileOperation {
         message: result.message + warningMessage,
       };
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return formatValidationError(error);
+      }
+
       return {
         success: false,
         message: `Move file failed: ${error instanceof Error ? error.message : String(error)}

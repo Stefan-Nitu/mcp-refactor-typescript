@@ -194,6 +194,25 @@ export const version = getVersion();`;
       expect(response.success).toBe(false);
       expect(response.message).toContain('Rename file failed');
     });
+
+    it('should explain the missing parameter instead of dumping raw Zod output', async () => {
+      // Arrange - destinationPath is the natural guess, but rename_file takes a
+      // bare `name`
+      const input = {
+        sourcePath: join(testDir, 'src', 'anything.ts'),
+        destinationPath: join(testDir, 'src', 'other', 'anything.ts'),
+      };
+
+      // Act
+      const response = await operation!.execute(input);
+
+      // Assert
+      expect(response.success).toBe(false);
+      expect(response.message).not.toContain('invalid_type');
+      expect(response.message).not.toContain('"path"');
+      expect(response.message).toContain('Invalid input');
+      expect(response.message).toContain('name');
+    });
   });
 
   describe('edge cases', () => {

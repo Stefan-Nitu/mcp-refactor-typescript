@@ -69,6 +69,7 @@ export class TypeScriptServer {
   private parser = new MessageParser();
   private projectLoaded = false;
   private running = false;
+  private assumeLoaded: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly resolveTsserver: (
@@ -87,15 +88,22 @@ export class TypeScriptServer {
 
     const tsserverPath = this.resolveTsserver(projectPath);
 
-    this.process = spawn('node', [tsserverPath], {
+    // Both belong to the process being replaced: a carried-over flag makes the
+    // readiness guard skip its wait, and a half-read frame from the dead server
+    // would consume the start of the new one's output
+    this.projectLoaded = false;
+    this.parser = new MessageParser();
+
+    const child = spawn('node', [tsserverPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: projectPath,
       env: {
         ...process.env,
       },
     });
+    this.process = child;
 
-    this.process.stdout?.setEncoding('utf8');
+    // Left undecoded: the parser needs byte offsets to honour Content-Length
     this.process.stdout?.on('data', (data) => this.handleData(data));
 
     let stderrOutput = '';
@@ -143,9 +151,10 @@ export class TypeScriptServer {
     this.running = true;
 
     // For small/empty projects, projectLoadingStart might not fire
-    // If we don't see it within 500ms, assume project is ready
-    setTimeout(() => {
-      if (!this.projectLoaded && this.running) {
+    // If we don't see it within 500ms, assume project is ready.
+    // Gated on `child` rather than `running`, which a restart sets back to true
+    this.assumeLoaded = setTimeout(() => {
+      if (!this.projectLoaded && this.process === child) {
         logger.debug(
           'No project loading event received, assuming small project',
         );
@@ -159,28 +168,32 @@ export class TypeScriptServer {
       return;
     }
 
-    return new Promise<void>((resolve) => {
-      if (!this.process) {
-        resolve();
-        return;
-      }
+    // Captured so neither the timer nor the exit handler can act on a later
+    // process - a restart replaces this.process well within the 2s window
+    const child = this.process;
 
-      this.process.once('exit', () => {
-        this.process = null;
-        this.running = false;
+    if (this.assumeLoaded) {
+      clearTimeout(this.assumeLoaded);
+      this.assumeLoaded = null;
+    }
+
+    return new Promise<void>((resolve) => {
+      const forceKill = setTimeout(() => {
+        logger.warn('TSServer did not exit gracefully, force killing');
+        child.kill('SIGKILL');
+      }, 2000);
+
+      child.once('exit', () => {
+        clearTimeout(forceKill);
+        if (this.process === child) {
+          this.process = null;
+          this.running = false;
+        }
         logger.debug('TSServer process exited');
         resolve();
       });
 
-      this.process.kill('SIGTERM');
-
-      // Force kill after 2 seconds if graceful shutdown fails
-      setTimeout(() => {
-        if (this.process) {
-          logger.warn('TSServer did not exit gracefully, force killing');
-          this.process.kill('SIGKILL');
-        }
-      }, 2000);
+      child.kill('SIGTERM');
     });
   }
 
@@ -191,7 +204,7 @@ export class TypeScriptServer {
     }
   }
 
-  private handleData(data: string): void {
+  private handleData(data: Buffer): void {
     for (const message of this.parser.feed(data)) {
       this.handleMessage(message as TSServerResponse);
     }

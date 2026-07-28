@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { OperationRegistry } from './registry.js';
 import { operationsCatalog } from './resources/operations-catalog.js';
 import { groupedTools } from './tools/grouped-tools.js';
+import { toolInputShape } from './tools/tool-input-shape.js';
 import { flushLogs, logger } from './utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,10 +53,7 @@ server.registerResource(
 
 // Register grouped tools (v2.0)
 for (const tool of groupedTools) {
-  const schema =
-    'shape' in tool.inputSchema
-      ? tool.inputSchema.shape
-      : tool.inputSchema._def.schema.shape;
+  const schema = toolInputShape(tool.inputSchema);
 
   server.registerTool(
     tool.name,

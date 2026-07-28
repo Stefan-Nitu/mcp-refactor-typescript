@@ -313,4 +313,91 @@ describe('EditApplicator', () => {
       expect(result.edits).toHaveLength(2);
     });
   });
+  describe('insertion at the start of a removed range', () => {
+    // move_to_file emits exactly this pair: the import for the symbol that is
+    // leaving, and the deletion of the declaration, both anchored at 1:1
+    const declarationRemoved: TSTextChange = {
+      start: { line: 1, offset: 1 },
+      end: { line: 5, offset: 1 },
+      newText: '',
+    };
+    const importAdded: TSTextChange = {
+      start: { line: 1, offset: 1 },
+      end: { line: 1, offset: 1 },
+      newText: 'import { moved } from "./extracted.ts";\n\n',
+    };
+    const originalLines = [
+      'export function moved() {',
+      "  return 'moved';",
+      '}',
+      '',
+      'export function caller() {',
+      '  return moved();',
+      '}',
+    ];
+
+    it('should keep the inserted text when the range is removed', () => {
+      // Act
+      const result = applicator.applyEdits(
+        originalLines,
+        applicator.sortEdits([importAdded, declarationRemoved]),
+      );
+
+      // Assert
+      expect(result.join('\n')).toContain(
+        'import { moved } from "./extracted.ts";',
+      );
+    });
+
+    it('should still remove the declaration and keep the rest', () => {
+      // Act
+      const result = applicator.applyEdits(
+        originalLines,
+        applicator.sortEdits([importAdded, declarationRemoved]),
+      );
+
+      // Assert
+      const text = result.join('\n');
+      expect(text).not.toContain("return 'moved';");
+      expect(text).toContain('export function caller() {');
+    });
+
+    it('should keep two insertions at the same point in the order given', () => {
+      // Arrange - equal start and equal end, so only the input order says which
+      // text comes first
+      const first: TSTextChange = {
+        start: { line: 1, offset: 1 },
+        end: { line: 1, offset: 1 },
+        newText: 'import { a } from "./a.ts";\n',
+      };
+      const second: TSTextChange = {
+        start: { line: 1, offset: 1 },
+        end: { line: 1, offset: 1 },
+        newText: 'import { b } from "./b.ts";\n',
+      };
+
+      // Act
+      const result = applicator.applyEdits(
+        ['export const x = 1;'],
+        applicator.sortEdits([first, second]),
+      );
+
+      // Assert
+      const text = result.join('\n');
+      expect(text.indexOf('from "./a.ts"')).toBeLessThan(
+        text.indexOf('from "./b.ts"'),
+      );
+    });
+
+    it('should order the wider edit first whichever way they arrive', () => {
+      // Act - applyEdits walks the list in order, so the comparator alone
+      // decides whether the insertion survives
+      const asGiven = applicator.sortEdits([importAdded, declarationRemoved]);
+      const reversed = applicator.sortEdits([declarationRemoved, importAdded]);
+
+      // Assert
+      expect(asGiven).toEqual([declarationRemoved, importAdded]);
+      expect(reversed).toEqual([declarationRemoved, importAdded]);
+    });
+  });
 });

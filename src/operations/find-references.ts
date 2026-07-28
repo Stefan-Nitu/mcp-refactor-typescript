@@ -11,6 +11,7 @@ import type {
   TSReferenceEntry,
   TSReferencesResponse,
 } from '../language-servers/typescript/tsserver-types.js';
+import { formatValidationError } from '../utils/validation-error.js';
 import type { FileDiscovery } from './shared/file-discovery.js';
 import type { FileOperations } from './shared/file-operations.js';
 import type { TextPositionConverter } from './shared/text-position-converter.js';
@@ -101,6 +102,10 @@ export class FindReferencesOperation {
         filesChanged: [],
       };
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return formatValidationError(error);
+      }
+
       return {
         success: false,
         message: `Find references failed: ${error instanceof Error ? error.message : String(error)}

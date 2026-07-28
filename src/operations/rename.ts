@@ -11,6 +11,7 @@ import type {
   TSRenameLoc,
   TSRenameResponse,
 } from '../language-servers/typescript/tsserver-types.js';
+import { formatValidationError } from '../utils/validation-error.js';
 import type { EditApplicator } from './shared/edit-applicator.js';
 import type { FileDiscovery } from './shared/file-discovery.js';
 import type { FileOperations } from './shared/file-operations.js';
@@ -141,6 +142,10 @@ Try:
         ],
       };
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return formatValidationError(error);
+      }
+
       return {
         success: false,
         message: `Rename failed: ${error instanceof Error ? error.message : String(error)}

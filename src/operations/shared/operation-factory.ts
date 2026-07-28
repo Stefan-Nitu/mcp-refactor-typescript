@@ -22,6 +22,7 @@ import { FileMover } from './file-mover.js';
 import { FileOperations } from './file-operations.js';
 import { FormatConfigurator } from './format-configurator.js';
 import { IndentationDetector } from './indentation-detector.js';
+import { ModuleSpecifierPreference } from './module-specifier-preference.js';
 import { TextPositionConverter } from './text-position-converter.js';
 import { TSServerGuard } from './tsserver-guard.js';
 
@@ -142,6 +143,7 @@ export function createMoveToFileOperation(tsServer: TypeScriptServer) {
     new EditApplicator(),
     new FormatConfigurator(tsServer, new IndentationDetector()),
     new TSServerGuard(tsServer),
+    new ModuleSpecifierPreference(tsServer),
   );
 }
 

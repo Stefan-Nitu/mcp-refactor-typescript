@@ -8,6 +8,7 @@ import type {
   TypeScriptServer,
 } from '../language-servers/typescript/tsserver-client.js';
 import type { TSOrganizeImportsResponse } from '../language-servers/typescript/tsserver-types.js';
+import { formatValidationError } from '../utils/validation-error.js';
 import type { EditApplicator } from './shared/edit-applicator.js';
 import type { FileOperations } from './shared/file-operations.js';
 import type { FormatConfigurator } from './shared/format-configurator.js';
@@ -96,6 +97,10 @@ export class OrganizeImportsOperation {
         filesChanged: [fileChanges],
       };
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return formatValidationError(error);
+      }
+
       return {
         success: false,
         message: `Organize imports failed: ${error instanceof Error ? error.message : String(error)}

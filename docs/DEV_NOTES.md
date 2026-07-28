@@ -14,6 +14,30 @@ Resolve this package's own files with `createRequire(import.meta.url)`, and the
 project's files with `createRequire(join(projectPath, 'package.json'))`. See
 `src/language-servers/typescript/resolve-tsserver-path.ts`.
 
+## `Content-Length` from tsserver counts bytes, not characters
+
+tsserver sizes each frame with `Buffer.byteLength(json, 'utf8')`. `MessageParser`
+held its buffer as a decoded string and compared that byte count against
+`string.length` (UTF-16 units), so the moment a response carried a non-ASCII
+character the parser sat waiting for bytes that could never arrive as characters,
+and the caller died on the 30s request timeout instead.
+
+It looked like a tsserver problem because it was selective: `getApplicableRefactors`
+returns short ASCII refactor names and always worked, while `getEditsForRefactor`
+carries whole source files and failed on any project with an emoji or an em dash in
+one. Keep `stdout` undecoded and keep the parser buffer a `Buffer`.
+
+## A timer that reads `this.process` fires against whatever is there later
+
+`stop()` armed a 2s force-kill that re-read `this.process` when it fired, and
+never cleared it. A restart replaces `this.process` well inside that window, so
+every restart SIGKILLed its own replacement about two seconds later. It read as
+an intermittent flake only because whether an error surfaced depended on a
+request being in flight at that moment; the kill itself happened every time.
+
+Capture the child in a local and `clearTimeout` on exit. The same shape applies
+to anything deferred that touches mutable instance state.
+
 ## Tests inside this repo cannot catch packaging bugs
 
 `createTestDir()` puts workspaces at `<repo>/.test-workspace-*`, so Node resolution

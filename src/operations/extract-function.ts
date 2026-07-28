@@ -14,6 +14,7 @@ import type {
   TSRenameLoc,
   TSRenameResponse,
 } from '../language-servers/typescript/tsserver-types.js';
+import { formatValidationError } from '../utils/validation-error.js';
 import type { RefactoringProcessor } from './refactoring-processor.js';
 import type { EditApplicator } from './shared/edit-applicator.js';
 import type { FileOperations } from './shared/file-operations.js';
@@ -294,6 +295,10 @@ This might indicate:
         ],
       };
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return formatValidationError(error);
+      }
+
       return {
         success: false,
         message: `Extract function failed: ${error instanceof Error ? error.message : String(error)}

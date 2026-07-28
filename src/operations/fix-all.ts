@@ -14,6 +14,7 @@ import type {
   TSFileEdit,
   TSTextChange,
 } from '../language-servers/typescript/tsserver-types.js';
+import { formatValidationError } from '../utils/validation-error.js';
 import type { EditApplicator } from './shared/edit-applicator.js';
 import type { FileOperations } from './shared/file-operations.js';
 import type { TSServerGuard } from './shared/tsserver-guard.js';
@@ -162,6 +163,10 @@ export class FixAllOperation {
         nextActions: ['organize_imports - Clean up imports after fixes'],
       };
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return formatValidationError(error);
+      }
+
       return {
         success: false,
         message: `Fix all failed: ${error instanceof Error ? error.message : String(error)}

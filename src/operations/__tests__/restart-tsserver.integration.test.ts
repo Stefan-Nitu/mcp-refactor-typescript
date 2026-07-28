@@ -33,6 +33,36 @@ describe('restart_tsserver operation', () => {
     expect(tsServer!.isRunning()).toBe(true);
   });
 
+  it('should keep the restarted server usable past the force-kill window', async () => {
+    // Arrange - stop() arms a 2s force-kill that must not reach the new process
+    await operation!.execute({});
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // Act
+    await tsServer!.openFile(import.meta.path);
+    const response = await tsServer!.sendRequest<{ configFileName?: string }>(
+      'projectInfo',
+      { file: import.meta.path, needFileNameList: false },
+    );
+
+    // Assert
+    expect(tsServer!.isRunning()).toBe(true);
+    expect(response?.configFileName).toContain('tsconfig.json');
+  }, 15000);
+
+  it('should not report the replacement project as loaded before it is', async () => {
+    // Arrange - the first server has had time to finish loading
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(tsServer!.isRunning()).toBe(true);
+
+    // Act
+    await operation!.execute({});
+
+    // Assert - a flag left over from the dead process makes the guard skip its
+    // readiness wait and fire requests at a server that is still starting
+    expect(tsServer!.isProjectLoaded()).toBe(false);
+  }, 15000);
+
   it('should allow multiple consecutive restarts', async () => {
     // Act
     const result1 = await operation!.execute({});

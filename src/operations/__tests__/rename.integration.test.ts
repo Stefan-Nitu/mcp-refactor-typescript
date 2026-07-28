@@ -608,4 +608,18 @@ const result = oldName();`;
       expect(fileContent).not.toContain('oldName');
     });
   });
+
+  it('should explain the missing parameter instead of dumping raw Zod output', async () => {
+    // Act
+    const response = await operation!.execute({
+      filePath: '/tmp/a.ts',
+      line: 1,
+      text: 'old',
+    });
+
+    // Assert
+    expect(response.success).toBe(false);
+    expect(response.message).toContain('Invalid input');
+    expect(response.message).not.toContain('invalid_type');
+  });
 });

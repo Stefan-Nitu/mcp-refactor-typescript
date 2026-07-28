@@ -8,14 +8,14 @@ import type { RefactorResult } from '../language-servers/typescript/tsserver-cli
 import { OperationName } from '../operation-name.js';
 import type { OperationRegistry } from '../registry.js';
 import { Telemetry } from '../utils/telemetry.js';
+import { formatValidationError } from '../utils/validation-error.js';
+import type { ToolInputSchema } from './tool-input-shape.js';
 
 interface GroupedTool {
   name: string;
   title: string;
   description: string;
-  inputSchema:
-    | z.ZodObject<z.ZodRawShape>
-    | z.ZodEffects<z.ZodObject<z.ZodRawShape>>;
+  inputSchema: ToolInputSchema;
   annotations: {
     readOnlyHint: boolean;
     destructiveHint: boolean;
@@ -25,6 +25,51 @@ interface GroupedTool {
     args: Record<string, unknown>,
     registry: OperationRegistry,
   ) => Promise<RefactorResult>;
+}
+
+/**
+ * MCP registration only carries the schema's raw shape, so cross-field rules
+ * declared with `.refine()` never run at the protocol boundary. Applying the
+ * whole schema here is what turns "which parameter?" into an answer.
+ */
+async function runOperation(
+  tool: GroupedTool,
+  args: Record<string, unknown>,
+  registry: OperationRegistry,
+): Promise<RefactorResult> {
+  const operationName = args.operation as string | undefined;
+  const telemetry = new Telemetry();
+  telemetry.start();
+  telemetry.logToolCall(tool.name, operationName);
+
+  try {
+    // Before the registry lookup, so an out-of-enum operation is explained
+    // rather than thrown as "Operation not found: undefined"
+    const parsed = tool.inputSchema.safeParse(args);
+    if (!parsed.success) {
+      telemetry.logError(tool.name, operationName, parsed.error);
+      return formatValidationError(parsed.error);
+    }
+
+    const operation = registry.getOperation(args.operation as OperationName);
+    if (!operation) {
+      throw new Error(`Operation not found: ${args.operation as string}`);
+    }
+
+    // Raw args, not parsed.data: every operation re-parses with its own schema,
+    // so this pass is validation only and must not strip fields from it
+    const result = await operation.execute(args);
+
+    telemetry.logSuccess(
+      tool.name,
+      operationName,
+      result.filesChanged?.length || 0,
+    );
+    return result;
+  } catch (error) {
+    telemetry.logError(tool.name, operationName, error as Error);
+    throw error;
+  }
 }
 
 // File Operations Tool
@@ -52,12 +97,42 @@ Use when: Renaming/moving TS/JS files. Always use this, not mv/Edit.`,
         OperationName.MOVE_FILE,
         OperationName.BATCH_MOVE_FILES,
       ]),
-      sourcePath: z.string().min(1).optional(),
-      name: z.string().min(1).optional(),
-      destinationPath: z.string().min(1).optional(),
-      files: z.array(z.string().min(1)).optional(),
-      targetFolder: z.string().min(1).optional(),
-      preview: z.boolean().optional(),
+      sourcePath: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          'Path of the file to act on. Required for rename_file and move_file.',
+        ),
+      name: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          'Required for rename_file: the new bare filename, e.g. "usages.ts" - not a path. To move a file into another directory, use move_file with destinationPath.',
+        ),
+      destinationPath: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          'Required for move_file: the full new path of the file, including its filename.',
+        ),
+      files: z
+        .array(z.string().min(1))
+        .optional()
+        .describe('Required for batch_move_files: paths of the files to move.'),
+      targetFolder: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          'Required for batch_move_files: directory the files are moved into.',
+        ),
+      preview: z
+        .boolean()
+        .optional()
+        .describe('Report the edits that would be made without writing them.'),
     })
     .refine(
       (data) => {
@@ -107,35 +182,7 @@ Use when: Renaming/moving TS/JS files. Always use this, not mv/Edit.`,
       },
     ),
   async execute(args, registry) {
-    const telemetry = new Telemetry();
-    telemetry.start();
-    telemetry.logToolCall(
-      'file_operations',
-      args.operation as string | undefined,
-    );
-
-    try {
-      const operation = registry.getOperation(args.operation as OperationName);
-      if (!operation) {
-        throw new Error(`Operation not found: ${args.operation as string}`);
-      }
-
-      const result = await operation.execute(args);
-
-      telemetry.logSuccess(
-        'file_operations',
-        args.operation as string | undefined,
-        result.filesChanged?.length || 0,
-      );
-      return result;
-    } catch (error) {
-      telemetry.logError(
-        'file_operations',
-        args.operation as string | undefined,
-        error as Error,
-      );
-      throw error;
-    }
+    return runOperation(fileOperationsTool, args, registry);
   },
 };
 
@@ -167,32 +214,7 @@ Use when: After refactoring or before commits. Use proactively.`,
     preview: z.boolean().optional(),
   }),
   async execute(args, registry) {
-    const telemetry = new Telemetry();
-    telemetry.start();
-    telemetry.logToolCall('code_quality', args.operation as string | undefined);
-
-    try {
-      const operation = registry.getOperation(args.operation as OperationName);
-      if (!operation) {
-        throw new Error(`Operation not found: ${args.operation as string}`);
-      }
-
-      const result = await operation.execute(args);
-
-      telemetry.logSuccess(
-        'code_quality',
-        args.operation as string | undefined,
-        result.filesChanged?.length || 0,
-      );
-      return result;
-    } catch (error) {
-      telemetry.logError(
-        'code_quality',
-        args.operation as string | undefined,
-        error as Error,
-      );
-      throw error;
-    }
+    return runOperation(codeQualityTool, args, registry);
   },
 };
 
@@ -230,9 +252,23 @@ Use when: Renaming, extracting, or moving symbols between files. Always use this
       filePath: z.string().min(1, 'File path cannot be empty'),
       line: z.number().int().positive('Line must be a positive integer'),
       text: z.string().min(1, 'Text cannot be empty'),
-      name: z.string().optional(),
-      destinationPath: z.string().min(1).optional(),
-      preview: z.boolean().optional(),
+      name: z
+        .string()
+        .optional()
+        .describe(
+          'Required for rename: the new symbol name. Optional for extract_function, extract_constant and extract_variable, which generate a name when omitted.',
+        ),
+      destinationPath: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          'Required for move_to_file: the file to move the symbol into. Created if it does not exist; omit to move into a new file named after the symbol.',
+        ),
+      preview: z
+        .boolean()
+        .optional()
+        .describe('Report the edits that would be made without writing them.'),
     })
     .refine(
       (data) => {
@@ -244,32 +280,7 @@ Use when: Renaming, extracting, or moving symbols between files. Always use this
       },
     ),
   async execute(args, registry) {
-    const telemetry = new Telemetry();
-    telemetry.start();
-    telemetry.logToolCall('refactoring', args.operation as string | undefined);
-
-    try {
-      const operation = registry.getOperation(args.operation as OperationName);
-      if (!operation) {
-        throw new Error(`Operation not found: ${args.operation as string}`);
-      }
-
-      const result = await operation.execute(args);
-
-      telemetry.logSuccess(
-        'refactoring',
-        args.operation as string | undefined,
-        result.filesChanged?.length || 0,
-      );
-      return result;
-    } catch (error) {
-      telemetry.logError(
-        'refactoring',
-        args.operation as string | undefined,
-        error as Error,
-      );
-      throw error;
-    }
+    return runOperation(refactoringTool, args, registry);
   },
 };
 
@@ -300,15 +311,57 @@ Use when: Before renaming/refactoring. Use find_references first to see impact.`
         OperationName.CLEANUP_CODEBASE,
         OperationName.RESTART_TSSERVER,
       ]),
-      filePath: z.string().min(1).optional(),
-      line: z.number().int().positive().optional(),
-      text: z.string().min(1).optional(),
-      sourcePath: z.string().min(1).optional(),
-      destinationPath: z.string().min(1).optional(),
-      directory: z.string().min(1).optional(),
-      deleteUnusedFiles: z.boolean().optional(),
-      entrypoints: z.array(z.string()).optional(),
-      preview: z.boolean().optional(),
+      filePath: z
+        .string()
+        .min(1)
+        .optional()
+        .describe('Required for find_references: the file holding the symbol.'),
+      line: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe(
+          'Required for find_references: 1-based line the symbol appears on.',
+        ),
+      text: z
+        .string()
+        .min(1)
+        .optional()
+        .describe('Required for find_references: the symbol to look up.'),
+      sourcePath: z
+        .string()
+        .min(1)
+        .optional()
+        .describe('Required for refactor_module: the module to move.'),
+      destinationPath: z
+        .string()
+        .min(1)
+        .optional()
+        .describe('Required for refactor_module: the path to move it to.'),
+      directory: z
+        .string()
+        .min(1)
+        .optional()
+        .describe('Required for cleanup_codebase: the directory to sweep.'),
+      deleteUnusedFiles: z
+        .boolean()
+        .optional()
+        .describe(
+          'cleanup_codebase only: DELETES files it judges unreachable. Requires entrypoints, which decide what counts as reachable.',
+        ),
+      entrypoints: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Required by cleanup_codebase when deleteUnusedFiles is true: regex patterns for the files reachability is traced from, e.g. ["src/main\\\\.ts$"].',
+        ),
+      preview: z
+        .boolean()
+        .optional()
+        .describe(
+          'Report the changes that would be made without applying them.',
+        ),
     })
     .refine(
       (data) => {
@@ -363,32 +416,7 @@ Use when: Before renaming/refactoring. Use find_references first to see impact.`
       },
     ),
   async execute(args, registry) {
-    const telemetry = new Telemetry();
-    telemetry.start();
-    telemetry.logToolCall('workspace', args.operation as string | undefined);
-
-    try {
-      const operation = registry.getOperation(args.operation as OperationName);
-      if (!operation) {
-        throw new Error(`Operation not found: ${args.operation as string}`);
-      }
-
-      const result = await operation.execute(args);
-
-      telemetry.logSuccess(
-        'workspace',
-        args.operation as string | undefined,
-        result.filesChanged?.length || 0,
-      );
-      return result;
-    } catch (error) {
-      telemetry.logError(
-        'workspace',
-        args.operation as string | undefined,
-        error as Error,
-      );
-      throw error;
-    }
+    return runOperation(workspaceTool, args, registry);
   },
 };
 

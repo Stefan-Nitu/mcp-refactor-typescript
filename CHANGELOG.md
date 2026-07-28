@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-07-28
+
+### 🐛 Fixed
+
+- **`move_to_file` timed out on any file containing a non-ASCII character**: tsserver sizes each frame with `Buffer.byteLength`, but the parser held its buffer as a decoded string and compared that byte count against `string.length` (UTF-16 units). One emoji or em dash anywhere in the response and the parser waited for bytes that could never arrive as characters, so the request died on the 30-second timeout reporting `Request getEditsForRefactor timed out`. It looked selective because `getApplicableRefactors` returns short ASCII names while `getEditsForRefactor` carries whole source files.
+- **`move_to_file` silently dropped the import for the symbol it moved**: TypeScript emits the new import and the declaration's removal both anchored at the same position, and the edit sort applied the insertion first, so the removal deleted it again. Any move where the remaining code still referenced the symbol produced a file that no longer compiled.
+- **Restarting tsserver killed its own replacement**: `stop()` armed a 2-second force-kill that re-read `this.process` when it fired and never cleared it, so a restart's new process was SIGKILLed about two seconds later. It read as an intermittent flake only because whether an error surfaced depended on a request being in flight; the kill happened every time. `start()` also carried `projectLoaded` and a half-read parser buffer over from the dead process, making the readiness guard skip its wait.
+- **Moved code lost the project's `.ts` import extensions**: TypeScript infers the extension to write from the imports already in the file it edits, and a file it has just created has none. Projects using `allowImportingTsExtensions` got extensionless specifiers that fail under bundler resolution. The ending is now derived from the project's own tsconfig, resolved per file so a monorepo's packages keep their own answer.
+- **Per-operation parameter rules were never enforced**: MCP registration takes a schema's raw shape, which discards `.refine()`, so every cross-field rule was dead at the protocol boundary — including the guard requiring `entrypoints` before `cleanup_codebase` deletes files. Rules now run before dispatch.
+- **Validation failures dumped raw Zod JSON**: eight operations stringified `ZodError` into the user-facing message. All operations now report which parameter is missing and for which operation.
+- **Parser could not recover from a malformed frame**: a header that would never parse, or an implausible `Content-Length`, stalled the stream permanently while the buffer grew without bound.
+
+### 🔧 Changed
+
+- **`file_operations`, `refactoring` and `workspace` parameters are documented in the schema**: every optional parameter now states which operations need it — notably that `rename_file` takes a bare filename rather than a path, and that `deleteUnusedFiles` deletes files and requires `entrypoints`. For an MCP tool the schema is the only documentation the model receives.
+- **tsconfig reading delegated to the TypeScript compiler API**, loaded on demand, so JSONC, `extends` chains, arrays and package specifiers behave exactly as `tsc` does.
+
+### ✅ Testing
+
+- Regression tests for each fix above, including a monorepo case proving one package's import-extension preference cannot leak into another.
+- New unit tests for `ModuleSpecifierPreference`, and validation-message guards across every operation.
+
 ## [2.1.1] - 2026-07-26
 
 ### 🐛 Fixed

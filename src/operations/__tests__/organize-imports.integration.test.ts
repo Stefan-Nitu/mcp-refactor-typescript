@@ -160,4 +160,14 @@ export const z: YetAnotherType = null as any;
     expect(organized).toContain('  AnotherLongTypeName');
     expect(organized).toContain('  YetAnotherType');
   });
+
+  it('should explain the missing parameter instead of dumping raw Zod output', async () => {
+    // Act
+    const response = await operation!.execute({});
+
+    // Assert
+    expect(response.success).toBe(false);
+    expect(response.message).toContain('Invalid input');
+    expect(response.message).not.toContain('invalid_type');
+  });
 });

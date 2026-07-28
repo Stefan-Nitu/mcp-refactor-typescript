@@ -22,7 +22,10 @@ export interface TestContext {
 /**
  * Setup test workspace and tsconfig before all tests
  */
-export async function setupTestWorkspace(testDir: string): Promise<void> {
+export async function setupTestWorkspace(
+  testDir: string,
+  compilerOptions: Record<string, unknown> = {},
+): Promise<void> {
   await mkdir(testDir, { recursive: true });
 
   const tsconfig = {
@@ -31,6 +34,7 @@ export async function setupTestWorkspace(testDir: string): Promise<void> {
       module: 'NodeNext',
       moduleResolution: 'NodeNext',
       jsx: 'react',
+      ...compilerOptions,
     },
     include: ['src/**/*'],
   };

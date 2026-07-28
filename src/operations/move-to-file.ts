@@ -18,6 +18,7 @@ import { formatValidationError } from '../utils/validation-error.js';
 import type { EditApplicator } from './shared/edit-applicator.js';
 import type { FileOperations } from './shared/file-operations.js';
 import type { FormatConfigurator } from './shared/format-configurator.js';
+import type { ModuleSpecifierPreference } from './shared/module-specifier-preference.js';
 import type { TextPositionConverter } from './shared/text-position-converter.js';
 import type { TSServerGuard } from './shared/tsserver-guard.js';
 
@@ -37,6 +38,7 @@ export class MoveToFileOperation {
     private editApplicator: EditApplicator,
     private formatConfigurator: FormatConfigurator,
     private tsServerGuard: TSServerGuard,
+    private specifierPreference: ModuleSpecifierPreference,
   ) {}
 
   async execute(input: Record<string, unknown>): Promise<RefactorResult> {
@@ -127,6 +129,8 @@ Tips:
       }
 
       await this.formatConfigurator.configureForFile(filePath, lines);
+
+      await this.specifierPreference.configureForFile(filePath);
 
       const resolvedDestination = destinationPath
         ? this.fileOps.resolvePath(destinationPath)

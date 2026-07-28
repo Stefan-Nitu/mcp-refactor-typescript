@@ -339,6 +339,100 @@ export function keepFunc() {
     expect(sourceFileChange!.edits.length).toBeGreaterThan(0);
   });
 
+  it('should move a symbol whose body contains non-ASCII characters', async () => {
+    // Arrange - the edits response carries this source back verbatim, so the
+    // reply is longer in bytes than in UTF-16 units
+    const filePath = join(testDir, 'src', 'unicode.ts');
+    const destPath = join(testDir, 'src', 'unicode-dest.ts');
+    const code = `export function renderStatus(ok: boolean) {
+  return ok ? '✅ passed — all good' : '❌ failed';
+}
+
+export function keepMe() {
+  return 'kept';
+}`;
+
+    await writeFile(filePath, code, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath,
+      line: 1,
+      text: 'renderStatus',
+      destinationPath: destPath,
+    });
+
+    // Assert
+    expect(response.message).not.toContain('timed out');
+    expect(response.success).toBe(true);
+
+    const destContent = await readFile(destPath, 'utf-8');
+    expect(destContent).toContain('✅ passed — all good');
+  }, 60000);
+
+  it('should import the moved symbol back when the source still calls it', async () => {
+    // Arrange
+    const sourcePath = join(testDir, 'src', 'caller.ts');
+    const destPath = join(testDir, 'src', 'callee.ts');
+    const code = `export function moved() {
+  return 'moved';
+}
+
+export function caller() {
+  return moved();
+}`;
+
+    await writeFile(sourcePath, code, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: sourcePath,
+      line: 1,
+      text: 'moved',
+      destinationPath: destPath,
+    });
+
+    // Assert - without the import the source no longer compiles
+    expect(response.success).toBe(true);
+
+    const sourceContent = await readFile(sourcePath, 'utf-8');
+    expect(sourceContent).toMatch(/import \{ moved \} from ['"]\.\/callee/);
+    expect(sourceContent).toContain('return moved();');
+    expect(sourceContent).not.toContain("return 'moved';");
+  });
+
+  it('should write the moved declaration with the source indentation', async () => {
+    // Arrange - two-space body, declaration flush against the left margin
+    const sourcePath = join(testDir, 'src', 'indent-source.ts');
+    const destPath = join(testDir, 'src', 'indent-dest.ts');
+    const code = `export function moved() {
+  const value = 1;
+  return value;
+}
+
+export function stays() {
+  return 'stays';
+}`;
+
+    await writeFile(sourcePath, code, 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      filePath: sourcePath,
+      line: 1,
+      text: 'moved',
+      destinationPath: destPath,
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+
+    const destContent = await readFile(destPath, 'utf-8');
+    expect(destContent).toMatch(/^export function moved/m);
+    expect(destContent).toContain('  const value = 1;');
+    expect(destContent).not.toContain('    const value = 1;');
+  });
+
   it('should handle only the selected symbol in a multi-export file', async () => {
     // Arrange
     const filePath = join(testDir, 'src', 'multi.ts');

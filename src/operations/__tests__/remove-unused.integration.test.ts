@@ -139,4 +139,14 @@ export const used = 1;`,
     // Assert
     expect(response).toBeDefined();
   });
+
+  it('should explain the missing parameter instead of dumping raw Zod output', async () => {
+    // Act
+    const response = await operation!.execute({});
+
+    // Assert
+    expect(response.success).toBe(false);
+    expect(response.message).toContain('Invalid input');
+    expect(response.message).not.toContain('invalid_type');
+  });
 });

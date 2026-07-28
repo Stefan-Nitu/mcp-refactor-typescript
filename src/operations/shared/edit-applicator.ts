@@ -15,12 +15,30 @@ interface FileChanges {
 
 export class EditApplicator {
   sortEdits(changes: TSTextChange[]): TSTextChange[] {
-    return [...changes].sort((a, b) => {
-      if (b.start.line !== a.start.line) {
-        return b.start.line - a.start.line;
-      }
-      return b.start.offset - a.start.offset;
-    });
+    return changes
+      .map((change, index) => ({ change, index }))
+      .sort((a, b) => {
+        if (b.change.start.line !== a.change.start.line) {
+          return b.change.start.line - a.change.start.line;
+        }
+        if (b.change.start.offset !== a.change.start.offset) {
+          return b.change.start.offset - a.change.start.offset;
+        }
+        // Same start: the wider edit goes first, so an insertion anchored at
+        // that point is not swallowed by the range removed from under it.
+        // move_to_file relies on this - it adds the import for the departing
+        // symbol at the very position it deletes the declaration from.
+        if (b.change.end.line !== a.change.end.line) {
+          return b.change.end.line - a.change.end.line;
+        }
+        if (b.change.end.offset !== a.change.end.offset) {
+          return b.change.end.offset - a.change.end.offset;
+        }
+        // Identical range: each insertion pushes the previous one along, so
+        // applying them backwards is what leaves them in the order given
+        return b.index - a.index;
+      })
+      .map(({ change }) => change);
   }
 
   applyEdits(lines: string[], changes: TSTextChange[]): string[] {

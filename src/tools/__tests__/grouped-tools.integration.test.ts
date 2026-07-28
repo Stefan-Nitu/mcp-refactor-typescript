@@ -3,9 +3,12 @@
  * Verifies that grouped tools properly route to operations
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import type { Mock } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import { OperationRegistry } from '../../registry.js';
+import { logger } from '../../utils/logger.js';
 import { groupedTools } from '../grouped-tools.js';
+import { toolInputShape } from '../tool-input-shape.js';
 
 describe('Grouped Tools Integration', () => {
   let registry: OperationRegistry;
@@ -63,10 +66,7 @@ describe('Grouped Tools Integration', () => {
 
     it('should have inputSchema with operation enum', () => {
       expect(fileTool.inputSchema).toBeDefined();
-      const schema =
-        'shape' in fileTool.inputSchema
-          ? fileTool.inputSchema.shape
-          : fileTool.inputSchema._def.schema.shape;
+      const schema = toolInputShape(fileTool.inputSchema);
       expect(schema.operation).toBeDefined();
     });
 
@@ -202,18 +202,19 @@ describe('Grouped Tools Integration', () => {
   });
 
   describe('Error Handling', () => {
-    it('should handle unknown operation gracefully', async () => {
+    it('should explain an unknown operation rather than throwing', async () => {
       const fileTool = groupedTools[0];
 
-      await expect(
-        fileTool.execute(
-          {
-            operation: 'unknown_operation',
-            filePath: 'test.ts',
-          },
-          registry,
-        ),
-      ).rejects.toThrow('Operation not found');
+      const result = await fileTool.execute(
+        {
+          operation: 'unknown_operation',
+          filePath: 'test.ts',
+        },
+        registry,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('operation');
     });
 
     it('should handle missing required parameters', async () => {
@@ -229,14 +230,111 @@ describe('Grouped Tools Integration', () => {
 
       expect(result.success).toBe(false);
     });
+
+    it('should name the parameter each operation actually needs', async () => {
+      const fileTool = groupedTools[0];
+
+      // rename_file takes `name`; destinationPath belongs to move_file
+      const result = await fileTool.execute(
+        {
+          operation: 'rename_file',
+          sourcePath: '/tmp/a.ts',
+          destinationPath: '/tmp/b.ts',
+        },
+        registry,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('name is required for rename_file');
+    });
+
+    it('should name the parameter refactoring actually needs', async () => {
+      const refactorTool = groupedTools[2];
+
+      const result = await refactorTool.execute(
+        {
+          operation: 'rename',
+          filePath: '/tmp/a.ts',
+          line: 1,
+          text: 'old',
+        },
+        registry,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('name is required for rename');
+    });
+
+    it('should name the parameter find_references actually needs', async () => {
+      const workspace = groupedTools[3];
+
+      const result = await workspace.execute(
+        { operation: 'find_references', filePath: '/tmp/a.ts', line: 1 },
+        registry,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('text is required for find_references');
+    });
+
+    it('should refuse to delete unused files without entrypoints', async () => {
+      const workspace = groupedTools[3];
+
+      // cleanup_codebase deletes files; this guard is the only thing standing
+      // between a bare call and an unbounded delete
+      const result = await workspace.execute(
+        {
+          operation: 'cleanup_codebase',
+          directory: '/tmp',
+          deleteUnusedFiles: true,
+        },
+        registry,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('entrypoints is required');
+    });
+
+    it('should require a filePath for code_quality operations', async () => {
+      const codeQuality = groupedTools[1];
+
+      const result = await codeQuality.execute(
+        { operation: 'organize_imports' },
+        registry,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('filePath');
+    });
+
+    it('should reject cross-field violations before touching the filesystem', async () => {
+      const fileTool = groupedTools[0];
+
+      const result = await fileTool.execute(
+        { operation: 'move_file', sourcePath: '/tmp/a.ts' },
+        registry,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain(
+        'destinationPath is required for move_file',
+      );
+    });
   });
 
   describe('Telemetry', () => {
-    it('should log tool calls', async () => {
-      const fileTool = groupedTools[0];
+    function recordedEvents(spy: Mock<typeof logger.info>): string[] {
+      return spy.mock.calls
+        .map(([event]) => (event as { event?: string })?.event)
+        .filter((event): event is string => Boolean(event));
+    }
 
-      // Execute operation - telemetry logging happens internally
-      await fileTool.execute(
+    it('should record the call and its outcome', async () => {
+      // Arrange
+      const info = spyOn(logger, 'info');
+
+      // Act
+      await groupedTools[0].execute(
         {
           operation: 'rename_file',
           sourcePath: 'test.ts',
@@ -245,9 +343,23 @@ describe('Grouped Tools Integration', () => {
         registry,
       );
 
-      // Telemetry logs to stderr, so we can't easily verify here
-      // But the test shouldn't throw errors
-      expect(true).toBe(true);
+      // Assert
+      expect(recordedEvents(info)).toContain('tool_call');
+      info.mockRestore();
+    });
+
+    it('should record a rejected call rather than dropping it', async () => {
+      // Arrange - validation now returns early, so it has its own log path
+      const error = spyOn(logger, 'error');
+
+      // Act
+      await groupedTools[0].execute({ operation: 'rename_file' }, registry);
+
+      // Assert
+      expect(
+        error.mock.calls.map(([event]) => (event as { event?: string })?.event),
+      ).toContain('tool_error');
+      error.mockRestore();
     });
   });
 });

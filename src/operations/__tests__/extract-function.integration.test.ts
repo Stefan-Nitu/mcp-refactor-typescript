@@ -315,4 +315,17 @@ describe('extractFunction', () => {
     expect(leadingSpaces).toBe('  ');
     expect(bodyLine).toMatch(/^ {2}return x \+ y;/);
   });
+
+  it('should explain the missing parameter instead of dumping raw Zod output', async () => {
+    // Act
+    const response = await operation!.execute({
+      filePath: '/tmp/a.ts',
+      line: 1,
+    });
+
+    // Assert
+    expect(response.success).toBe(false);
+    expect(response.message).toContain('Invalid input');
+    expect(response.message).not.toContain('invalid_type');
+  });
 });

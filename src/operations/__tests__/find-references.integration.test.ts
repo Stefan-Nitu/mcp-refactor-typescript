@@ -202,4 +202,17 @@ const total = add(3, 4);`,
     expect(response.message).toContain('fileA.ts');
     expect(response.message).toContain('fileB.ts');
   });
+
+  it('should explain the missing parameter instead of dumping raw Zod output', async () => {
+    // Act
+    const response = await operation!.execute({
+      filePath: '/tmp/a.ts',
+      line: 1,
+    });
+
+    // Assert
+    expect(response.success).toBe(false);
+    expect(response.message).toContain('Invalid input');
+    expect(response.message).not.toContain('invalid_type');
+  });
 });

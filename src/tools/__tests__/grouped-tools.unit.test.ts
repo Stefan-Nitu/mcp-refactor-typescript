@@ -11,10 +11,23 @@ import {
   refactoringTool,
   workspaceTool,
 } from '../grouped-tools.js';
+import { toolInputShape } from '../tool-input-shape.js';
 
 describe('Grouped Tools Schema Validation', () => {
   describe('refactoring Tool Schema', () => {
     const schema = refactoringTool.inputSchema;
+
+    describe('Parameter Documentation', () => {
+      // Optional params carry no hint of which operation they serve, and the
+      // published JSON Schema is all a model gets
+      const shape = toolInputShape(schema);
+
+      it('should say which operations each optional parameter belongs to', () => {
+        // Act & Assert
+        expect(shape.name.description).toContain('rename');
+        expect(shape.destinationPath.description).toContain('move_to_file');
+      });
+    });
 
     describe('Common Required Fields', () => {
       it('should accept valid common fields for all operations', () => {
@@ -394,6 +407,27 @@ describe('Grouped Tools Schema Validation', () => {
   describe('file_operations Tool Schema', () => {
     const schema = fileOperationsTool.inputSchema;
 
+    describe('Parameter Documentation', () => {
+      // The published JSON Schema is the only guidance a model gets, and every
+      // parameter here is optional, so each one has to say when it applies
+      const shape = toolInputShape(schema);
+
+      it('should say which operations each parameter belongs to', () => {
+        // Act & Assert
+        expect(shape.sourcePath.description).toContain('rename_file');
+        expect(shape.sourcePath.description).toContain('move_file');
+        expect(shape.name.description).toContain('rename_file');
+        expect(shape.destinationPath.description).toContain('move_file');
+        expect(shape.files.description).toContain('batch_move_files');
+        expect(shape.targetFolder.description).toContain('batch_move_files');
+      });
+
+      it('should spell out that rename_file takes a bare filename', () => {
+        // Act & Assert
+        expect(shape.name.description).toMatch(/filename|not a path/i);
+      });
+    });
+
     describe('rename_file Operation', () => {
       it('should accept valid rename_file operation', () => {
         // Arrange
@@ -523,6 +557,26 @@ describe('Grouped Tools Schema Validation', () => {
 
   describe('workspace Tool Schema', () => {
     const schema = workspaceTool.inputSchema;
+
+    describe('Parameter Documentation', () => {
+      const shape = toolInputShape(schema);
+
+      it('should say which operations each optional parameter belongs to', () => {
+        // Act & Assert
+        expect(shape.filePath.description).toContain('find_references');
+        expect(shape.line.description).toContain('find_references');
+        expect(shape.text.description).toContain('find_references');
+        expect(shape.sourcePath.description).toContain('refactor_module');
+        expect(shape.destinationPath.description).toContain('refactor_module');
+        expect(shape.directory.description).toContain('cleanup_codebase');
+      });
+
+      it('should warn that deleting unused files needs entrypoints', () => {
+        // Act & Assert
+        expect(shape.deleteUnusedFiles.description).toContain('entrypoints');
+        expect(shape.entrypoints.description).toContain('deleteUnusedFiles');
+      });
+    });
 
     describe('find_references Operation', () => {
       it('should accept valid find_references operation', () => {
