@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-09-05
+
+### 🐛 Fixed
+
+- **`batch_move_files` with `preview: true` was not a dry run**: it created the target folder before deciding whether to apply anything, so a preview of a move into a new folder left that folder behind, empty. The directory is now created only on a real run.
+- **A preview emitted two conflicting edits for every import between two files of the same batch**: each file's move is computed separately against the original layout, so previewing a move of `rule.ts` and `result.ts` into `rules/` asked tsserver about each in isolation and had `'./result.js'` rewritten twice — to `'../result.js'` by one move and to `'./rules/result.js'` by the other. Both files land in the same folder, so the truth is that the specifier does not change at all. Positions claimed by an import within the batch are now resolved against where every file actually ends up, rather than concatenated.
+- **`move_file` and `rename_file` reported failure for moves that had already succeeded**: after renaming, every edited file was reloaded by path — including the moved file at the path the rename had just emptied — and reloading re-reads from disk, so moving any file that carries an import of its own failed with `ENOENT` while sitting correctly at its destination. Every existing test moved a leaf file, where the consumer holds the import and the moved file has none, so nothing ever produced an edit inside the file being moved.
+- **Imports between files moved in the same batch could be left pointing at the old location**: the `ENOENT` above aborted the notification that tells tsserver a file has moved, so the next file in the batch was computed against a project where the previous move never happened. tsserver is now told the file left its old path; failing to sync no longer fails a move that is already on disk.
+
+### ✅ Testing
+
+- Regression tests for each fix: that a preview touches neither the target folder nor any source file, reports no edit for an import between batched files and no two edits at one position, while still reporting both edits in a consumer outside the batch; that files importing each other keep that import intact through a real batch move; and that moving a file which holds an import of its own reports success.
+
 ## [2.1.2] - 2026-07-28
 
 ### 🐛 Fixed

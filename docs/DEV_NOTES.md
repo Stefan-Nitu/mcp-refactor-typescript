@@ -61,3 +61,28 @@ falls back to the bundled copy when a project is on 7.
 that is how `typescript@7.0.2` landed in consumer installs. The direct `typescript: ~5.9.3`
 dependency satisfies that peer range and dedupes to one copy; `test:fresh-install` asserts
 the resolved version starts with `5.`.
+
+## tsserver keeps serving a moved file from its old path
+
+`openFile` hands tsserver the file's content as an in-memory overlay, and that
+overlay outlives `rename()` — the project resolves the old path until tsserver is
+told otherwise. `reloadFile` cannot do the telling: it re-reads from disk, so on a
+moved file it throws `ENOENT` at the path the rename just emptied. A move has to
+close the old path and open the new one instead. Nothing did before 2.1.3, which
+is both why a move reported failure after succeeding and why the second file of a
+batch was computed against a project where the first had never moved.
+
+Every `move_file` test moves a leaf file — the consumer holds the relative import,
+the file being moved has none — so no test ever produced an edit inside the moved
+file, and the `ENOENT` stayed invisible to the whole suite.
+
+## A preview cannot sequence, so it must reason about the batch
+
+A real batch move is correct by sequencing: each file is on disk, and tsserver
+knows it, before the next one is computed. A preview applies nothing, so every
+move is computed against the original layout and an import between two batched
+files comes back rewritten twice, once per move, each answer assuming the other
+file stays put. Nothing tsserver returns can resolve that — the resolution is
+`batch_move_files` knowing all its files land in one folder under their own
+basenames, so the specifier between any two of them is `./<basename>`.
+

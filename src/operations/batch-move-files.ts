@@ -11,6 +11,14 @@ import type { FileDiscovery } from './shared/file-discovery.js';
 import type { FileMover } from './shared/file-mover.js';
 import type { TSServerGuard } from './shared/tsserver-guard.js';
 
+type FileChanges = RefactorResult['filesChanged'];
+type MoveChanges = { source: string; changes: FileChanges };
+
+const positionKey = (
+  path: string,
+  edit: FileChanges[number]['edits'][number],
+) => `${path}:${edit.line}:${edit.column}`;
+
 export const batchMoveFilesSchema = z.object({
   files: z
     .array(z.string().min(1))
@@ -35,11 +43,13 @@ export class BatchMoveFilesOperation {
       const guardResult = await this.guard.ensureReady();
       if (guardResult) return guardResult;
 
-      await mkdir(targetFolder, { recursive: true });
+      if (!validated.preview) {
+        await mkdir(targetFolder, { recursive: true });
+      }
 
       const projectStatus = await this.discovery.discoverRelatedFiles(files);
 
-      const allFilesChanged: RefactorResult['filesChanged'] = [];
+      const collected: MoveChanges[] = [];
       let successCount = 0;
       const errors: string[] = [];
 
@@ -57,16 +67,10 @@ export class BatchMoveFilesOperation {
           if (result.success) {
             successCount++;
             if (result.filesChanged) {
-              for (const fileChange of result.filesChanged) {
-                const existingFile = allFilesChanged.find(
-                  (f) => f.path === fileChange.path,
-                );
-                if (existingFile) {
-                  existingFile.edits.push(...fileChange.edits);
-                } else {
-                  allFilesChanged.push(fileChange);
-                }
-              }
+              collected.push({
+                source: sourceFile,
+                changes: result.filesChanged,
+              });
             }
           } else {
             errors.push(`${fileName}: ${result.message}`);
@@ -91,6 +95,12 @@ Try:
           filesChanged: [],
         };
       }
+
+      const allFilesChanged = this.mergeChanges(
+        validated.preview
+          ? this.resolveSiblingImports(collected, new Set(files))
+          : collected,
+      );
 
       const warningMessage = this.discovery.buildWarningMessage(
         projectStatus,
@@ -140,5 +150,72 @@ Try:
         filesChanged: [],
       };
     }
+  }
+
+  private mergeChanges(collected: MoveChanges[]): FileChanges {
+    const merged: FileChanges = [];
+
+    for (const { changes } of collected) {
+      for (const fileChange of changes) {
+        const existingFile = merged.find((f) => f.path === fileChange.path);
+        if (existingFile) {
+          existingFile.edits.push(...fileChange.edits);
+        } else {
+          merged.push(fileChange);
+        }
+      }
+    }
+
+    return merged;
+  }
+
+  /**
+   * A preview computes every move against the original layout, so an import
+   * between two files of the same batch comes back twice - once per file, each
+   * answer assuming the other one stays put. Both land in targetFolder, so the
+   * truth is `./<imported file>`, which is usually the specifier already there.
+   * A real run needs none of this: each move is on disk before the next one is
+   * computed.
+   */
+  private resolveSiblingImports(
+    collected: MoveChanges[],
+    batchFiles: Set<string>,
+  ): MoveChanges[] {
+    const siblingSpecifiers = new Map<string, string>();
+
+    for (const { source, changes } of collected) {
+      for (const fileChange of changes) {
+        if (fileChange.path === source || !batchFiles.has(fileChange.path)) {
+          continue;
+        }
+        for (const edit of fileChange.edits) {
+          siblingSpecifiers.set(
+            positionKey(fileChange.path, edit),
+            `./${edit.old.split('/').pop()}`,
+          );
+        }
+      }
+    }
+
+    const resolved = new Set<string>();
+
+    return collected.map(({ source, changes }) => ({
+      source,
+      changes: changes
+        .map((fileChange) => ({
+          ...fileChange,
+          edits: fileChange.edits.flatMap((edit) => {
+            const key = positionKey(fileChange.path, edit);
+            const specifier = siblingSpecifiers.get(key);
+
+            if (specifier === undefined) return [edit];
+            if (specifier === edit.old || resolved.has(key)) return [];
+
+            resolved.add(key);
+            return [{ ...edit, new: specifier }];
+          }),
+        }))
+        .filter((fileChange) => fileChange.edits.length > 0),
+    }));
   }
 }

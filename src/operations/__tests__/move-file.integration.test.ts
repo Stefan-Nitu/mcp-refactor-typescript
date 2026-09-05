@@ -8,7 +8,7 @@ import {
   it,
 } from 'bun:test';
 import { existsSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import type { MoveFileOperation } from '../move-file.js';
@@ -292,6 +292,43 @@ describe('api', () => {
     expect(mainContent).toContain('./utils/data.js');
     expect(mainContent).not.toContain('./services/data.js');
     expect(existsSync(join(testDir, 'src', 'utils', 'data.ts'))).toBe(true);
+  });
+
+  it('should report success when the moved file has imports of its own', async () => {
+    // Arrange
+    const coreDir = join(testDir, 'src', 'core');
+    await mkdir(coreDir, { recursive: true });
+
+    const rulePath = join(coreDir, 'rule.ts');
+    const resultPath = join(coreDir, 'result.ts');
+    const destinationPath = join(coreDir, 'rules', 'rule.ts');
+
+    await writeFile(
+      resultPath,
+      'export interface Result { ok: boolean; }',
+      'utf-8',
+    );
+    await writeFile(
+      rulePath,
+      `import type { Result } from './result.js';
+export const rule = (): Result => ({ ok: true });`,
+      'utf-8',
+    );
+
+    // Act
+    const response = await operation!.execute({
+      sourcePath: rulePath,
+      destinationPath,
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(response.message).not.toContain('ENOENT');
+    expect(existsSync(destinationPath)).toBe(true);
+    expect(existsSync(rulePath)).toBe(false);
+    expect(await readFile(destinationPath, 'utf-8')).toContain(
+      "from '../result.js'",
+    );
   });
 
   it('should explain the missing parameter instead of dumping raw Zod output', async () => {

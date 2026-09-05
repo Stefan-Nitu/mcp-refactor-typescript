@@ -8,7 +8,7 @@ import {
   it,
 } from 'bun:test';
 import { existsSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import type { BatchMoveFilesOperation } from '../batch-move-files.js';
@@ -381,5 +381,146 @@ describe('app', () => {
     expect(testFileContent).toContain("vi.mock('./services/data-service.js');");
     expect(testFileContent).not.toContain("vi.mock('./auth-service.js');");
     expect(testFileContent).not.toContain("vi.mock('./data-service.js');");
+  });
+
+  /**
+   * rule.ts imports its sibling result.ts, and both move into the same new
+   * folder - so that import must survive the batch untouched.
+   */
+  async function writeSiblingFixture() {
+    const coreDir = join(testDir, 'src', 'core');
+    await mkdir(coreDir, { recursive: true });
+
+    const rulePath = join(coreDir, 'rule.ts');
+    const resultPath = join(coreDir, 'result.ts');
+    const consumerPath = join(testDir, 'src', 'app.ts');
+
+    await writeFile(
+      resultPath,
+      'export interface Result { ok: boolean; }',
+      'utf-8',
+    );
+    await writeFile(
+      rulePath,
+      `import type { Result } from './result.js';
+export const rule = (): Result => ({ ok: true });`,
+      'utf-8',
+    );
+    await writeFile(
+      consumerPath,
+      `import { rule } from './core/rule.js';
+import type { Result } from './core/result.js';
+export const run = (): Result => rule();`,
+      'utf-8',
+    );
+
+    return {
+      rulePath,
+      resultPath,
+      consumerPath,
+      targetFolder: join(coreDir, 'rules'),
+    };
+  }
+
+  it('should leave imports between batched files unchanged when they move together', async () => {
+    // Arrange
+    const { rulePath, resultPath, consumerPath, targetFolder } =
+      await writeSiblingFixture();
+
+    // Act
+    const response = await operation!.execute({
+      files: [rulePath, resultPath],
+      targetFolder,
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+
+    const movedRule = await readFile(join(targetFolder, 'rule.ts'), 'utf-8');
+    expect(movedRule).toContain("from './result.js'");
+
+    const consumerContent = await readFile(consumerPath, 'utf-8');
+    expect(consumerContent).toContain("from './core/rules/rule.js'");
+    expect(consumerContent).toContain("from './core/rules/result.js'");
+  });
+
+  describe('preview', () => {
+    it('should not touch the filesystem', async () => {
+      // Arrange
+      const { rulePath, resultPath, consumerPath, targetFolder } =
+        await writeSiblingFixture();
+      const consumerBefore = await readFile(consumerPath, 'utf-8');
+
+      // Act
+      const response = await operation!.execute({
+        files: [rulePath, resultPath],
+        targetFolder,
+        preview: true,
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(existsSync(targetFolder)).toBe(false);
+      expect(existsSync(rulePath)).toBe(true);
+      expect(existsSync(resultPath)).toBe(true);
+      expect(await readFile(consumerPath, 'utf-8')).toBe(consumerBefore);
+    });
+
+    it('should not report edits for imports between files in the same batch', async () => {
+      // Arrange
+      const { rulePath, resultPath, targetFolder } =
+        await writeSiblingFixture();
+
+      // Act
+      const response = await operation!.execute({
+        files: [rulePath, resultPath],
+        targetFolder,
+        preview: true,
+      });
+
+      // Assert
+      const ruleChange = response.filesChanged.find((f) => f.path === rulePath);
+      const siblingEdits =
+        ruleChange?.edits.filter((e) => e.old.includes('result.js')) ?? [];
+      expect(siblingEdits).toEqual([]);
+    });
+
+    it('should not report two edits at the same position', async () => {
+      // Arrange
+      const { rulePath, resultPath, targetFolder } =
+        await writeSiblingFixture();
+
+      // Act
+      const response = await operation!.execute({
+        files: [rulePath, resultPath],
+        targetFolder,
+        preview: true,
+      });
+
+      // Assert
+      const positions = response.filesChanged.flatMap((f) =>
+        f.edits.map((e) => `${f.path}:${e.line}:${e.column}`),
+      );
+      expect(positions).toEqual([...new Set(positions)]);
+    });
+
+    it('should still report edits in files outside the batch', async () => {
+      // Arrange
+      const { rulePath, resultPath, consumerPath, targetFolder } =
+        await writeSiblingFixture();
+
+      // Act
+      const response = await operation!.execute({
+        files: [rulePath, resultPath],
+        targetFolder,
+        preview: true,
+      });
+
+      // Assert
+      const consumerChange = response.filesChanged.find(
+        (f) => f.path === consumerPath,
+      );
+      expect(consumerChange?.edits.length).toBe(2);
+    });
   });
 });

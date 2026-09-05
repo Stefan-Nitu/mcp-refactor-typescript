@@ -9,6 +9,7 @@ import type {
   TypeScriptServer,
 } from '../../language-servers/typescript/tsserver-client.js';
 import type { TSFileEdit } from '../../language-servers/typescript/tsserver-types.js';
+import { logger } from '../../utils/logger.js';
 import { EditApplicator } from './edit-applicator.js';
 import { FileOperations } from './file-operations.js';
 import { StringLiteralPathUpdater } from './string-literal-path-updater.js';
@@ -50,6 +51,7 @@ export class FileMover {
 
       await this.ensureDirectoryExists(destinationPath);
       await rename(sourcePath, destinationPath);
+      await this.syncMovedFile(sourcePath, destinationPath, []);
 
       return {
         success: true,
@@ -125,10 +127,7 @@ export class FileMover {
 
     await this.ensureDirectoryExists(destinationPath);
     await rename(sourcePath, destinationPath);
-
-    for (const fileEdit of edits) {
-      await this.tsServer.reloadFile(fileEdit.fileName);
-    }
+    await this.syncMovedFile(sourcePath, destinationPath, edits);
 
     return {
       success: true,
@@ -139,6 +138,33 @@ export class FileMover {
         'fix_all - Fix any errors from the move',
       ],
     };
+  }
+
+  /**
+   * tsserver still serves the in-memory copy opened during discovery, so it has
+   * to be told the file left its old path - otherwise the next file in a batch
+   * is computed against a project where this move never happened. Best effort:
+   * the move is already on disk, a stale server view must not fail it.
+   */
+  private async syncMovedFile(
+    sourcePath: string,
+    destinationPath: string,
+    edits: TSFileEdit[],
+  ): Promise<void> {
+    try {
+      await this.tsServer.closeFile(sourcePath);
+      await this.tsServer.openFile(destinationPath);
+
+      for (const fileEdit of edits) {
+        if (fileEdit.fileName === sourcePath) continue;
+        await this.tsServer.reloadFile(fileEdit.fileName);
+      }
+    } catch (error) {
+      logger.debug(
+        { sourcePath, destinationPath, error },
+        'Failed to sync moved file in tsserver',
+      );
+    }
   }
 
   private async ensureDirectoryExists(filePath: string): Promise<void> {
