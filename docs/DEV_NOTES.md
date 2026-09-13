@@ -86,3 +86,19 @@ file stays put. Nothing tsserver returns can resolve that — the resolution is
 `batch_move_files` knowing all its files land in one folder under their own
 basenames, so the specifier between any two of them is `./<basename>`.
 
+## A second copy of zod is a type error, not a duplicate-install warning
+
+The SDK accepts `zod` `^3.25 || ^4.0`, this package pins `^3.24.1`, so a resolver
+is free to satisfy the SDK with its own zod 4 while we hold zod 3. zod 4 ships a
+`zod/v3` compat layer, so the two copies expose the same v3 type hierarchy under
+two paths, and `tsc` has no reason to treat them as the same type. Registering a
+tool hands our `ZodRawShape` to a parameter typed by the SDK's zod, and comparing
+the two `ZodType` hierarchies structurally recurses until it hits the
+instantiation depth limit — `TS2589` on the `registerTool` call in `src/index.ts`,
+pointing at the callback rather than at anything to do with zod.
+
+Nothing in the source has to change for this to appear. `bun.lock` is not
+committed, so CI re-resolves every run, and whether the duplicate lands depends on
+the resolver and the platform: 2.1.3 typechecked on macOS and failed on Linux CI
+with byte-identical sources and the same SDK, TypeScript and top-level zod. The
+`overrides` entry in `package.json` is what keeps it to one copy.
