@@ -47,7 +47,6 @@ temp/
 .tmp/
 
 # Bun
-bun.lock
 *.bun-build
 
 # Hot reload

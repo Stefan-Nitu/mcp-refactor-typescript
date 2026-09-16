@@ -92,7 +92,7 @@ for (const tool of groupedTools) {
             operation: args.operation,
             status: 'error',
             message: 'Invalid input',
-            errors: error.errors.map((e) => ({
+            errors: error.issues.map((e) => ({
               path: e.path.join('.'),
               message: e.message,
             })),

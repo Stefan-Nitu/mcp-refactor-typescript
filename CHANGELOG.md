@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.1.3] - 2026-09-05
+## [2.2.0] - 2026-09-16
 
 ### 🐛 Fixed
 
@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A preview emitted two conflicting edits for every import between two files of the same batch**: each file's move is computed separately against the original layout, so previewing a move of `rule.ts` and `result.ts` into `rules/` asked tsserver about each in isolation and had `'./result.js'` rewritten twice — to `'../result.js'` by one move and to `'./rules/result.js'` by the other. Both files land in the same folder, so the truth is that the specifier does not change at all. Positions claimed by an import within the batch are now resolved against where every file actually ends up, rather than concatenated.
 - **`move_file` and `rename_file` reported failure for moves that had already succeeded**: after renaming, every edited file was reloaded by path — including the moved file at the path the rename had just emptied — and reloading re-reads from disk, so moving any file that carries an import of its own failed with `ENOENT` while sitting correctly at its destination. Every existing test moved a leaf file, where the consumer holds the import and the moved file has none, so nothing ever produced an edit inside the file being moved.
 - **Imports between files moved in the same batch could be left pointing at the old location**: the `ENOENT` above aborted the notification that tells tsserver a file has moved, so the next file in the batch was computed against a project where the previous move never happened. tsserver is now told the file left its old path; failing to sync no longer fails a move that is already on disk.
+
+### 🔧 Changed
+
+- **zod upgraded to 4.x**: the SDK accepts `zod` `^3.25 || ^4.0`, so holding zod 3 left a resolver free to give the SDK its own zod 4. zod 4 ships a `zod/v3` compat layer, so both copies presented the same type hierarchy under two paths and `tsc` compared them structurally until it hit the instantiation depth limit - the `TS2589` that failed this release's first CI run, reported against the `registerTool` callback rather than anything to do with zod. Cross-field parameter rules moved from `.refine()` to `.superRefine()`, which zod 4 requires for a message that depends on the input; every validation message is unchanged.
+- **`@modelcontextprotocol/sdk` now requires `^1.30.0`** rather than `^1.18.1`, matching the version the suite actually runs against.
+- **`bun.lock` is committed and every CI and CD install is `--frozen-lockfile`**, with bun pinned to 1.4.2. CI re-resolved every dependency range on every run before this, which is how a commit that passed in July failed in September with no source change.
 
 ### ✅ Testing
 

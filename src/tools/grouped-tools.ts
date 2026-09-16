@@ -134,53 +134,26 @@ Use when: Renaming/moving TS/JS files. Always use this, not mv/Edit.`,
         .optional()
         .describe('Report the edits that would be made without writing them.'),
     })
-    .refine(
-      (data) => {
-        if (data.operation === OperationName.RENAME_FILE) {
-          return !!data.sourcePath && !!data.name;
-        }
-        if (data.operation === OperationName.MOVE_FILE) {
-          return !!data.sourcePath && !!data.destinationPath;
-        }
-        if (data.operation === OperationName.BATCH_MOVE_FILES) {
-          return !!data.files && !!data.targetFolder;
-        }
-        return true;
-      },
-      (data) => {
-        if (data.operation === OperationName.RENAME_FILE) {
-          if (!data.sourcePath)
-            return {
-              message: `sourcePath is required for ${OperationName.RENAME_FILE}`,
-            };
-          if (!data.name)
-            return {
-              message: `name is required for ${OperationName.RENAME_FILE}`,
-            };
-        }
-        if (data.operation === OperationName.MOVE_FILE) {
-          if (!data.sourcePath)
-            return {
-              message: `sourcePath is required for ${OperationName.MOVE_FILE}`,
-            };
-          if (!data.destinationPath)
-            return {
-              message: `destinationPath is required for ${OperationName.MOVE_FILE}`,
-            };
-        }
-        if (data.operation === OperationName.BATCH_MOVE_FILES) {
-          if (!data.files)
-            return {
-              message: `files is required for ${OperationName.BATCH_MOVE_FILES}`,
-            };
-          if (!data.targetFolder)
-            return {
-              message: `targetFolder is required for ${OperationName.BATCH_MOVE_FILES}`,
-            };
-        }
-        return { message: 'Invalid file operation parameters' };
-      },
-    ),
+    .superRefine((data, ctx) => {
+      const missing = (parameter: string) =>
+        ctx.addIssue({
+          code: 'custom',
+          message: `${parameter} is required for ${data.operation}`,
+        });
+
+      if (data.operation === OperationName.RENAME_FILE) {
+        if (!data.sourcePath) return missing('sourcePath');
+        if (!data.name) return missing('name');
+      }
+      if (data.operation === OperationName.MOVE_FILE) {
+        if (!data.sourcePath) return missing('sourcePath');
+        if (!data.destinationPath) return missing('destinationPath');
+      }
+      if (data.operation === OperationName.BATCH_MOVE_FILES) {
+        if (!data.files) return missing('files');
+        if (!data.targetFolder) return missing('targetFolder');
+      }
+    }),
   async execute(args, registry) {
     return runOperation(fileOperationsTool, args, registry);
   },
@@ -363,58 +336,31 @@ Use when: Before renaming/refactoring. Use find_references first to see impact.`
           'Report the changes that would be made without applying them.',
         ),
     })
-    .refine(
-      (data) => {
-        if (data.operation === OperationName.FIND_REFERENCES) {
-          return !!data.filePath && data.line !== undefined && !!data.text;
-        }
-        if (data.operation === OperationName.REFACTOR_MODULE) {
-          return !!data.sourcePath && !!data.destinationPath;
-        }
-        if (data.operation === OperationName.CLEANUP_CODEBASE) {
-          if (!data.directory) return false;
-          if (data.deleteUnusedFiles && !data.entrypoints) return false;
-        }
-        return true;
-      },
-      (data) => {
-        if (data.operation === OperationName.FIND_REFERENCES) {
-          if (!data.filePath)
-            return {
-              message: `filePath is required for ${OperationName.FIND_REFERENCES}`,
-            };
-          if (data.line === undefined)
-            return {
-              message: `line is required for ${OperationName.FIND_REFERENCES}`,
-            };
-          if (!data.text)
-            return {
-              message: `text is required for ${OperationName.FIND_REFERENCES}`,
-            };
-        }
-        if (data.operation === OperationName.REFACTOR_MODULE) {
-          if (!data.sourcePath)
-            return {
-              message: `sourcePath is required for ${OperationName.REFACTOR_MODULE}`,
-            };
-          if (!data.destinationPath)
-            return {
-              message: `destinationPath is required for ${OperationName.REFACTOR_MODULE}`,
-            };
-        }
-        if (data.operation === OperationName.CLEANUP_CODEBASE) {
-          if (!data.directory)
-            return {
-              message: `directory is required for ${OperationName.CLEANUP_CODEBASE}`,
-            };
-          if (data.deleteUnusedFiles && !data.entrypoints)
-            return {
-              message: `entrypoints is required when deleteUnusedFiles: true to prevent accidental deletion. Specify your app's entry points like ["src/main\\\\.ts$"] or use defaults at your own risk.`,
-            };
-        }
-        return { message: 'Invalid workspace operation parameters' };
-      },
-    ),
+    .superRefine((data, ctx) => {
+      const missing = (parameter: string) =>
+        ctx.addIssue({
+          code: 'custom',
+          message: `${parameter} is required for ${data.operation}`,
+        });
+
+      if (data.operation === OperationName.FIND_REFERENCES) {
+        if (!data.filePath) return missing('filePath');
+        if (data.line === undefined) return missing('line');
+        if (!data.text) return missing('text');
+      }
+      if (data.operation === OperationName.REFACTOR_MODULE) {
+        if (!data.sourcePath) return missing('sourcePath');
+        if (!data.destinationPath) return missing('destinationPath');
+      }
+      if (data.operation === OperationName.CLEANUP_CODEBASE) {
+        if (!data.directory) return missing('directory');
+        if (data.deleteUnusedFiles && !data.entrypoints)
+          return ctx.addIssue({
+            code: 'custom',
+            message: `entrypoints is required when deleteUnusedFiles: true to prevent accidental deletion. Specify your app's entry points like ["src/main\\\\.ts$"] or use defaults at your own risk.`,
+          });
+      }
+    }),
   async execute(args, registry) {
     return runOperation(workspaceTool, args, registry);
   },

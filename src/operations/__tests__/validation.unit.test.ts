@@ -30,7 +30,7 @@ describe('Schema Validation', () => {
       });
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].path).toContain('filePath');
+        expect(result.error.issues[0].path).toContain('filePath');
       }
     });
 
@@ -106,7 +106,7 @@ describe('Schema Validation', () => {
       });
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('At least one file');
+        expect(result.error.issues[0].message).toContain('At least one file');
       }
     });
 

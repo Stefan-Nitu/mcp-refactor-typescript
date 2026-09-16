@@ -68,7 +68,7 @@ the resolved version starts with `5.`.
 overlay outlives `rename()` — the project resolves the old path until tsserver is
 told otherwise. `reloadFile` cannot do the telling: it re-reads from disk, so on a
 moved file it throws `ENOENT` at the path the rename just emptied. A move has to
-close the old path and open the new one instead. Nothing did before 2.1.3, which
+close the old path and open the new one instead. Nothing did before 2.2.0, which
 is both why a move reported failure after succeeding and why the second file of a
 batch was computed against a project where the first had never moved.
 
@@ -88,17 +88,36 @@ basenames, so the specifier between any two of them is `./<basename>`.
 
 ## A second copy of zod is a type error, not a duplicate-install warning
 
-The SDK accepts `zod` `^3.25 || ^4.0`, this package pins `^3.24.1`, so a resolver
-is free to satisfy the SDK with its own zod 4 while we hold zod 3. zod 4 ships a
-`zod/v3` compat layer, so the two copies expose the same v3 type hierarchy under
-two paths, and `tsc` has no reason to treat them as the same type. Registering a
-tool hands our `ZodRawShape` to a parameter typed by the SDK's zod, and comparing
-the two `ZodType` hierarchies structurally recurses until it hits the
-instantiation depth limit — `TS2589` on the `registerTool` call in `src/index.ts`,
-pointing at the callback rather than at anything to do with zod.
+The SDK accepts `zod` `^3.25 || ^4.0`. While this package was on zod 3, a
+resolver was free to satisfy the SDK with its own zod 4, and zod 4 ships a
+`zod/v3` compat layer, so the two copies exposed the same v3 type hierarchy under
+two paths, with no reason for `tsc` to treat them as the same type. Registering a
+tool hands our shape to a parameter typed by the SDK's zod, and comparing the two
+`ZodType` hierarchies structurally recursed until it hit the instantiation depth
+limit - `TS2589` on the `registerTool` call in `src/index.ts`, pointing at the
+callback rather than at anything to do with zod.
 
-Nothing in the source has to change for this to appear. `bun.lock` is not
-committed, so CI re-resolves every run, and whether the duplicate lands depends on
-the resolver and the platform: 2.1.3 typechecked on macOS and failed on Linux CI
-with byte-identical sources and the same SDK, TypeScript and top-level zod. The
-`overrides` entry in `package.json` is what keeps it to one copy.
+Nothing in the source had to change for this to appear. Whether the duplicate
+landed depended on the resolver and the platform: the sources released here
+typechecked on macOS and failed on Linux CI byte-identical, on the same SDK,
+TypeScript and top-level zod, because `bun.lock` was not committed then and CI
+re-resolved every range on every run. Both halves are closed now - the lockfile
+is committed and
+every CI and CD install is `--frozen-lockfile`, and this package is on zod 4, the
+same major the SDK reaches for. The `overrides` entry stays as the guard that
+keeps it to one copy whenever the lock is regenerated.
+
+## zod 4's `ZodRawShape` is not the shape you want
+
+`z.ZodRawShape` resolves to the core `$ZodType` in zod 4, which has no
+`.description`. Typing a tool's shape with it compiles right up until something
+reads a parameter description - and for an MCP tool those descriptions are the
+only documentation the model ever receives. `ToolInputShape` is therefore
+`Record<string, z.ZodType>`, the classic type.
+
+zod 4 also folds refinements into the schema rather than wrapping it: `.refine()`
+on an object returns the object, so the shape is always directly available and
+the `ZodEffects` unwrapping zod 3 needed is gone. What has not changed is that a
+refinement does not survive registration, because MCP takes the raw shape and the
+shape is only the field map - which is why `runOperation` re-validates against
+the full schema.
