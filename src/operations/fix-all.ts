@@ -59,6 +59,7 @@ export class FixAllOperation {
       }
 
       const fixIdToApply = new Set<string>();
+      let allChanges: TSFileEdit[] = [];
 
       for (const diagnostic of diagnosticsResult) {
         const startLine = diagnostic.startLocation?.line ?? 1;
@@ -78,24 +79,22 @@ export class FixAllOperation {
           },
         );
 
-        if (fixes && fixes.length > 0) {
-          for (const fix of fixes) {
-            if (fix.fixId) {
-              fixIdToApply.add(fix.fixId);
-            }
+        if (!fixes || fixes.length === 0) continue;
+
+        for (const fix of fixes) {
+          if (fix.fixId) {
+            fixIdToApply.add(fix.fixId);
           }
         }
-      }
 
-      if (fixIdToApply.size === 0) {
-        return {
-          success: true,
-          message: 'No auto-fixable errors found',
-          filesChanged: [],
-        };
+        // A fix with no fixId belongs to no fix-all family, so the combined
+        // pass below will never return it. Taken only when it is the
+        // diagnostic's sole candidate: several are competing alternatives -
+        // which module to import a name from - not a set to apply together.
+        if (fixes.length === 1 && !fixes[0].fixId) {
+          allChanges = allChanges.concat(fixes[0].changes ?? []);
+        }
       }
-
-      let allChanges: TSFileEdit[] = [];
 
       for (const fixId of fixIdToApply) {
         const combinedFix = await this.tsServer.sendRequest<TSCombinedCodeFix>(
@@ -117,49 +116,67 @@ export class FixAllOperation {
       if (allChanges.length === 0) {
         return {
           success: true,
-          message: 'No fixes applied',
+          message: 'No auto-fixable errors found',
           filesChanged: [],
         };
       }
 
-      const allTextChanges: TSTextChange[] = [];
+      // A fix is free to edit a file other than the one asked about - making
+      // a symbol exported from the module that declares it, for one - so the
+      // edits are grouped by the file each lands in rather than filtered to
+      // the requested one, which used to drop them silently
+      const changesByFile = new Map<string, TSTextChange[]>();
       for (const fileEdit of allChanges) {
-        if (fileEdit.fileName === filePath) {
-          allTextChanges.push(...fileEdit.textChanges);
-        }
+        const existing = changesByFile.get(fileEdit.fileName) ?? [];
+        existing.push(...fileEdit.textChanges);
+        changesByFile.set(fileEdit.fileName, existing);
       }
 
-      const originalLines = await this.fileOps.readLines(filePath);
-      const sortedChanges = this.editApplicator.sortEdits(allTextChanges);
-      const fileChanges = this.editApplicator.buildFileChanges(
-        originalLines,
-        sortedChanges,
-        filePath,
-      );
-      const updatedLines = this.editApplicator.applyEdits(
-        originalLines,
-        sortedChanges,
-      );
+      // Every file is read and computed before any is written, so a failure
+      // part-way cannot leave the fix applied to some files and not others
+      const staged: Array<{ path: string; lines: string[] }> = [];
+      const filesChanged: RefactorResult['filesChanged'] = [];
+      let editCount = 0;
+
+      for (const [file, textChanges] of changesByFile) {
+        const originalLines = await this.fileOps.readLines(file);
+        const sortedChanges = this.editApplicator.sortEdits(textChanges);
+
+        filesChanged.push(
+          this.editApplicator.buildFileChanges(
+            originalLines,
+            sortedChanges,
+            file,
+          ),
+        );
+        staged.push({
+          path: file,
+          lines: this.editApplicator.applyEdits(originalLines, sortedChanges),
+        });
+        editCount += sortedChanges.length;
+      }
 
       if (validated.preview) {
         return {
           success: true,
-          message: `Preview: Would apply ${sortedChanges.length} fix(es)`,
-          filesChanged: [fileChanges],
+          message: `Preview: Would apply ${editCount} fix(es) in ${staged.length} file(s)`,
+          filesChanged,
           preview: {
-            filesAffected: 1,
+            filesAffected: staged.length,
             estimatedTime: '< 1s',
             command: 'Run again with preview: false to apply changes',
           },
         };
       }
 
-      await this.fileOps.writeLines(filePath, updatedLines);
+      for (const { path, lines } of staged) {
+        await this.fileOps.writeLines(path, lines);
+      }
 
       return {
         success: true,
-        message: `Applied ${sortedChanges.length} fix(es)`,
-        filesChanged: [fileChanges],
+        message: `Applied ${editCount} fix(es) in ${staged.length} file(s)`,
+        filesChanged,
         nextActions: ['organize_imports - Clean up imports after fixes'],
       };
     } catch (error) {

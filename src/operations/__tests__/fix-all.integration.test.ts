@@ -7,7 +7,7 @@ import {
   expect,
   it,
 } from 'bun:test';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import type { FixAllOperation } from '../fix-all.js';
@@ -113,6 +113,58 @@ export const value = 42;
 
     // Assert
     expect(response.success).toBe(true);
+  });
+
+  it('should apply a fix that edits a different file', async () => {
+    // Arrange - TS2459: the fix inserts `export ` into the declaring file,
+    // and carries no fixId because it applies to this one occurrence only
+    const consumerPath = join(testDir, 'src', 'consumer.ts');
+    const declarerPath = join(testDir, 'src', 'declarer.ts');
+
+    await writeFile(
+      declarerPath,
+      `const secretValue = 42;\nexport const other = 1;\n`,
+      'utf-8',
+    );
+    await writeFile(
+      consumerPath,
+      `import { secretValue } from './declarer.js';\nexport const doubled = secretValue * 2;\n`,
+      'utf-8',
+    );
+
+    // Act
+    const response = await operation!.execute({ filePath: consumerPath });
+
+    // Assert
+    expect(response.message).not.toContain('No auto-fixable errors found');
+    expect(response.filesChanged.map((c) => c.path)).toContain(declarerPath);
+    expect(await readFile(declarerPath, 'utf-8')).toContain(
+      'export const secretValue',
+    );
+  });
+
+  it('should leave every file untouched when previewing a cross-file fix', async () => {
+    // Arrange
+    const consumerPath = join(testDir, 'src', 'preview-consumer.ts');
+    const declarerPath = join(testDir, 'src', 'preview-declarer.ts');
+    const declarerSource = `const hidden = 7;\nexport const kept = 1;\n`;
+
+    await writeFile(declarerPath, declarerSource, 'utf-8');
+    await writeFile(
+      consumerPath,
+      `import { hidden } from './preview-declarer.js';\nexport const tripled = hidden * 3;\n`,
+      'utf-8',
+    );
+
+    // Act
+    const response = await operation!.execute({
+      filePath: consumerPath,
+      preview: true,
+    });
+
+    // Assert
+    expect(response.filesChanged.map((c) => c.path)).toContain(declarerPath);
+    expect(await readFile(declarerPath, 'utf-8')).toBe(declarerSource);
   });
 
   it('should explain the missing parameter instead of dumping raw Zod output', async () => {

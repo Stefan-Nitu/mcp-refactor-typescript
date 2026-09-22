@@ -13,11 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **`fix_all` reported success while leaving fixable errors in place**: it collected the `fixId` of every fix tsserver offered and applied each one's combined fix, but only a fix that belongs to a fix-all family carries a `fixId`. A fix for a single occurrence has none — exporting a name from the module that declares it (TS2459) is one — so it was found and then discarded, and a file whose errors all had fixes like that got `No auto-fixable errors found` with `success: true`. A lone fix with no `fixId` is now applied from its own changes. When a diagnostic has several candidates they are alternatives — which module to import a name from — not a set, and are still skipped.
+- **`fix_all` dropped every edit outside the requested file**: a fix is free to edit another file — the TS2459 fix above inserts `export` in the declaring module — and those edits were filtered out without a word. They are now applied to every file they land in, each computed before any is written.
 - **`cleanup_codebase` never ran the `tsr` this package ships**: `npx tsr` ran with its working directory set to the project being cleaned, and `npx` resolves from there, so it never reached this package's `node_modules` — the pinned `tsr` dependency was never the copy that ran, and `npx` fetched its own from the registry at call time. The bundled CLI is now resolved with `createRequire` and run with the current Node.
 
 ### ✅ Testing
 
 - `cleanup_codebase` is given a pattern that tries to create a file through the shell, and the test asserts the file does not exist. Before this fix it did.
+- `fix_all` on a file that imports a name its module never exported now exports it from that module, and a preview of the same fix reports the edit without writing it. Both tests failed before the fix.
 
 ## [2.2.0] - 2026-09-16
 

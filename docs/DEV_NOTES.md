@@ -136,3 +136,17 @@ refactoring, so any argument can carry text someone planted in a file.
 for `exec`; a single quote in a pattern closed the quoting, and the rest ran as its
 own command. Escaping is the wrong fix. Pass an argument array to `execFile` or
 `spawn` without `shell: true`, so no shell ever parses it.
+
+## A code fix with no `fixId` never comes back from `getCombinedCodeFix`
+
+`getCodeFixes` returns every fix for a diagnostic, but only a fix that belongs to a
+fix-all family carries a `fixId`, and `getCombinedCodeFix` is keyed by one. `fix_all`
+collected `fixId`s and asked for their combined fixes, so a single-occurrence fix —
+exporting a name from the module that declares it (TS2459) — was found and then
+discarded, and the operation reported nothing to fix. Apply such a fix from its own
+`changes`. Several candidates for one diagnostic are alternatives, not a set, so only
+a lone one is safe to take.
+
+Its edits need not land in the file that was asked about, either: that TS2459 fix
+inserts `export` in the declaring module, and `fix_all` used to filter edits down to
+the requested file, which dropped it without a trace.
