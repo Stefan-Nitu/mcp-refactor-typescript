@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-09-22
+
 ### 🔒 Security
 
 - **`cleanup_codebase` ran `entrypoints` through a shell**: every pattern was interpolated into a `npx tsr --recursive '…'` command string for `exec`, so a pattern containing a single quote closed the quoting and whatever followed it ran as a separate shell command with the server's privileges. `entrypoints` is chosen by the model, and the model reads the repository it is refactoring, so text planted in that repository could supply one. `tsr` now runs through `execFile` with an argument array, which never starts a shell.
@@ -249,7 +251,10 @@ Replaced 15 individual MCP tools with 4 grouped tools, reducing token overhead b
 - Preview mode for all destructive operations
 - MCP protocol compliance (stderr logging only)
 
-[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.1.2...v2.2.0
+[2.1.2]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v1.1.0...v2.0.0
