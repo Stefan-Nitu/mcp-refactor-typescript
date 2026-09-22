@@ -7,6 +7,7 @@ import {
   expect,
   it,
 } from 'bun:test';
+import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
@@ -398,5 +399,26 @@ export const z = 3;`,
     // Verify files were actually modified
     const file1Content = await readFile(join(largeDir, 'file1.ts'), 'utf-8');
     expect(file1Content).toContain('{ a, b, z }'); // Should be sorted
+  });
+
+  it('should not execute shell commands smuggled in an entrypoint pattern', async () => {
+    // Arrange
+    const markerPath = join(testDir, 'injected.txt');
+    await writeFile(
+      join(testDir, 'src', 'main.ts'),
+      `export const main = 1;\n`,
+      'utf-8',
+    );
+
+    // Act - a lone quote closes the quoting around an interpolated pattern,
+    // leaving whatever follows it to the shell as its own command
+    await operation!.execute({
+      directory: join(testDir, 'src'),
+      deleteUnusedFiles: true,
+      entrypoints: [`main\\.ts$'; touch '${markerPath}'; echo '`],
+    });
+
+    // Assert
+    expect(existsSync(markerPath)).toBe(false);
   });
 });

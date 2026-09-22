@@ -2,9 +2,10 @@
  * Cleanup codebase operation - uses tsr to remove unused exports + organize_imports
  */
 
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
-import { extname, join, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, extname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
 import type { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
@@ -12,7 +13,19 @@ import { formatValidationError } from '../utils/validation-error.js';
 import type { OrganizeImportsOperation } from './organize-imports.js';
 import type { TSServerGuard } from './shared/tsserver-guard.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+/**
+ * The CLI belonging to this package's own pinned `tsr`. Shelling out to the
+ * `npx` of the project being cleaned reached neither this package's
+ * node_modules nor its pinned version - it fetches a copy from the registry
+ * at call time instead.
+ */
+function resolveTsrCli(): string {
+  // tsr's exports map blocks a subpath, so anchor on its entry point and take
+  // the sibling that its package.json declares as the bin
+  return join(dirname(createRequire(import.meta.url).resolve('tsr')), 'cli.js');
+}
 
 const cleanupCodebaseSchema = z.object({
   directory: z.string().min(1, 'Directory cannot be empty'),
@@ -72,8 +85,9 @@ Try:
       if (validated.preview) {
         if (validated.deleteUnusedFiles) {
           try {
-            const result = await execAsync(
-              `npx tsr --recursive '${entrypoints}'`,
+            const result = await execFileAsync(
+              process.execPath,
+              [resolveTsrCli(), '--recursive', entrypoints],
               {
                 cwd: directory,
                 maxBuffer: 10 * 1024 * 1024,
@@ -157,7 +171,7 @@ Try:
 
             return {
               success: false,
-              message: `Preview failed: ${execError.stderr || execError.stdout || 'tsr error'}\n\nTry:\n  1. Ensure tsr is installed (npm install tsr)\n  2. Check tsconfig.json is valid\n  3. Verify entry point patterns match files`,
+              message: `Preview failed: ${execError.stderr || execError.stdout || 'tsr error'}\n\nTry:\n  1. Check tsconfig.json is valid\n  2. Verify entry point patterns match files`,
               filesChanged: [],
             };
           }
@@ -181,11 +195,15 @@ Try:
       // Only run tsr if deleteUnusedFiles is true
       if (validated.deleteUnusedFiles) {
         try {
-          await execAsync(`npx tsr --write --recursive '${entrypoints}'`, {
-            cwd: directory,
-            maxBuffer: 10 * 1024 * 1024,
-            timeout: 60000,
-          });
+          await execFileAsync(
+            process.execPath,
+            [resolveTsrCli(), '--write', '--recursive', entrypoints],
+            {
+              cwd: directory,
+              maxBuffer: 10 * 1024 * 1024,
+              timeout: 60000,
+            },
+          );
           steps.push('Removed unused exports and files (tsr)');
         } catch (error: unknown) {
           const execError = error as {

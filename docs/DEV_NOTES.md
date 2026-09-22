@@ -14,6 +14,12 @@ Resolve this package's own files with `createRequire(import.meta.url)`, and the
 project's files with `createRequire(join(projectPath, 'package.json'))`. See
 `src/language-servers/typescript/resolve-tsserver-path.ts`.
 
+`npx <bin>` is the same mistake one step removed, since it resolves from its working
+directory. `cleanup_codebase` ran `npx tsr` with `cwd` set to the project being
+cleaned, so the pinned `tsr` was never the copy that ran; `npx` fetched one from the
+registry instead. `resolveTsrCli` in `src/operations/cleanup-codebase.ts` finds the
+bundled CLI with `createRequire`.
+
 ## `Content-Length` from tsserver counts bytes, not characters
 
 tsserver sizes each frame with `Buffer.byteLength(json, 'utf8')`. `MessageParser`
@@ -121,3 +127,12 @@ the `ZodEffects` unwrapping zod 3 needed is gone. What has not changed is that a
 refinement does not survive registration, because MCP takes the raw shape and the
 shape is only the field map - which is why `runOperation` re-validates against
 the full schema.
+
+## Never build a shell command out of a tool argument
+
+Every tool argument is chosen by a model, and the model reads the repository it is
+refactoring, so any argument can carry text someone planted in a file.
+`cleanup_codebase` interpolated `entrypoints` into `npx tsr --recursive '<patterns>'`
+for `exec`; a single quote in a pattern closed the quoting, and the rest ran as its
+own command. Escaping is the wrong fix. Pass an argument array to `execFile` or
+`spawn` without `shell: true`, so no shell ever parses it.

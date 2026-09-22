@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🔒 Security
+
+- **`cleanup_codebase` ran `entrypoints` through a shell**: every pattern was interpolated into a `npx tsr --recursive '…'` command string for `exec`, so a pattern containing a single quote closed the quoting and whatever followed it ran as a separate shell command with the server's privileges. `entrypoints` is chosen by the model, and the model reads the repository it is refactoring, so text planted in that repository could supply one. `tsr` now runs through `execFile` with an argument array, which never starts a shell.
+
+### 🐛 Fixed
+
+- **`cleanup_codebase` never ran the `tsr` this package ships**: `npx tsr` ran with its working directory set to the project being cleaned, and `npx` resolves from there, so it never reached this package's `node_modules` — the pinned `tsr` dependency was never the copy that ran, and `npx` fetched its own from the registry at call time. The bundled CLI is now resolved with `createRequire` and run with the current Node.
+
+### ✅ Testing
+
+- `cleanup_codebase` is given a pattern that tries to create a file through the shell, and the test asserts the file does not exist. Before this fix it did.
+
 ## [2.2.0] - 2026-09-16
 
 ### 🐛 Fixed
