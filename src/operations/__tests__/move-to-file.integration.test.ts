@@ -10,8 +10,16 @@ import {
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import type { MoveToFileOperation } from '../move-to-file.js';
+import type { TSTextChange } from '../../language-servers/typescript/tsserver-types.js';
+import { MoveToFileOperation } from '../move-to-file.js';
+import { EditApplicator } from '../shared/edit-applicator.js';
+import { FileOperations } from '../shared/file-operations.js';
+import { FormatConfigurator } from '../shared/format-configurator.js';
+import { IndentationDetector } from '../shared/indentation-detector.js';
+import { ModuleSpecifierPreference } from '../shared/module-specifier-preference.js';
 import { createMoveToFileOperation } from '../shared/operation-factory.js';
+import { TextPositionConverter } from '../shared/text-position-converter.js';
+import { TSServerGuard } from '../shared/tsserver-guard.js';
 import {
   cleanupTestCase,
   cleanupTestWorkspace,
@@ -463,5 +471,96 @@ export function gamma() { return 'c'; }`;
 
     const targetContent = await readFile(destPath, 'utf-8');
     expect(targetContent).toContain('function beta');
+  });
+
+  describe('partial application', () => {
+    /** Records every write that was attempted */
+    class RecordingFileOperations extends FileOperations {
+      written: string[] = [];
+
+      async writeLines(filePath: string, lines: string[]): Promise<void> {
+        this.written.push(filePath);
+        return super.writeLines(filePath, lines);
+      }
+    }
+
+    /**
+     * Stands in for tsserver handing back positions that no longer match the
+     * file on disk, which is what makes applying an edit throw part-way
+     */
+    class FailingEditApplicator extends EditApplicator {
+      calls = 0;
+
+      constructor(private readonly failOnCall: number) {
+        super();
+      }
+
+      applyEdits(lines: string[], changes: TSTextChange[]): string[] {
+        if (++this.calls === this.failOnCall) {
+          throw new Error('simulated edit failure');
+        }
+        return super.applyEdits(lines, changes);
+      }
+    }
+
+    it('should write nothing when a later file fails to apply', async () => {
+      // Arrange - destination exists, so every edited file takes the branch
+      // that applies edits rather than the one that creates a file
+      const sourcePath = join(testDir, 'src', 'partial-source.ts');
+      const destinationPath = join(testDir, 'src', 'partial-destination.ts');
+      const consumerPath = join(testDir, 'src', 'partial-consumer.ts');
+
+      await writeFile(
+        sourcePath,
+        `export function movable() {\n  return 1;\n}\n\nexport function stays() {\n  return 2;\n}\n`,
+        'utf-8',
+      );
+      await writeFile(destinationPath, `export const existing = 0;\n`, 'utf-8');
+      await writeFile(
+        consumerPath,
+        `import { movable } from './partial-source.js';\nexport const used = movable();\n`,
+        'utf-8',
+      );
+
+      const moveArgs = {
+        filePath: sourcePath,
+        line: 1,
+        text: 'movable',
+        destinationPath,
+      };
+
+      const previewed = await operation!.execute({
+        ...moveArgs,
+        preview: true,
+      });
+      expect(previewed.filesChanged.length).toBeGreaterThan(1);
+
+      const before = await Promise.all(
+        previewed.filesChanged.map((change) => readFile(change.path, 'utf-8')),
+      );
+
+      const fileOps = new RecordingFileOperations();
+      const failingMove = new MoveToFileOperation(
+        testServer!,
+        fileOps,
+        new TextPositionConverter(),
+        new FailingEditApplicator(2),
+        new FormatConfigurator(testServer!, new IndentationDetector()),
+        new TSServerGuard(testServer!),
+        new ModuleSpecifierPreference(testServer!),
+      );
+
+      // Act
+      const response = await failingMove.execute(moveArgs);
+
+      // Assert
+      expect(response.success).toBe(false);
+      expect(fileOps.written).toEqual([]);
+      await Promise.all(
+        previewed.filesChanged.map(async (change, index) => {
+          expect(await readFile(change.path, 'utf-8')).toBe(before[index]);
+        }),
+      );
+    });
   });
 });

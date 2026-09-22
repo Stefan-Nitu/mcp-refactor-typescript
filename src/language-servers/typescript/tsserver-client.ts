@@ -254,21 +254,31 @@ export class TypeScriptServer {
         arguments: args,
       };
 
+      // Nothing cleared this once the reply arrived, so every request left a
+      // timer alive for its full 30 seconds - a cleanup sweep over a large
+      // project accumulates one per request. Unref'd so a request still in
+      // flight cannot hold the process open either; the transport's stdin is
+      // what keeps the server alive
+      const timeout = setTimeout(() => {
+        if (this.pendingRequests.delete(seq)) {
+          reject(new Error(`Request ${command} timed out`));
+        }
+      }, 30000);
+      timeout.unref();
+
       this.pendingRequests.set(seq, {
-        resolve: resolve as (value: unknown) => void,
-        reject,
+        resolve: (value: unknown) => {
+          clearTimeout(timeout);
+          resolve(value as T | null);
+        },
+        reject: (error: Error) => {
+          clearTimeout(timeout);
+          reject(error);
+        },
       });
 
       const message = `${JSON.stringify(request)}\n`;
       this.process?.stdin?.write(message);
-
-      // Timeout after 30 seconds
-      setTimeout(() => {
-        if (this.pendingRequests.has(seq)) {
-          this.pendingRequests.delete(seq);
-          reject(new Error(`Request ${command} timed out`));
-        }
-      }, 30000);
     });
   }
 

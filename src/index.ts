@@ -51,6 +51,23 @@ server.registerResource(
   }),
 );
 
+/**
+ * `isError` is what an MCP client reads to tell a failed call from a
+ * successful one - the `status` field inside the JSON body never reaches it,
+ * so without this every failure was indistinguishable from success.
+ */
+function toolResponse(response: Record<string, unknown>, failed: boolean) {
+  return {
+    content: [
+      {
+        type: 'text' as const,
+        text: JSON.stringify(response, null, 2),
+      },
+    ],
+    isError: failed,
+  };
+}
+
 // Register grouped tools (v2.0)
 for (const tool of groupedTools) {
   const schema = toolInputShape(tool.inputSchema);
@@ -67,61 +84,48 @@ for (const tool of groupedTools) {
       try {
         const result = await tool.execute(args, registry);
 
-        const response = {
-          tool: tool.name,
-          operation: args.operation,
-          status: result.success ? 'success' : 'error',
-          message: result.message,
-          data: {
-            filesChanged: result.filesChanged || [],
-          },
-        };
-
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: JSON.stringify(response, null, 2),
+        return toolResponse(
+          {
+            tool: tool.name,
+            operation: args.operation,
+            status: result.success ? 'success' : 'error',
+            message: result.message,
+            data: {
+              filesChanged: result.filesChanged || [],
+              // Operations fill both in; forwarding them is what lets a
+              // client act on a preview or on the suggested follow-up
+              ...(result.preview && { preview: result.preview }),
+              ...(result.nextActions && { nextActions: result.nextActions }),
             },
-          ],
-        };
+          },
+          !result.success,
+        );
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const response = {
+          return toolResponse(
+            {
+              tool: tool.name,
+              operation: args.operation,
+              status: 'error',
+              message: 'Invalid input',
+              errors: error.issues.map((e) => ({
+                path: e.path.join('.'),
+                message: e.message,
+              })),
+            },
+            true,
+          );
+        }
+
+        return toolResponse(
+          {
             tool: tool.name,
             operation: args.operation,
             status: 'error',
-            message: 'Invalid input',
-            errors: error.issues.map((e) => ({
-              path: e.path.join('.'),
-              message: e.message,
-            })),
-          };
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: JSON.stringify(response, null, 2),
-              },
-            ],
-          };
-        }
-
-        const response = {
-          tool: tool.name,
-          operation: args.operation,
-          status: 'error',
-          message: error instanceof Error ? error.message : String(error),
-        };
-
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: JSON.stringify(response, null, 2),
-            },
-          ],
-        };
+            message: error instanceof Error ? error.message : String(error),
+          },
+          true,
+        );
       }
     },
   );

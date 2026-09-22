@@ -86,6 +86,10 @@ Try:
       }
 
       const filesChanged: RefactorResult['filesChanged'] = [];
+      // Every file is read and computed before any is written: writing inside
+      // this loop meant a failure part-way through left the symbol renamed in
+      // the files already visited and untouched in the rest
+      const staged: Array<{ path: string; lines: string[] }> = [];
 
       for (const fileLoc of renameInfo.locs) {
         const originalLines = await this.fileOps.readLines(fileLoc.file);
@@ -97,21 +101,23 @@ Try:
         }));
 
         const sortedChanges = this.editApplicator.sortEdits(renamedChanges);
-        const fileChanges = this.editApplicator.buildFileChanges(
-          originalLines,
-          sortedChanges,
-          fileLoc.file,
+        filesChanged.push(
+          this.editApplicator.buildFileChanges(
+            originalLines,
+            sortedChanges,
+            fileLoc.file,
+          ),
         );
-        const updatedLines = this.editApplicator.applyEdits(
-          originalLines,
-          sortedChanges,
-        );
+        staged.push({
+          path: fileLoc.file,
+          lines: this.editApplicator.applyEdits(originalLines, sortedChanges),
+        });
+      }
 
-        if (!validated.preview) {
-          await this.fileOps.writeLines(fileLoc.file, updatedLines);
+      if (!validated.preview) {
+        for (const { path, lines } of staged) {
+          await this.fileOps.writeLines(path, lines);
         }
-
-        filesChanged.push(fileChanges);
       }
 
       const warningMessage = this.fileDiscovery.buildWarningMessage(

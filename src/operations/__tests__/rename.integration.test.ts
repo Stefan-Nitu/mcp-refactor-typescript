@@ -10,8 +10,13 @@ import {
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
-import type { RenameOperation } from '../rename.js';
+import { RenameOperation } from '../rename.js';
+import { EditApplicator } from '../shared/edit-applicator.js';
+import { FileDiscovery } from '../shared/file-discovery.js';
+import { FileOperations } from '../shared/file-operations.js';
 import { createRenameOperation } from '../shared/operation-factory.js';
+import { TextPositionConverter } from '../shared/text-position-converter.js';
+import { TSServerGuard } from '../shared/tsserver-guard.js';
 import {
   cleanupTestCase,
   cleanupTestWorkspace,
@@ -621,5 +626,92 @@ const result = oldName();`;
     expect(response.success).toBe(false);
     expect(response.message).toContain('Invalid input');
     expect(response.message).not.toContain('invalid_type');
+  });
+
+  describe('partial application', () => {
+    /** Fails one read, and records every write that was attempted anyway */
+    class FailingFileOperations extends FileOperations {
+      reads = 0;
+      written: string[] = [];
+
+      constructor(private readonly failOnRead: number) {
+        super();
+      }
+
+      async readLines(filePath: string): Promise<string[]> {
+        if (++this.reads === this.failOnRead) {
+          throw new Error('simulated read failure');
+        }
+        return super.readLines(filePath);
+      }
+
+      async writeLines(filePath: string, lines: string[]): Promise<void> {
+        this.written.push(filePath);
+        return super.writeLines(filePath, lines);
+      }
+    }
+
+    it('should write nothing when a later file cannot be read', async () => {
+      // Arrange - three files carry the symbol, so a rename that writes as it
+      // goes has already changed two of them by the time the third is read
+      const targetPath = join(testDir, 'src', 'origin.ts');
+      const consumerAPath = join(testDir, 'src', 'consumer-a.ts');
+      const consumerBPath = join(testDir, 'src', 'consumer-b.ts');
+
+      await writeFile(targetPath, `export const shared = 1;\n`, 'utf-8');
+      await writeFile(
+        consumerAPath,
+        `import { shared } from './origin.js';\nexport const a = shared + 1;\n`,
+        'utf-8',
+      );
+      await writeFile(
+        consumerBPath,
+        `import { shared } from './origin.js';\nexport const b = shared + 2;\n`,
+        'utf-8',
+      );
+
+      const renameArgs = {
+        filePath: targetPath,
+        line: 1,
+        text: 'shared',
+        name: 'renamed',
+      };
+
+      const previewed = await operation!.execute({
+        ...renameArgs,
+        preview: true,
+      });
+      expect(previewed.filesChanged.length).toBeGreaterThan(1);
+
+      const before = await Promise.all(
+        previewed.filesChanged.map((change) => readFile(change.path, 'utf-8')),
+      );
+
+      // The operation reads the target once to locate the symbol, then once
+      // per file it will edit, so this fails on the last of those
+      const fileOps = new FailingFileOperations(
+        1 + previewed.filesChanged.length,
+      );
+      const failingRename = new RenameOperation(
+        testServer!,
+        fileOps,
+        new TextPositionConverter(),
+        new EditApplicator(),
+        new TSServerGuard(testServer!),
+        new FileDiscovery(testServer!),
+      );
+
+      // Act
+      const response = await failingRename.execute(renameArgs);
+
+      // Assert
+      expect(response.success).toBe(false);
+      expect(fileOps.written).toEqual([]);
+      await Promise.all(
+        previewed.filesChanged.map(async (change, index) => {
+          expect(await readFile(change.path, 'utf-8')).toBe(before[index]);
+        }),
+      );
+    });
   });
 });

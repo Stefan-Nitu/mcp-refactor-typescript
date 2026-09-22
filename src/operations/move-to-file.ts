@@ -170,6 +170,14 @@ This might indicate:
       }
 
       const filesChanged: RefactorResult['filesChanged'] = [];
+      // Every file is read and computed before any is written: writing inside
+      // this loop meant a failure part-way through could strip the symbol from
+      // its source while the destination was never written
+      const staged: Array<{
+        path: string;
+        lines: string[];
+        isNewFile: boolean;
+      }> = [];
 
       for (const fileEdit of edits.edits) {
         if (fileEdit.textChanges.length === 0) continue;
@@ -186,16 +194,14 @@ This might indicate:
           const newContent = fileEdit.textChanges
             .map((c) => c.newText)
             .join('');
-          const newLines = newContent.split('\n');
-          const fileName = basename(fileEdit.fileName);
 
-          if (!validated.preview) {
-            await mkdir(dirname(fileEdit.fileName), { recursive: true });
-            await this.fileOps.writeLines(fileEdit.fileName, newLines);
-          }
-
+          staged.push({
+            path: fileEdit.fileName,
+            lines: newContent.split('\n'),
+            isNewFile: true,
+          });
           filesChanged.push({
-            file: fileName,
+            file: basename(fileEdit.fileName),
             path: fileEdit.fileName,
             edits: [{ line: 1, column: 1, old: '', new: newContent }],
           });
@@ -203,21 +209,28 @@ This might indicate:
           const sortedChanges = this.editApplicator.sortEdits(
             fileEdit.textChanges,
           );
-          const fileChanges = this.editApplicator.buildFileChanges(
-            originalLines,
-            sortedChanges,
-            fileEdit.fileName,
-          );
-          const updatedLines = this.editApplicator.applyEdits(
-            originalLines,
-            sortedChanges,
-          );
 
-          if (!validated.preview) {
-            await this.fileOps.writeLines(fileEdit.fileName, updatedLines);
+          filesChanged.push(
+            this.editApplicator.buildFileChanges(
+              originalLines,
+              sortedChanges,
+              fileEdit.fileName,
+            ),
+          );
+          staged.push({
+            path: fileEdit.fileName,
+            lines: this.editApplicator.applyEdits(originalLines, sortedChanges),
+            isNewFile: false,
+          });
+        }
+      }
+
+      if (!validated.preview) {
+        for (const { path, lines, isNewFile } of staged) {
+          if (isNewFile) {
+            await mkdir(dirname(path), { recursive: true });
           }
-
-          filesChanged.push(fileChanges);
+          await this.fileOps.writeLines(path, lines);
         }
       }
 
