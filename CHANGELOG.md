@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🔒 Security
+
+- **tsr could read a `cleanup_codebase` entrypoint as an option**: the patterns reached tsr as an ordinary argument, so one such as `--write=main\.ts$` switched it to writing, and a preview deleted files. The patterns now follow `--`, and are checked before tsr runs (see Fixed).
+
 ### 🐛 Fixed
 
 - **tsserver never saw a change to a file it had open**: tsserver stops reading an open file from disk, and nothing sent a file again, so an edit made afterwards — by an editor, by git, or by the server's own previous operation — was invisible, and edits computed from the old text landed on the new one. A rename after a comment was added above the function wrote `// Utilities forbarmputing values` and reported success. Before each operation, every open file whose modification time or size has changed is now sent again, and one deleted from disk is closed.
@@ -22,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`remove_unused` left unused imports in place**: a lone `import { a }`, or `b` in `import { a, b }`. It now removes each unused import binding.
 - **`remove_unused` deleted calls along with the variables they initialized**: `const server = app.listen(3000)` went, call and all. A declaration whose initializer may have side effects is now kept and named in the result.
 - **`fix_all` under `noUnusedLocals` deleted code with side effects**: its fixes for unused declarations removed `const server = app.listen(3000)` the same way, and the fix for a lone unused variable also deleted the writes to it, `handle = setInterval(…)` included. Both are now kept and named in the result, as in `remove_unused`.
+- **`cleanup_codebase` run from a subfolder could delete files that are in use**: tsr takes compiler options only from a `tsconfig.json` in the directory it runs in, so pointed at `src` it used the defaults, lost `paths` and the rest, and could judge imported files unreachable. With `deleteUnusedFiles`, `directory` must now be the project root, and the message names the nearest one.
+- **`cleanup_codebase` entrypoints that matched no source file could delete everything**: tsr counts every `.d.ts` file as an entrypoint besides the files the patterns match, so patterns that matched none of those — a typo, a file `tsconfig.json` leaves out, a path spelled through a symlink — left it tracing from the declaration files alone, and a real run deleted everything they do not import. The patterns are now checked before tsr runs: each must be a valid regular expression, and together they must match a source file other than a `.d.ts` among the files `tsconfig.json` includes, compared by real path as tsr compares them.
+- **`cleanup_codebase` reported tsr's failures as success**: a real run took any exit code 1 for success, though `tsr --write` exits 0 whenever it succeeds, and a preview took tsr's argument errors, or its crash on an invalid regular expression, for changes to make. Any tsr failure is now reported as a failure.
+- **A `cleanup_codebase` preview with nothing to remove said it would make changes**, and listed tsr's `✔ all good!` as one. It now says nothing was found. tsr also runs with `NO_COLOR`, so its output reaches the message without escape codes when `CI` or `FORCE_COLOR` is set.
+- **`cleanup_codebase` rewrote build output**: the import sweep skipped only `node_modules` and dot-directories, so it also organized the imports in `dist`. It now skips `dist` too.
 
 ## [2.3.0] - 2026-09-22
 

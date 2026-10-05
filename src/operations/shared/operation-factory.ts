@@ -168,6 +168,7 @@ export function createRefactorModuleOperation(tsServer: TypeScriptServer) {
 
 export function createCleanupCodebaseOperation(tsServer: TypeScriptServer) {
   return new CleanupCodebaseOperation(
+    tsServer,
     new TSServerGuard(tsServer),
     createOrganizeImportsOperation(tsServer),
   );

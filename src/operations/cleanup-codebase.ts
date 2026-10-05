@@ -3,17 +3,35 @@
  */
 
 import { execFile } from 'node:child_process';
-import { readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { readdir, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, extname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
-import type { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
+import type {
+  RefactorResult,
+  TypeScriptServer,
+} from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
 import type { OrganizeImportsOperation } from './organize-imports.js';
 import type { TSServerGuard } from './shared/tsserver-guard.js';
+import { loadCompiler } from './shared/typescript-compiler.js';
 
 const execFileAsync = promisify(execFile);
+
+// Files that can start the reachability tsr traces - JavaScript too, under allowJs
+const SOURCE_EXTENSIONS = new Set([
+  '.ts',
+  '.tsx',
+  '.mts',
+  '.cts',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+]);
+const DECLARATION_FILE = /\.d\.[cm]?ts$/;
 
 /**
  * The CLI belonging to this package's own pinned `tsr`. Shelling out to the
@@ -25,6 +43,124 @@ function resolveTsrCli(): string {
   // tsr's exports map blocks a subpath, so anchor on its entry point and take
   // the sibling that its package.json declares as the bin
   return join(dirname(createRequire(import.meta.url).resolve('tsr')), 'cli.js');
+}
+
+function runTsr(flags: string[], entrypoints: string, cwd: string) {
+  return execFileAsync(
+    process.execPath,
+    // Behind `--` the pattern is never read as an option, as `--write=…` was
+    [resolveTsrCli(), ...flags, '--', entrypoints],
+    {
+      cwd,
+      // tsr colours its output under CI or FORCE_COLOR, and the escape codes
+      // would hide its summary line and end up in the messages quoting it
+      env: { ...process.env, NO_COLOR: '1' },
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 60000,
+    },
+  );
+}
+
+function findNearestTsconfigDirectory(directory: string): string | null {
+  let current = directory;
+  while (!existsSync(join(current, 'tsconfig.json'))) {
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+  return current;
+}
+
+/**
+ * tsr counts every .d.ts file as an entrypoint besides those the patterns
+ * match, so patterns that match none of its files raise no error in a project
+ * that has one: tsr traces reachability from the declaration files alone, and
+ * a real run deletes everything they do not import.
+ */
+async function checkEntrypoints(
+  patterns: string[],
+  joined: string,
+  directory: string,
+): Promise<RefactorResult | null> {
+  for (const pattern of patterns) {
+    try {
+      new RegExp(pattern);
+    } catch (error) {
+      return {
+        success: false,
+        message: `entrypoints are regular expressions, and ${JSON.stringify(pattern)} is not: ${error instanceof Error ? error.message : String(error)}
+
+Try:
+  1. Write it as a regular expression matched against each file's absolute path, e.g. ["src/main\\\\.ts$"] - not a glob such as src/**/*.ts`,
+        filesChanged: [],
+      };
+    }
+  }
+
+  // Listed as tsr lists them: the root files tsconfig.json defines, not the
+  // files they import, read through ts.sys from the directory tsr runs in -
+  // the real one, which spells every name the way tsr matches it. The
+  // TypeScript tsr imports is this package's own, so the config is read by the
+  // same parser, loaded only once a cleanup is set to delete files
+  const ts = await loadCompiler();
+  const projectRoot = await realpath(directory);
+  const { config } = ts.readConfigFile(
+    join(projectRoot, 'tsconfig.json'),
+    ts.sys.readFile,
+  );
+  const { fileNames } = ts.parseJsonConfigFileContent(
+    config,
+    ts.sys,
+    projectRoot,
+  );
+
+  const entrypoint = new RegExp(joined);
+  const matched = fileNames.some(
+    (file) =>
+      SOURCE_EXTENSIONS.has(extname(file)) &&
+      !DECLARATION_FILE.test(file) &&
+      entrypoint.test(file),
+  );
+  if (matched) return null;
+
+  return {
+    success: false,
+    message: `entrypoints match no source file that ${join(directory, 'tsconfig.json')} includes
+
+tsr also counts every .d.ts file as an entrypoint, so with no other it would keep only what those import and delete everything else.
+
+Try:
+  1. Write entrypoints as regular expressions matched against each file's absolute path, e.g. ["src/main\\\\.ts$"] - the real path, where the project is reached through a symlink
+  2. Check tsconfig.json includes the files they should match`,
+    filesChanged: [],
+  };
+}
+
+/** What execFile rejects with when tsr exits non-zero or cannot start */
+interface TsrError {
+  code?: number;
+  killed?: boolean;
+  message: string;
+  stdout?: string;
+  stderr?: string;
+}
+
+/** tsr prints its own errors to stdout, and a crash's trace goes to stderr */
+function tsrFailure(heading: string, error: TsrError): RefactorResult {
+  const output =
+    [error.stdout, error.stderr].filter(Boolean).join('\n').trim() ||
+    error.message;
+
+  return {
+    success: false,
+    message: `${heading}:
+${output}
+
+Try:
+  1. Write entrypoints as regular expressions matched against each file's absolute path, e.g. ["src/main\\\\.ts$"]
+  2. Check tsconfig.json includes the files they should match`,
+    filesChanged: [],
+  };
 }
 
 const cleanupCodebaseSchema = z.object({
@@ -47,6 +183,7 @@ const cleanupCodebaseSchema = z.object({
 
 export class CleanupCodebaseOperation {
   constructor(
+    private tsServer: TypeScriptServer,
     private tsServerGuard: TSServerGuard,
     private organizeImportsOp: OrganizeImportsOperation,
   ) {}
@@ -74,6 +211,29 @@ Try:
         };
       }
 
+      // Passing the nearest tsconfig.json as --project would not rescue a
+      // subfolder: tsr resolves the paths inside it against the directory it
+      // runs in, so its include globs match nothing
+      if (validated.deleteUnusedFiles) {
+        const projectRoot = findNearestTsconfigDirectory(directory);
+        if (projectRoot !== directory) {
+          const nearest = projectRoot
+            ? `Nearest: ${projectRoot}`
+            : 'No tsconfig.json found above it either.';
+          return {
+            success: false,
+            message: `deleteUnusedFiles needs the project root (the directory containing tsconfig.json), but ${directory} has none. ${nearest}
+
+tsr takes compiler options only from a tsconfig.json in the directory it runs in. Without one it uses the defaults, ignoring paths, moduleResolution and the rest, so files that are still imported can look unused and be deleted.
+
+Try:
+  1. Set directory to the project root
+  2. Omit deleteUnusedFiles to only organize imports in ${directory}`,
+            filesChanged: [],
+          };
+        }
+      }
+
       const defaultEntrypoints =
         'main\\.tsx?$|index\\.tsx?$|app\\.tsx?$|server\\.tsx?$';
       const testFilePatterns =
@@ -82,80 +242,50 @@ Try:
         validated.entrypoints?.join('|') ||
         `${defaultEntrypoints}|${testFilePatterns}`;
 
+      if (validated.deleteUnusedFiles) {
+        const entrypointFailure = await checkEntrypoints(
+          validated.entrypoints ?? [],
+          entrypoints,
+          directory,
+        );
+        if (entrypointFailure) return entrypointFailure;
+      }
+
       if (validated.preview) {
         if (validated.deleteUnusedFiles) {
           try {
-            const result = await execFileAsync(
-              process.execPath,
-              [resolveTsrCli(), '--recursive', entrypoints],
-              {
-                cwd: directory,
-                maxBuffer: 10 * 1024 * 1024,
-                timeout: 60000,
-              },
-            );
-
-            const output = result.stdout || '';
-            const lines = output
-              .trim()
-              .split('\n')
-              .filter((l) => l.trim().length > 0);
-
-            let previewMessage = `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)\n\n`;
-
-            if (lines.length === 0 || output.includes('No unused')) {
-              previewMessage +=
-                'No unused exports or files found!\n- All exports are used\n- No files would be deleted';
-            } else {
-              previewMessage += `TSR would make changes:\n${lines.slice(0, 20).join('\n')}`;
-              if (lines.length > 20) {
-                previewMessage += `\n... and ${lines.length - 20} more changes`;
-              }
-              previewMessage +=
-                '\n\nWill also organize imports in affected files';
-            }
+            // A check exits 0 only when it finds nothing to remove
+            await runTsr(['--recursive'], entrypoints, directory);
 
             return {
               success: true,
-              message: previewMessage,
+              message: `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)\n\nNo unused exports or files found!\n- All exports are used\n- No files would be deleted`,
               filesChanged: [],
               preview: {
-                filesAffected: lines.length,
+                filesAffected: 0,
                 estimatedTime: `< ${Math.max(2, Math.ceil(tsFiles.length / 10))}s`,
                 command: 'Run again with preview: false to apply changes',
               },
             };
           } catch (error: unknown) {
-            const execError = error as {
-              code?: number;
-              stdout?: string;
-              stderr?: string;
-            };
+            const execError = error as TsrError;
 
-            // tsr exits with code 1 when it finds changes, which is expected
-            if (
-              execError.code === 1 &&
-              (execError.stderr || execError.stdout)
-            ) {
-              const output = execError.stderr || execError.stdout || '';
-              const lines = output
+            // A check that finds code to remove exits 1 as well, but only it
+            // ends by printing a ✖ summary of what it found
+            if (execError.code === 1 && /^✖ /m.test(execError.stdout ?? '')) {
+              const lines = (execError.stdout ?? '')
                 .trim()
                 .split('\n')
                 .filter((l) => l.trim().length > 0);
 
               let previewMessage = `Preview: Would cleanup ${tsFiles.length} TypeScript file(s)\n\n`;
 
-              if (output.includes('No unused')) {
-                previewMessage +=
-                  'No unused exports or files found!\n- All exports are used\n- No files would be deleted';
-              } else {
-                previewMessage += `TSR would make changes:\n${lines.slice(0, 20).join('\n')}`;
-                if (lines.length > 20) {
-                  previewMessage += `\n... and ${lines.length - 20} more changes`;
-                }
-                previewMessage +=
-                  '\n\nWill also organize imports in affected files';
+              previewMessage += `TSR would make changes:\n${lines.slice(0, 20).join('\n')}`;
+              if (lines.length > 20) {
+                previewMessage += `\n... and ${lines.length - 20} more changes`;
               }
+              previewMessage +=
+                '\n\nWill also organize imports in affected files';
 
               return {
                 success: true,
@@ -169,11 +299,7 @@ Try:
               };
             }
 
-            return {
-              success: false,
-              message: `Preview failed: ${execError.stderr || execError.stdout || 'tsr error'}\n\nTry:\n  1. Check tsconfig.json is valid\n  2. Verify entry point patterns match files`,
-              filesChanged: [],
-            };
+            return tsrFailure('Preview failed', execError);
           }
         } else {
           return {
@@ -195,23 +321,10 @@ Try:
       // Only run tsr if deleteUnusedFiles is true
       if (validated.deleteUnusedFiles) {
         try {
-          await execFileAsync(
-            process.execPath,
-            [resolveTsrCli(), '--write', '--recursive', entrypoints],
-            {
-              cwd: directory,
-              maxBuffer: 10 * 1024 * 1024,
-              timeout: 60000,
-            },
-          );
+          await runTsr(['--write', '--recursive'], entrypoints, directory);
           steps.push('Removed unused exports and files (tsr)');
         } catch (error: unknown) {
-          const execError = error as {
-            code?: number;
-            stdout?: string;
-            stderr?: string;
-            killed?: boolean;
-          };
+          const execError = error as TsrError;
 
           if (execError.killed) {
             return {
@@ -222,11 +335,11 @@ Try:
             };
           }
 
-          if (execError.code === 1) {
-            steps.push('Removed unused exports and files (tsr)');
-          } else {
-            throw error;
-          }
+          // tsr --write exits 0 whenever it succeeds, whatever it removed
+          return tsrFailure(
+            'tsr failed, and may have changed files before it stopped',
+            execError,
+          );
         }
       } else {
         steps.push('Skipped unused export removal (deleteUnusedFiles: false)');
@@ -238,6 +351,9 @@ Try:
         const organizeResult = await this.organizeImportsOp.execute({
           filePath: file,
         });
+        // Every operation re-syncs the files left open, a stat apiece, so a
+        // sweep that kept them all open grew with the square of its size
+        await this.tsServer.closeFile(file);
         if (organizeResult.success && organizeResult.filesChanged.length > 0) {
           affectedFiles.push(file);
           filesChanged.push(...organizeResult.filesChanged);
@@ -296,7 +412,11 @@ Try:
         const fullPath = join(directory, entry.name);
 
         if (entry.isDirectory()) {
-          if (entry.name === 'node_modules' || entry.name.startsWith('.')) {
+          if (
+            entry.name === 'node_modules' ||
+            entry.name.startsWith('.') ||
+            entry.name === 'dist'
+          ) {
             continue;
           }
           await scan(fullPath);
