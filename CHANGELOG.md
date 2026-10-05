@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-05
+
 ### ✨ Added
 
 - **Server instructions that say when to use each tool**: clients that load tool definitions only when the model searches for them, such as Claude Code, Codex and VS Code with recent models, showed the model just the tool names, so the guidance in the tool descriptions never reached it. The initialize response now carries `instructions` that map common edits to the four tools and point to the `operations://catalog` resource.
@@ -297,7 +299,8 @@ Replaced 15 individual MCP tools with 4 grouped tools, reducing token overhead b
 - Preview mode for all destructive operations
 - MCP protocol compliance (stderr logging only)
 
-[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.3.0...v3.0.0
 [2.3.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/Stefan-Nitu/mcp-refactor-typescript/compare/v2.1.2...v2.2.0
