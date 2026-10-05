@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **Server instructions that say when to use each tool**: clients that load tool definitions only when the model searches for them, such as Claude Code, Codex and VS Code with recent models, showed the model just the tool names, so the guidance in the tool descriptions never reached it. The initialize response now carries `instructions` that map common edits to the four tools and point to the `operations://catalog` resource.
+
 ## [3.0.0] - 2026-10-05
 
 ### 🔒 Security

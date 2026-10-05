@@ -23,10 +23,23 @@ const packageJson = JSON.parse(
   readFileSync(join(__dirname, '../package.json'), 'utf-8'),
 );
 
-const server = new McpServer({
-  name: 'mcp-refactor-typescript',
-  version: packageJson.version,
-});
+const server = new McpServer(
+  {
+    name: 'mcp-refactor-typescript',
+    version: packageJson.version,
+  },
+  {
+    // Clients that defer tool definitions, such as Claude Code and Codex, show
+    // the model only tool names, so this is what tells it when to look for them
+    instructions: `Refactors TypeScript and JavaScript through the TypeScript language service, updating every import and reference that mv, sed or a text edit would leave broken. Use these tools instead of editing by hand whenever you:
+- rename or move a .ts/.tsx/.js/.jsx file: file_operations
+- rename a symbol, extract a function, constant or variable, or move a declaration to another file: refactoring
+- organize imports, fix TypeScript errors or remove unused code: code_quality
+- list every reference to a symbol before changing it: workspace (find_references)
+Every path must be absolute. Pass preview: true to see the edits without applying them. workspace's cleanup_codebase with deleteUnusedFiles: true deletes files.
+Every operation, with examples: the operations://catalog resource.`,
+  },
+);
 
 const registry = new OperationRegistry();
 

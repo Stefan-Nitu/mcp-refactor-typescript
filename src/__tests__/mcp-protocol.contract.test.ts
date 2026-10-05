@@ -12,6 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { type ChildProcess, spawn } from 'node:child_process';
 import { resolve } from 'node:path';
+import { groupedTools } from '../tools/grouped-tools.js';
 
 describe('MCP Protocol Contract', () => {
   let server: ChildProcess | null = null;
@@ -258,6 +259,55 @@ describe('MCP Protocol Contract', () => {
     expect(initResponse!.result?.serverInfo.name).toBe(
       'mcp-refactor-typescript',
     );
+  });
+
+  it('should send initialize instructions that name every tool', async () => {
+    // Arrange
+    const serverPath = resolve(__dirname, '../../dist/index.js');
+    server = spawn('node', [serverPath], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    server.stdout?.on('data', (data) => {
+      stdoutData.push(data.toString());
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Act
+    const initializeRequest = {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-11-25',
+        capabilities: {},
+        clientInfo: {
+          name: 'test-client',
+          version: '1.0.0',
+        },
+      },
+    };
+
+    server.stdin?.write(`${JSON.stringify(initializeRequest)}\n`);
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Assert
+    const initResponse = stdoutData
+      .join('')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+      .find((response) => response.id === 1);
+    const instructions = initResponse?.result?.instructions;
+
+    expect(typeof instructions).toBe('string');
+    for (const tool of groupedTools) {
+      expect(instructions).toContain(tool.name);
+    }
+    // Claude Code cuts each server's instructions off at 2,048 characters
+    expect(instructions.length).toBeLessThanOrEqual(2048);
   });
 
   it('should handle SIGTERM and exit gracefully within 5 seconds', async () => {
