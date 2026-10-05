@@ -1,558 +1,228 @@
-# Error Handling and Presentation Patterns for MCP Servers
+# Error Handling
 
-## Overview
+How the server reports failures to MCP clients, and the conventions failure messages
+follow.
 
-This document describes error handling patterns for MCP (Model Context Protocol) servers, covering domain errors, JSON-RPC compliance, user presentation, and error tracking integration.
+## How a failure reaches the client
 
-## MCP Protocol Requirements
+Operations do not throw for failures they expect. Each one returns a `RefactorResult`
+(defined in `src/language-servers/typescript/tsserver-client.ts`):
 
-### JSON-RPC Error Format
-
-MCP servers must return errors in JSON-RPC 2.0 format:
-
-```typescript
-interface JSONRPCError {
-  code: number;
+```ts
+interface RefactorResult {
+  success: boolean;
   message: string;
-  data?: any;
-}
-
-// Standard error codes
-const ErrorCodes = {
-  // JSON-RPC defined errors
-  PARSE_ERROR: -32700,
-  INVALID_REQUEST: -32600,
-  METHOD_NOT_FOUND: -32601,
-  INVALID_PARAMS: -32602,
-  INTERNAL_ERROR: -32603,
-
-  // Application errors (MCP specific)
-  TOOL_NOT_FOUND: -32001,
-  RESOURCE_NOT_FOUND: -32002,
-  PERMISSION_DENIED: -32003,
-  OPERATION_FAILED: -32004
-} as const;
-```
-
-### MCP Tool Response Format
-
-Tools return success results with content, not error codes:
-
-```typescript
-// CORRECT: Tool returns user-friendly error in content
-async function buildTool(args: any): Promise<MCPResponse> {
-  try {
-    const result = await executeBuild(args);
-    return {
-      content: [{
-        type: 'text',
-        text: `Build succeeded: ${result.appName}`
-      }]
-    };
-  } catch (error) {
-    // Return error as content, not JSON-RPC error
-    return {
-      content: [{
-        type: 'text',
-        text: `Build failed: ${error.message}`
-      }]
-    };
-  }
-}
-
-// WRONG: Don't throw JSON-RPC errors from tools
-async function buildTool(args: any) {
-  throw new JSONRPCError(-32004, 'Build failed'); // Don't do this!
-}
-```
-
-## Core Architecture
-
-### 1. Layer Responsibilities
-
-```typescript
-// Domain Layer: Pure error types with data
-export class SimulatorNotFoundError extends Error {
-  constructor(public readonly deviceId: string) {
-    super(`Simulator not found: ${deviceId}`);
-    this.name = 'SimulatorNotFoundError';
-  }
-}
-
-// Application Layer: Returns domain errors
-export class BootSimulatorUseCase {
-  async execute(deviceId: string): Promise<Result<void>> {
-    const simulator = await this.repo.findById(deviceId);
-    if (!simulator) {
-      return Result.failed(new SimulatorNotFoundError(deviceId));
-    }
-    // ... boot logic
-  }
-}
-
-// Presentation Layer: Formats for users
-export class BootSimulatorController {
-  async execute(args: unknown): Promise<MCPResponse> {
-    const result = await this.useCase.execute(args.deviceId);
-
-    if (result.isFailure) {
-      const formatted = this.formatError(result.error);
-      return {
-        content: [{
-          type: 'text',
-          text: formatted
-        }]
-      };
-    }
-
-    return {
-      content: [{
-        type: 'text',
-        text: 'Simulator booted successfully'
-      }]
-    };
-  }
-
-  private formatError(error: Error): string {
-    if (error instanceof SimulatorNotFoundError) {
-      return `Simulator not found: ${error.deviceId}`;
-    }
-    return `${error.message}`;
-  }
-}
-```
-
-### 2. Error Tracking Integration
-
-Integrate with Sentry/GlitchTip/Rollbar for production monitoring:
-
-```typescript
-import { captureError } from './utils/error-tracking';
-
-export class MCPToolController {
-  async execute(args: unknown): Promise<MCPResponse> {
-    try {
-      const result = await this.useCase.execute(args);
-
-      if (result.isFailure) {
-        // Log to error tracking (non-blocking)
-        captureError(result.error, {
-          tool: this.toolName,
-          args: this.sanitizeArgs(args)
-        });
-
-        return this.formatErrorResponse(result.error);
-      }
-
-      return this.formatSuccessResponse(result.value);
-    } catch (unexpectedError) {
-      // Capture unexpected errors with full context
-      captureError(unexpectedError, {
-        tool: this.toolName,
-        args: this.sanitizeArgs(args),
-        type: 'unexpected'
-      });
-
-      return {
-        content: [{
-          type: 'text',
-          text: 'An unexpected error occurred. Please try again.'
-        }]
-      };
-    }
-  }
-
-  private sanitizeArgs(args: any): any {
-    // Remove sensitive data before logging
-    const sanitized = { ...args };
-    delete sanitized.apiKey;
-    delete sanitized.password;
-
-    // Redact user paths
-    if (sanitized.projectPath) {
-      sanitized.projectPath = sanitized.projectPath.replace(
-        /\/Users\/[^/]+/,
-        '/Users/[REDACTED]'
-      );
-    }
-
-    return sanitized;
-  }
-}
-```
-
-## Error Categories and Handling
-
-### 1. Validation Errors
-
-Input validation should happen early with clear messages:
-
-```typescript
-import { z } from 'zod';
-
-const buildSchema = z.object({
-  projectPath: z.string()
-    .min(1, 'Project path is required')
-    .endsWith('.xcodeproj', 'Must be an Xcode project'),
-  scheme: z.string().min(1, 'Scheme is required'),
-  configuration: z.enum(['Debug', 'Release', 'Beta'])
-});
-
-async function validateAndBuild(args: unknown) {
-  try {
-    const validated = buildSchema.parse(args);
-    return await executeBuild(validated);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const issues = error.errors.map(e => `  • ${e.path}: ${e.message}`).join('\n');
-      return {
-        content: [{
-          type: 'text',
-          text: `Invalid input:\n${issues}`
-        }]
-      };
-    }
-    throw error;
-  }
-}
-```
-
-### 2. External Command Failures
-
-Handle shell command errors with helpful context:
-
-```typescript
-export class CommandExecutionError extends Error {
-  constructor(
-    public readonly command: string,
-    public readonly exitCode: number,
-    public readonly stderr: string,
-    public readonly stdout: string
-  ) {
-    super(`Command failed with exit code ${exitCode}`);
-    this.name = 'CommandExecutionError';
-  }
-}
-
-// Format for users
-function formatCommandError(error: CommandExecutionError): string {
-  // Extract relevant error from stderr/stdout
-  const errorMessage = extractErrorMessage(error.stderr || error.stdout);
-
-  return `Build failed: ${errorMessage}
-
-Full output:
-${error.stderr || error.stdout}`;
-}
-
-function extractErrorMessage(output: string): string {
-  // Look for common patterns
-  const patterns = [
-    /error: (.+)/i,
-    /fatal: (.+)/i,
-    /failed: (.+)/i
-  ];
-
-  for (const pattern of patterns) {
-    const match = output.match(pattern);
-    if (match) return match[1];
-  }
-
-  // Return first line if no pattern matches
-  return output.split('\n')[0] || 'Unknown error';
-}
-```
-
-### 3. State Conflicts
-
-Handle resource state issues gracefully:
-
-```typescript
-export class SimulatorStateError extends Error {
-  constructor(
-    public readonly deviceId: string,
-    public readonly currentState: string,
-    public readonly requiredState: string
-  ) {
-    super(`Simulator ${deviceId} is ${currentState}, needs to be ${requiredState}`);
-    this.name = 'SimulatorStateError';
-  }
-}
-
-// User-friendly formatting
-function formatStateError(error: SimulatorStateError): string {
-  const suggestions: Record<string, string> = {
-    'Booted': 'The simulator is already running',
-    'Shutdown': 'Please boot the simulator first',
-    'Creating': 'Please wait for simulator creation to complete'
-  };
-
-  const suggestion = suggestions[error.currentState] || '';
-
-  return `Cannot perform operation: Simulator is ${error.currentState}
-${suggestion ? `${suggestion}` : ''}`;
-}
-```
-
-### 4. Network and Timeout Errors
-
-Handle async operation failures:
-
-```typescript
-export class OperationTimeoutError extends Error {
-  constructor(
-    public readonly operation: string,
-    public readonly timeoutMs: number
-  ) {
-    super(`Operation timed out after ${timeoutMs}ms`);
-    this.name = 'OperationTimeoutError';
-  }
-}
-
-async function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  operation: string
-): Promise<T> {
-  const timeout = new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      reject(new OperationTimeoutError(operation, timeoutMs));
-    }, timeoutMs);
-  });
-
-  try {
-    return await Promise.race([promise, timeout]);
-  } catch (error) {
-    if (error instanceof OperationTimeoutError) {
-      captureError(error, { operation, timeoutMs });
-      throw error;
-    }
-    throw error;
-  }
-}
-```
-
-## JSON Response Format
-
-All MCP tools should return structured JSON responses for programmatic parsing:
-
-```typescript
-interface ToolResponse {
-  tool: string;
-  status: 'success' | 'error';
-  message: string;
-  data?: {
-    filesChanged?: string[];
-    changes?: Array<{
-      file: string;
-      path: string;
-      edits: Array<{
-        line: number;
-        column?: number;
-        old: string;
-        new: string;
-      }>;
-    }>;
-  };
-  preview?: {
-    filesAffected: number;
-    estimatedTime: string;
-    command: string;
-  };
-  nextActions?: string[];
-  errors?: Array<{
+  filesChanged: Array<{
+    file: string;
     path: string;
-    message: string;
+    edits: Array<{ line: number; column?: number; old: string; new: string }>;
   }>;
-}
-
-// Usage - wrap JSON in text content
-return {
-  content: [{
-    type: 'text',
-    text: JSON.stringify({
-      tool: 'rename',
-      status: 'success',
-      message: 'Renamed to "newName"',
-      data: {
-        filesChanged: ['file1.ts', 'file2.ts'],
-        changes: [...]
-      }
-    }, null, 2)
-  }]
-};
-```
-
-## Error Recovery and Suggestions
-
-Provide actionable suggestions when possible:
-
-```typescript
-interface ErrorWithSuggestion {
-  message: string;
-  suggestion?: string;
-  action?: {
-    tool: string;
-    args: any;
-  };
-}
-
-function formatErrorResponse(error: Error): ToolResponse {
-  const suggestions = getSuggestions(error);
-
-  return {
-    tool: 'operation_name',
-    status: 'error',
-    message: error.message,
-    nextActions: suggestions.action ? [
-      `${suggestions.action.tool} - ${suggestions.suggestion || 'Try this tool'}`
-    ] : undefined
-  };
-}
-
-function getSuggestions(error: Error): ErrorWithSuggestion {
-  if (error instanceof SimulatorNotFoundError) {
-    return {
-      message: error.message,
-      suggestion: 'List available simulators with list_simulators tool',
-      action: {
-        tool: 'list_simulators',
-        args: {}
-      }
-    };
-  }
-
-  if (error.message.includes('scheme')) {
-    return {
-      message: error.message,
-      suggestion: 'List available schemes with list_schemes tool',
-      action: {
-        tool: 'list_schemes',
-        args: { projectPath: '...' }
-      }
-    };
-  }
-
-  return { message: error.message };
+  nextActions?: string[];
+  preview?: { filesAffected: number; estimatedTime: string; command: string };
 }
 ```
 
-## Logging Strategy
+A failure is `success: false` with a message and an empty `filesChanged`. Every
+operation wraps its body in `try`/`catch`: a `ZodError` becomes a validation message
+(below), and any other exception becomes `<Operation> failed: <error message>`, usually
+followed by hints.
 
-### Development vs Production
+`src/index.ts` turns the result into the tool response:
 
-```typescript
-import { logger, buildLogger } from './utils/logger';
+| `RefactorResult` | JSON `status` | MCP `isError` |
+|------------------|---------------|---------------|
+| `success: true` | `"success"` | `false` |
+| `success: false` | `"error"` | `true` |
 
-export class ErrorHandler {
-  static handle(error: Error, context: any) {
-    // Always log locally
-    logger.error({
-      error: {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      },
-      context
-    }, 'Error occurred');
+The JSON carries `tool`, `operation`, `status`, `message` and `data.filesChanged`.
+Clients should check `isError`: it is the MCP field for a failed call, while `status`
+sits inside a text item the client has to parse. Before 2.3.0, `isError` was never set.
 
-    // Save detailed logs for builds/tests
-    if (context.tool === 'build_xcode') {
-      buildLogger.error({
-        ...context,
-        error: error.message,
-        fullOutput: error.stdout
-      }, 'Build failure details');
-    }
+When something throws outside an operation's own `catch`, such as `runOperation`'s
+`Operation not found`, `src/index.ts` catches it and returns `{ tool, operation, status:
+"error", message }` without `data`, with `isError: true`. A `ZodError` caught there
+comes back as `message: "Invalid input"` with an `errors` array of `{ path, message }`.
+`runOperation` and the operations handle their own validation errors, so that branch is
+a fallback.
 
-    // Send to error tracking in production
-    if (process.env.NODE_ENV === 'production') {
-      captureError(error, context);
-    }
-  }
-}
+## Validation errors
+
+Input is checked in three places, and the first failure ends the call.
+
+1. **The MCP SDK, against the tool's raw shape.** This catches wrong types, an
+   `operation` outside the tool's enum, missing fields that every operation of the
+   tool needs (`filePath` for `code_quality`; `filePath`, `line` and `text` for
+   `refactoring`), and relative or empty paths: the absolute-path check sits on each
+   path field, so it survives registration. The SDK answers without calling the
+   server's handler, in plain text:
+
+   ```
+   MCP error -32602: Input validation error: Invalid arguments for tool code_quality: Invalid option: expected one of "organize_imports"|"fix_all"|"remove_unused" at operation
+   ```
+
+   A relative path names the parameter (`at filePath`, `at files[1]`) and the server's
+   working directory:
+
+   ```
+   MCP error -32602: Input validation error: Invalid arguments for tool code_quality: Must be an absolute path. A relative path would resolve against the server's own working directory (/path/to/server/cwd), which may be a different checkout than the one you are working in. at filePath
+   ```
+
+2. **`runOperation`, against the full tool schema.** This catches the cross-field
+   rules, fields that only some operations need: `name` for `rename`, `sourcePath` and
+   `name` for `rename_file`, `line` for `find_references`, `entrypoints` when
+   `deleteUnusedFiles` is true. `formatValidationError()` in
+   `src/utils/validation-error.ts` turns the zod issues into a failed `RefactorResult`:
+
+   ```json
+   {
+     "tool": "workspace",
+     "operation": "find_references",
+     "status": "error",
+     "message": "Invalid input:\n  • line is required for find_references\n\nCheck the input parameters and try again",
+     "data": { "filesChanged": [] }
+   }
+   ```
+
+   An issue tied to a field is prefixed with the field's path, as in
+   `files: At least one file must be provided`.
+
+3. **The operation's own schema.** Each operation parses its input again with its own
+   zod schema, which can be stricter than the tool's: `batch_move_files` needs at least
+   one entry in `files`. The failure goes through `formatValidationError()` and looks
+   the same as in (2).
+
+## Operation failures
+
+A call that passes validation can still fail:
+
+- `text` is not on `line`, or appears there only inside a longer identifier
+  (`Text "name" only appears as part of a longer identifier on line 2`), or `line` is
+  past the end of the file.
+- TypeScript offers no refactor at that position, or not the one asked for; the message
+  then lists the refactors it does offer.
+- A file cannot be read, reported as `<Operation> failed: ENOENT: …`.
+- `cleanup_codebase` finds no `.ts` or `.tsx` file under `directory`. With
+  `deleteUnusedFiles`, it also fails when `directory` is not the project root (the
+  message names the nearest directory with a `tsconfig.json`), when an entrypoint is not
+  a valid regular expression, when the entrypoints match no source file that
+  `tsconfig.json` includes, or when tsr fails: its output is quoted, and a real run
+  says tsr may have changed files before it stopped. tsr running past its 60-second
+  timeout fails too.
+
+Results that change nothing are successes: `No references found`,
+`No import changes needed`, `No fixes needed`, `No auto-fixable errors found`,
+`No unused code found`, `No unused code to remove`.
+
+A `fix_all` that reaches its limit of 10 rounds succeeds with what it applied, and its
+message says `stopped after 10 round(s) with fixable errors left; run fix_all again`.
+`remove_unused` and `fix_all` name each unused declaration they kept because its
+initializer or its assignments may have side effects: `Kept 1 unused declaration whose
+initializer may have side effects: server (line 4)`. When nothing else was left to
+change, the message starts `No unused code to remove` or `No auto-fixable errors
+found`.
+
+`batch_move_files` succeeds when at least one file moved, and its message lists the
+files that failed (`Moved 2 file(s), 1 failed: …`). It fails only when no file moved.
+
+`rename` and the file moves add a warning to a successful message when TypeScript was
+still indexing or file discovery timed out. The result may then be incomplete, and
+running the operation again is the fix.
+
+### Partial writes
+
+`rename`, `fix_all` and `move_to_file` compute every file before writing any, so a
+failure while reading or computing leaves all files untouched. A failure while writing
+is not rolled back. The file moves, the extract operations and `infer_return_type`
+write each file as soon as it is computed, so a failure part-way can leave earlier
+files written. So can `cleanup_codebase`: tsr writes and deletes files one at a time,
+and the import sweep writes each file as it organizes it.
+
+## tsserver failures
+
+`TypeScriptServer` turns every tsserver problem into a rejected request, and the
+operation's `catch` reports it as `<Operation> failed: <reason>`.
+
+| What happened | Reason in the message |
+|---------------|-----------------------|
+| tsserver could not be spawned | `Could not spawn tsserver at <path>: <error>` |
+| tsserver exited: it crashed or failed during startup | `tsserver at <path> exited with code <code>: <the error line from its stderr, if any>` |
+| A request was sent after tsserver exited | `Cannot send <command>: tsserver is not running` |
+| No response within 30 seconds | `Request <command> timed out` |
+| tsserver answered `success: false` | The first line of tsserver's own message, such as `Error processing request. No Project.`, or `tsserver could not complete <command>` when it gives none |
+
+- A spawn error or an exit rejects every pending request at once, rather than leaving
+  them to time out, and marks tsserver as not running. Any request sent after that
+  fails at once. The next operation's `TSServerGuard.ensureReady()` starts a new
+  tsserver.
+- A failed request's full message from tsserver, stack trace included, is logged at
+  debug level.
+- A failed start at launch is logged as `Failed to start tsserver` and the server keeps
+  running; the first operation tries again.
+- When the project has not finished loading within 5 seconds, `TSServerGuard` returns
+  a failure instead of running the operation:
+
+  ```
+  ⏳ TypeScript is still indexing the project (waited 5000ms)
+
+  💡 Try:
+    1. Wait a few more seconds and try again
+    2. For large projects, indexing can take 10-30 seconds
+    3. Check that tsconfig.json is properly configured
+  ```
+
+- `restart_tsserver` reports `Failed to restart TypeScript server: <reason>`.
+
+## The "Try:" convention
+
+An operation's failure message is written for the model that made the call: what
+failed, where, and what to do next.
+
+```
+Cannot rename: No symbol found for "getUser" at /path/to/project/src/user.ts:10
+
+Try:
+  1. Check that the text is a valid identifier
+  2. Use find_references to verify the symbol exists
+  3. Ensure the file is saved and TypeScript can analyze it
 ```
 
-## Testing Error Handling
+- The first line says what failed. It names the file and line (or `line:column`) when
+  there is one, and for a caught exception it carries the exception's message
+  (`Move file failed: ENOENT: …`).
+- Then a blank line, `Try:`, and two to four numbered steps indented by two spaces.
+  Steps name other operations when one helps (`Use find_references …`).
+- When TypeScript offered refactors other than the one asked for, the message lists
+  them (`Available refactorings: …`).
+- `Try:` is the common form. A few messages use `Tips:`, `This might indicate:` or
+  `This might happen if:` instead. New failure paths should use `Try:`.
 
-### Unit Tests
+Validation messages end with `Check the input parameters and try again` instead of a
+list.
 
-```typescript
-describe('Error Formatting', () => {
-  it('should format validation errors clearly', () => {
-    const error = new z.ZodError([
-      {
-        path: ['projectPath'],
-        message: 'Required',
-        code: 'invalid_type'
-      }
-    ]);
+## Logging
 
-    const formatted = formatValidationError(error);
-    const response = JSON.parse(formatted);
+- `runOperation` logs a `tool_error` telemetry event for every failed call: with
+  `errorType: 'OperationFailed'` when the operation returns `success: false`, and the
+  error's name when validation fails or the operation throws. Only a result with
+  `success: true` is logged as `tool_success`.
+- tsserver's exit is logged at `info` (`TSServer process exited`), and its stderr and
+  the full message of a failed request at `debug`. Set `LOG_LEVEL=debug` to see why a
+  tsserver or a request failed.
+- An error during shutdown is logged and the process exits with code 1.
 
-    expect(response.status).toBe('error');
-    expect(response.message).toContain('Invalid input');
-    expect(response.errors).toContainEqual({
-      path: 'projectPath',
-      message: 'Required'
-    });
-  });
+## Tests
 
-  it('should suggest actions for known errors', () => {
-    const error = new SimulatorNotFoundError('iPhone-15');
-    const formatted = formatErrorResponse(error);
-
-    expect(formatted.status).toBe('error');
-    expect(formatted.nextActions).toContain('list_simulators');
-  });
-});
-```
-
-### Integration Tests
-
-```typescript
-describe('MCP Error Responses', () => {
-  it('should return JSON error in content', async () => {
-    const response = await buildTool({
-      projectPath: 'invalid.xcodeproj',
-      scheme: 'NonExistent'
-    });
-
-    expect(response.content[0].type).toBe('text');
-    const parsed = JSON.parse(response.content[0].text);
-    expect(parsed.status).toBe('error');
-    expect(parsed.message).toContain('Build failed');
-  });
-
-  it('should not throw JSON-RPC errors from tools', async () => {
-    // Tools should always return MCPResponse with JSON content, never throw
-    const response = await simulatorTool({ action: 'invalid' });
-
-    expect(response).toHaveProperty('content');
-    const parsed = JSON.parse(response.content[0].text);
-    expect(parsed.status).toBe('error');
-  });
-});
-```
-
-## Best Practices Summary
-
-1. **Layer Separation**: Domain errors contain data, presentation formats messages
-2. **MCP Compliance**: Return errors in content, not JSON-RPC errors
-3. **JSON Format**: Always return structured JSON responses for programmatic parsing
-4. **User-Friendly**: Use clear language without emojis for better cross-platform compatibility
-5. **Actionable**: Provide suggestions and next steps via nextActions array
-6. **Track Everything**: Log locally and to error tracking service
-7. **Privacy First**: Sanitize sensitive data before logging
-8. **Test Coverage**: Test both error formatting and behavior
-9. **Graceful Degradation**: Always return something useful to the user
-
-## Common Pitfalls to Avoid
-
-1. **Don't throw from tools**: Always return MCPResponse with error in content
-2. **Don't log to stdout**: Use stderr via console.error or logger
-3. **Don't expose internals**: Sanitize stack traces and paths
-4. **Don't ignore errors**: Track everything for debugging
-5. **Don't format in domain**: Keep business logic pure
-6. **Don't lose context**: Include relevant data in error tracking
+- `src/language-servers/typescript/__tests__/tsserver-startup.unit.test.ts`: a tsserver
+  that cannot start fails fast, with its path in the error.
+- `src/language-servers/typescript/__tests__/request-timers.unit.test.ts`: request
+  timers are cleared on reply and never hold the process open.
+- `tsserver-exit.unit.test.ts` and `tsserver-error-message.unit.test.ts`, in the same
+  directory: a request to a killed tsserver fails at once, and a failed request carries
+  tsserver's reason without its stack trace.
+- `src/operations/__tests__/validation.unit.test.ts` and
+  `src/tools/__tests__/grouped-tools.unit.test.ts`: validation rules and messages,
+  relative paths included.
+- `src/tools/__tests__/grouped-tools.integration.test.ts`: a returned failure is logged
+  as `tool_error`.
+- `src/operations/__tests__/rename.integration.test.ts` and
+  `move-to-file.integration.test.ts`: a failure part-way through writes nothing.

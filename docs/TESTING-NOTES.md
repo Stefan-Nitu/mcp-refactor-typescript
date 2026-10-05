@@ -2,46 +2,44 @@
 
 ## Test Workspace Requirements
 
-### TypeScript LSP Dependency
+### Where workspaces live
 
-The TypeScript Language Server requires access to the TypeScript installation (`node_modules/typescript`) to function. This has important implications for test workspace setup:
+Create test workspaces with `createTestDir()` from `src/operations/__tests__/test-utils.ts`:
+- It returns a unique path, `.test-workspace-{16 hex digits}` in the repository root; `setupTestWorkspace()` creates it and `cleanupTestWorkspace()` deletes it
+- These directories are gitignored
+- Inside the repository, Node resolution reaches this repository's `node_modules`, so tsserver runs the repository's TypeScript (see [TESTING.md](TESTING.md))
 
-**DO NOT** create test workspaces in system temp directories (e.g., `/tmp`, `os.tmpdir()`)
-- The LSP will fail with: `Could not find a valid TypeScript installation`
-- No access to project's `node_modules`
-
-**DO** create test workspaces inside the project directory
-- Tests can access the project's `node_modules` via relative paths
-- Use the `createTestDir()` utility from `src/operations/__tests__/test-utils.ts`
-- Generates unique directories with pattern `.test-workspace-{random-hex}`
-- These directories are gitignored and automatically cleaned up
+A workspace in the system temp directory also works: tsserver then falls back to the TypeScript this package ships. A few tests use one on purpose, such as those that need a directory with no `tsconfig.json` above it.
 
 ### Example
 
 ```typescript
 import { createTestDir } from './test-utils.js';
 
-const testDir = createTestDir(); // Creates .test-workspace-abc123def456 in project root
+const testDir = createTestDir(); // <repo>/.test-workspace-abc123def4567890
 ```
 
 ## Running Tests
 
 ```bash
-# Run all tests (unit parallel, integration serial)
-bun test
+# Run all tests, as CI does (build first: two tests start dist/index.js)
+bun run build
+bun run test
 
-# Run only unit/contract tests (parallel)
+# Run only the *.unit.test.ts and *.contract.test.ts files
 bun run test:unit
 
-# Run only integration/e2e tests (serial)
+# Run only the *.integration.test.ts and *.e2e.test.ts files
 bun run test:integration
 
 # Run specific test file
-bun test --filter rename
+bun test --timeout 30000 src/operations/__tests__/rename.integration.test.ts
 
 # Watch mode
-bun test --watch
+bun test --watch --timeout 30000 src/
 ```
+
+`test:unit` and `test:integration` give `bun test` file-name suffixes, not globs. `bun run` runs a script with the system shell, where `**` crosses directories only if bash's `globstar` option is on - it is off by default, and the bash 3.2 macOS ships lacks it - so a `src/**/*.unit.test.ts` glob reached no test file at all. `bun test` looks for each argument as plain text in every test file's path, and ending it in `.ts` keeps out the compiled copies `tsc` writes to `dist/`.
 
 ### Test Timeouts
 

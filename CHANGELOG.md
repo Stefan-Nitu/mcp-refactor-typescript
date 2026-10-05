@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🔧 Changed
 
 - **Breaking: every path parameter must be absolute**: `filePath`, `sourcePath`, `destinationPath`, each entry of `files`, `targetFolder` and `directory`. A relative path resolved against the server's own working directory, which is wherever the client launched it, so from a git worktree a rename edited the main checkout and reported success. A relative path is now rejected with `isError`, and the message names the parameter and the server's working directory; an empty path gets the same message. `rename_file`'s `name` and the `entrypoints` patterns are not paths and are unchanged.
+- **ARCHITECTURE, ERROR-HANDLING and TESTING describe this server**: they were generic MCP server guides written around an Xcode server. The README and the operations catalog were corrected to match the code.
 
 ### 🐛 Fixed
 
@@ -41,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **There was no LICENSE file**, though `package.json` and the README declare MIT. It is added.
 - **The CI Node.js compatibility job could not fail**: it started the server in the background, slept, killed it and reported success whatever had happened. It now sends the built server `initialize` and `tools/list` over stdio, and fails unless both are answered with nothing but JSON-RPC on stdout.
 - **`bun run test:unit` and `bun run test:integration` each ran one test file**: the shell that runs package scripts expanded their `src/**/…` globs with `**` as a single directory level, so only a file directly under `src/__tests__/` matched. They now run every unit and contract, or integration and e2e, test file.
+
+### ✅ Testing
+
+- Every fix above has regression tests that failed before it, most of them against a real tsserver: among them a rename after a file changed on disk, `open` and `close` against a stand-in tsserver that never answers them, a preview given `--write=…` as an entrypoint, and two tool calls sent at once. The exceptions are the `EPIPE` guard, which has no test, and the packaging, CI and test-script fixes, which were checked by running them.
 
 ## [2.3.0] - 2026-09-22
 

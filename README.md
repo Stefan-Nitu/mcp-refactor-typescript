@@ -5,29 +5,27 @@
 
 # MCP Refactor TypeScript
 
-A Model Context Protocol (MCP) server that provides comprehensive TypeScript/JavaScript refactoring capabilities powered by the TypeScript compiler. Perform complex code transformations with compiler-grade accuracy and type-safety.
+An MCP server that gives MCP clients TypeScript's own refactorings: rename symbols,
+move files and declarations, extract functions and constants, organize imports and
+apply quick fixes. It drives `tsserver`, the TypeScript language service editors use,
+so TypeScript computes every edit; the server writes the edits to disk and reports each
+one.
 
-## Overview
-
-MCP Refactor TypeScript exposes TypeScript's powerful refactoring engine through the Model Context Protocol, enabling AI assistants and other MCP clients to perform sophisticated code transformations that would be impossible or error-prone to do manually.
-
-**Key Features:**
-- **Type-Aware Refactoring** - Uses TypeScript's compiler for accurate, safe transformations
-- **Cross-File Support** - Automatically updates imports, exports, and references across your entire codebase
-- **Safe** - Preview mode for all destructive operations
-- **Detailed Reporting** - See exactly what changed with file paths and line numbers
+- Renames and moves update imports and references across the project.
+- Every operation that edits files accepts `preview: true`, which returns the edits
+  without writing them.
+- Each response lists the changed files and every edit: line, column, old text, new text.
 
 ## Installation
-
-### Via npm (Recommended)
 
 ```bash
 npm install -g mcp-refactor-typescript
 ```
 
-The package will be globally installed and available as `mcp-refactor-typescript`.
+This installs the `mcp-refactor-typescript` command. You can also run the server
+through `npx` without installing it (see Quick Start).
 
-### From Source
+From source:
 
 ```bash
 git clone https://github.com/Stefan-Nitu/mcp-refactor-typescript.git
@@ -36,16 +34,27 @@ bun install
 bun run build
 ```
 
-> ⚠️ Requires Bun v1.3.8+ (development) and Node.js v18+ (runtime)
+The server runs on Node.js 18 or later. Developing it needs Bun 1.3.8 or later.
+
+### Which TypeScript it uses
+
+Your project does not need TypeScript installed: the server ships TypeScript 5.9. When
+a `typescript` package resolves from the directory the server was launched in, that
+copy is used instead, so edits match the version the project compiles with; TypeScript
+4.9 and later work. TypeScript 7 no longer ships `tsserver`, so a project on 7 gets the
+bundled 5.9.
+
+The project should have a `tsconfig.json`: tsserver uses it to know which files belong
+to the project.
 
 ## Quick Start
 
-### With Claude Desktop
+### Claude Desktop
 
-Add to your Claude Desktop configuration file:
+Add the server to Claude Desktop's configuration file:
 
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
@@ -58,7 +67,7 @@ Add to your Claude Desktop configuration file:
 }
 ```
 
-Or if installed globally:
+If you installed it globally:
 
 ```json
 {
@@ -70,133 +79,196 @@ Or if installed globally:
 }
 ```
 
-Restart Claude Desktop and you'll have access to all refactoring tools.
+Restart Claude Desktop to load it.
 
-### With MCP Inspector
+### MCP Inspector
 
-Test the server interactively:
+Try the tools interactively in the [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
 
 ```bash
 npx @modelcontextprotocol/inspector npx -y mcp-refactor-typescript
 ```
 
-Or if installed globally:
+If you installed it globally:
 
 ```bash
 npx @modelcontextprotocol/inspector mcp-refactor-typescript
 ```
 
-Open http://localhost:5173 to explore available tools and test refactoring operations.
+The Inspector prints the URL to open in your browser.
 
-## Available Tools (v2.0)
+To list the tools from the command line instead:
 
-The server exposes **4 grouped tools** with **15 operations** total. Each tool has a specific domain and uses the `operation` parameter to specify the action.
+```bash
+npx @modelcontextprotocol/inspector --cli npx mcp-refactor-typescript@latest --method tools/list --connect-timeout 60000
+```
 
-### Tool Groups
+`--connect-timeout` gives `npx` time to download the package on the first run.
 
-| Tool | Operations | Use When |
-|------|-----------|----------|
-| **file_operations** | `rename_file`, `move_file`, `batch_move_files` | Renaming/moving files, reorganizing code structure |
-| **code_quality** | `organize_imports`, `fix_all`, `remove_unused` | Before commits, after refactoring, cleanup tasks |
-| **refactoring** | `rename`, `extract_function`, `extract_constant`, `extract_variable`, `infer_return_type` | Renaming symbols, reducing duplication, improving structure |
-| **workspace** | `find_references`, `refactor_module`, `cleanup_codebase`, `restart_tsserver` | Understanding impact, large-scale refactoring, TypeScript issues |
+## Paths must be absolute
 
-### Operations Reference
+Every path parameter (`filePath`, `sourcePath`, `destinationPath`, each entry of `files`,
+`targetFolder`, `directory`) must be an absolute path. A relative or empty path is
+rejected with an error that names the parameter and the server's working directory.
+A relative path would resolve against that directory, which is wherever the MCP
+client launched it and not necessarily the checkout being edited: an agent working in
+a git worktree would otherwise change the main checkout. `rename_file`'s `name` is a bare
+filename and `entrypoints` are regex patterns, so neither is a path. Up to 2.3.0,
+relative paths were accepted.
 
-| Operation | Tool | Description |
-|-----------|------|-------------|
-| **rename_file** | file_operations | Rename file in-place with automatic import path updates |
-| **move_file** | file_operations | Move file to different directory with import updates |
-| **batch_move_files** | file_operations | Move multiple files atomically |
-| **organize_imports** | code_quality | Sort and remove unused imports (preserves side-effects) |
-| **fix_all** | code_quality | Apply all available TypeScript quick fixes |
-| **remove_unused** | code_quality | Remove unused variables and imports safely |
-| **rename** | refactoring | Rename symbols across all files with automatic import/export updates |
-| **extract_function** | refactoring | Extract code to function with auto-detected parameters/types |
-| **extract_constant** | refactoring | Extract magic numbers/strings to named constants |
-| **extract_variable** | refactoring | Extract expressions to local variables |
-| **infer_return_type** | refactoring | Add return type annotations automatically |
-| **find_references** | workspace | Find all usages with type-aware analysis |
-| **refactor_module** | workspace | Complete workflow: move + organize + fix |
-| **cleanup_codebase** | workspace | Clean entire codebase (organize + optionally delete unused) |
-| **restart_tsserver** | workspace | Restart TypeScript server for fresh project state |
+## Tools
 
-> 📖 **Detailed Documentation**: See [docs/OPERATIONS.md](docs/OPERATIONS.md) for full examples, best practices, and workflow patterns for each operation. Also available via MCP resource `operations://catalog`.
+The server exposes 4 tools covering 16 operations. The `operation` argument picks the
+operation within a tool.
+
+| Tool | Operations |
+|------|------------|
+| `file_operations` | `rename_file`, `move_file`, `batch_move_files` |
+| `code_quality` | `organize_imports`, `fix_all`, `remove_unused` |
+| `refactoring` | `rename`, `extract_function`, `extract_constant`, `extract_variable`, `move_to_file`, `infer_return_type` |
+| `workspace` | `find_references`, `refactor_module`, `cleanup_codebase`, `restart_tsserver` |
+
+### Operations
+
+Operations that act on code take `filePath`, a 1-based `line` and `text`: the first
+occurrence of `text` on that line that is not part of a longer identifier is the symbol
+or expression to act on, so `user` never selects `username`. Every operation that
+edits files also takes `preview`. `?` marks an optional parameter.
+
+| Operation | Parameters | What it does |
+|-----------|------------|--------------|
+| `rename_file` | `sourcePath`, `name` | Renames a file in its directory (`name` is the new filename) and updates imports of it. |
+| `move_file` | `sourcePath`, `destinationPath` | Moves a file to `destinationPath` (a full path including the filename) and updates imports. |
+| `batch_move_files` | `files`, `targetFolder` | Moves each file into `targetFolder`, one at a time, updating imports. A file that fails is reported and the others still move. |
+| `organize_imports` | `filePath` | Sorts the file's imports and removes unused ones. |
+| `fix_all` | `filePath` | Gives each error in the file the one fix TypeScript prefers, in rounds until no fixable error is left, at most 10. A fix can edit other files. Like `remove_unused`, it keeps an unused declaration that may have side effects. |
+| `remove_unused` | `filePath` | Removes unused imports, variables and functions, also under `noUnusedLocals` and `noUnusedParameters`. Keeps an unused declaration whose initializer may have side effects, such as `const server = app.listen(3000)`, and names it in the message. |
+| `rename` | `filePath`, `line`, `text`, `name` | Renames a symbol and every reference to it. |
+| `extract_function` | `filePath`, `line`, `text`, `name`? | Extracts `text` into a function, at module scope when TypeScript offers it. |
+| `extract_constant` | `filePath`, `line`, `text`, `name`? | Extracts `text` into a `const` in the enclosing scope. |
+| `extract_variable` | `filePath`, `line`, `text`, `name`? | Same edit as `extract_constant`: a `const` in the enclosing scope. |
+| `move_to_file` | `filePath`, `line`, `text`, `destinationPath`? | Moves a top-level declaration to `destinationPath`, or to a new file named after it, and updates imports. |
+| `infer_return_type` | `filePath`, `line`, `text` | Adds an explicit return type to a function. |
+| `find_references` | `filePath`, `line`, `text` | Lists every reference to a symbol, grouped by file. Changes nothing. |
+| `refactor_module` | `sourcePath`, `destinationPath` | `move_file`, then `organize_imports` and `fix_all` on the files the move touched, including the module at its new location. |
+| `cleanup_codebase` | `directory`, `deleteUnusedFiles`?, `entrypoints`? | Runs `organize_imports` on every `.ts` and `.tsx` file under `directory`, skipping `node_modules`, `dist` and dot-directories. With `deleteUnusedFiles: true` it first runs [tsr](https://github.com/line/tsr), which removes unused exports and **deletes files** not reachable from `entrypoints`. |
+| `restart_tsserver` | none | Stops tsserver and starts a new one. |
+
+The extract operations generate a name when `name` is omitted. [docs/OPERATIONS.md](docs/OPERATIONS.md)
+has examples for each operation; clients can also read it from the server as the
+`operations://catalog` resource.
 
 ## Response Format
 
-All tools return structured JSON:
+Every call returns one text item holding JSON:
 
 ```json
 {
   "tool": "refactoring",
   "operation": "rename",
-  "status": "success" | "error",
-  "message": "Human-readable summary",
+  "status": "success",
+  "message": "Renamed to \"getUserProfile\"",
   "data": {
-    "filesChanged": ["list", "of", "modified", "files"],
-    "changes": [
+    "filesChanged": [
       {
-        "file": "filename.ts",
-        "path": "/absolute/path/filename.ts",
+        "file": "user.ts",
+        "path": "/path/to/project/src/user.ts",
         "edits": [
-          {
-            "line": 42,
-            "column": 10,
-            "old": "oldText",
-            "new": "newText"
-          }
+          { "line": 1, "column": 17, "old": "getUser", "new": "getUserProfile" }
+        ]
+      },
+      {
+        "file": "main.ts",
+        "path": "/path/to/project/src/main.ts",
+        "edits": [
+          { "line": 3, "column": 13, "old": "getUser", "new": "getUserProfile" },
+          { "line": 1, "column": 10, "old": "getUser", "new": "getUserProfile" }
         ]
       }
+    ],
+    "nextActions": [
+      "organize_imports - Clean up import statements",
+      "fix_all - Fix any type errors from rename"
     ]
-  },
-  "preview": {  // Only when preview: true
-    "filesAffected": 5,
-    "estimatedTime": "< 1s",
-    "command": "Run again with preview: false to apply changes"
-  },
-  "nextActions": [  // Suggested follow-up operations
-    "organize_imports - Clean up import statements",
-    "fix_all - Fix any type errors"
-  ]
+  }
 }
 ```
 
-## Example Usage
+- `status` is `"success"` or `"error"`. On `"error"` the MCP result also carries
+  `isError: true`, which is what clients check.
+- `message` summarizes the result. For `find_references` it is the result: the
+  references, grouped under each file's absolute path.
+- `data.filesChanged` has one entry per changed file: `file` is the file name, `path`
+  the absolute path, and each edit gives the 1-based `line` and `column` in the file as
+  it was before the operation, the `old` text and the `new` text. The exception is a
+  `fix_all` that took more than one round: each round's edits refer to the text the
+  rounds before it left. Within a file, edits are usually listed bottom-up, the order
+  they are applied in. `filesChanged` is empty on failure and for operations that
+  change nothing.
+- `data.preview` appears only with `preview: true`:
+  `{ "filesAffected": 2, "estimatedTime": "< 1s", "command": "Run again with preview: false to apply changes" }`.
+  `estimatedTime` is a fixed estimate, not a measurement.
+- `data.nextActions` appears when the operation suggests follow-up operations.
 
-### Rename a symbol
+### Errors
+
+A failed operation has the same shape with `"status": "error"` and an empty
+`filesChanged`. The message says what failed and what to try:
+
 ```json
 {
   "tool": "refactoring",
-  "params": {
+  "operation": "rename",
+  "status": "error",
+  "message": "Text \"getUsr\" not found on line 1\n\nLine content: export function getUser(id: string) {\n\nTry:\n  1. Check the text matches exactly (case-sensitive)\n  2. Ensure you're on the correct line",
+  "data": { "filesChanged": [] }
+}
+```
+
+Invalid input comes back in one of two forms, both with `isError: true`:
+
+- A parameter of the wrong type, a relative path, an unknown `operation`, or a missing
+  parameter that every operation of the tool needs is rejected by the MCP SDK before
+  the server sees the call. The content is plain text, not JSON:
+  `MCP error -32602: Input validation error: Invalid arguments for tool refactoring: Invalid input: expected number, received string at line`
+- A parameter that only some operations need, such as `line` for `find_references`, is
+  checked by the server and reported in the JSON shape above, with a message such as
+  `"Invalid input:\n  • line is required for find_references\n\nCheck the input parameters and try again"`.
+
+[docs/ERROR-HANDLING.md](docs/ERROR-HANDLING.md) covers every failure path.
+
+## Examples
+
+These are the `params` of an MCP `tools/call` request. Replace `/path/to/project` with
+the absolute path of your project.
+
+### Preview a rename
+
+```json
+{
+  "name": "refactoring",
+  "arguments": {
     "operation": "rename",
-    "filePath": "src/user.ts",
+    "filePath": "/path/to/project/src/user.ts",
     "line": 10,
     "text": "getUser",
     "name": "getUserProfile",
-    "preview": false
+    "preview": true
   }
 }
 ```
 
-### Organize imports
-```json
-{
-  "tool": "code_quality",
-  "params": {
-    "operation": "organize_imports",
-    "filePath": "src/index.ts"
-  }
-}
-```
+The response lists the edits and nothing is written. Send it again without `preview`
+to apply them.
 
-### Extract function
+### Extract a function
+
 ```json
 {
-  "tool": "refactoring",
-  "params": {
+  "name": "refactoring",
+  "arguments": {
     "operation": "extract_function",
-    "filePath": "src/calculate.ts",
+    "filePath": "/path/to/project/src/calculate.ts",
     "line": 15,
     "text": "x + y",
     "name": "addNumbers"
@@ -204,212 +276,176 @@ All tools return structured JSON:
 }
 ```
 
-### Find references
+`text` has to sit on the one `line`, so an extraction covers at most one line.
+
+### Move a declaration to another file
+
 ```json
 {
-  "tool": "workspace",
-  "params": {
-    "operation": "find_references",
-    "filePath": "src/utils.ts",
-    "line": 5,
-    "text": "helper"
+  "name": "refactoring",
+  "arguments": {
+    "operation": "move_to_file",
+    "filePath": "/path/to/project/src/utils.ts",
+    "line": 10,
+    "text": "parseConfig",
+    "destinationPath": "/path/to/project/src/config/parser.ts"
   }
 }
 ```
 
-## Advanced Usage
-
-### Preview Mode
-
-All destructive operations support preview mode:
+### Move several files
 
 ```json
 {
-  "filePath": "src/user.ts",
-  "line": 10,
-  "column": 5,
-  "name": "getUserProfile",
-  "preview": true
+  "name": "file_operations",
+  "arguments": {
+    "operation": "batch_move_files",
+    "files": [
+      "/path/to/project/src/utils/string.ts",
+      "/path/to/project/src/utils/number.ts"
+    ],
+    "targetFolder": "/path/to/project/src/lib"
+  }
 }
 ```
 
-Returns what would change without modifying any files.
+Each file keeps its name. The files move one after another, not as one transaction: if
+one fails, the others still move and the message lists the failure.
 
-### Entry Points for Cleanup
-
-**Required when `deleteUnusedFiles: true`** - prevents accidental deletion with wrong defaults.
-
-Safe mode (organize imports only) uses automatic defaults. Aggressive mode requires explicit entry points:
+### Delete unused files
 
 ```json
 {
-  "operation": "cleanup_codebase",
-  "directory": "src",
-  "deleteUnusedFiles": true,
-  "entrypoints": [
-    "src/main\\.ts$",       // Main entry point
-    "src/cli\\.ts$",        // CLI entry
-    ".*\\.test\\.ts$",      // Test files (auto-included in defaults)
-    "scripts/.*\\.ts$"      // Script files
-  ]
+  "name": "workspace",
+  "arguments": {
+    "operation": "cleanup_codebase",
+    "directory": "/path/to/project",
+    "deleteUnusedFiles": true,
+    "entrypoints": ["src/main\\.ts$", "src/cli\\.ts$", ".*\\.test\\.ts$"],
+    "preview": true
+  }
 }
 ```
 
-⚠️ **Files not reachable from entry points will be DELETED**. Always use `preview: true` first.
-
-### Batch Operations
-
-Move multiple files atomically:
-
-```json
-{
-  "files": [
-    "src/utils/string.ts",
-    "src/utils/number.ts",
-    "src/utils/array.ts"
-  ],
-  "targetFolder": "src/lib"
-}
-```
-
-All imports update automatically, all files move together or not at all.
+- With `deleteUnusedFiles: true`, `directory` must be the project root: the directory
+  that contains the `tsconfig.json` tsr reads. The server refuses any other directory,
+  because without that `tsconfig.json` tsr falls back to default compiler options and
+  can judge files that are in use unreachable, then delete them.
+- `entrypoints` is required with `deleteUnusedFiles: true`. Each entry is a regular
+  expression matched against each file's absolute path (its real path, when the project
+  is reached through a symlink); a file not reachable through imports from a matching
+  file is deleted. Nothing imports a test file, so list your test files too.
+- The server checks `entrypoints` before tsr runs: each must be a valid regular
+  expression, and together they must match a source file other than a `.d.ts` among the
+  files `tsconfig.json` includes. tsr also counts every `.d.ts` file as an entrypoint,
+  so patterns that matched nothing else would leave it deleting everything those files
+  do not import.
+- The preview runs tsr without writing and reports what it would change, or that it
+  found nothing to remove. Any tsr failure is reported as a failure.
+- A real run that fails part-way is not rolled back: what tsr or the import sweep has
+  already written or deleted stays that way.
+- Without `deleteUnusedFiles`, the operation only organizes imports, and `directory`
+  can be any directory.
 
 ## Development
 
-### Project Structure
+### Layout
 
 ```
-mcp-refactor-typescript/
-├── src/
-│   ├── index.ts                     # MCP server entry point
-│   ├── operation-name.ts            # Operation name enum (single source of truth)
-│   ├── registry.ts                  # Operation registry
-│   ├── operations/                  # Refactoring operations
-│   │   ├── rename.ts               # Rename operation
-│   │   ├── move-file.ts            # Move file operation
-│   │   ├── extract-function.ts     # Extract function operation
-│   │   └── ...                     # Other operations
-│   ├── language-servers/
-│   │   └── typescript/             # TypeScript server client
-│   │       ├── tsserver-client.ts  # Direct tsserver communication
-│   │       └── tsserver-types.ts   # Protocol type definitions
-│   └── utils/
-│       ├── logger.ts               # Pino logger (stderr only)
-│       └── validation-error.ts     # Zod error formatting
-├── test/
-│   └── fixtures/                   # Test TypeScript files
-└── docs/                           # Architecture & testing docs
+src/
+├── index.ts                       MCP server: registers the tools and the operations://catalog resource
+├── operation-name.ts              Operation names
+├── registry.ts                    Builds every operation around one tsserver client
+├── tools/                         The four tools and their input schemas
+├── operations/                    One file per operation
+│   └── shared/                    Edit application, file discovery, file moves, tsserver readiness, side-effect guard
+├── language-servers/typescript/   tsserver client, message parser, tsserver lookup
+├── resources/                     Serves docs/OPERATIONS.md
+└── utils/                         Logger (stderr), telemetry, validation messages
+scripts/fresh-install-smoke-test.mjs   Installs the packed server and refactors a project that has no TypeScript
 ```
 
-### Testing
+### Commands
 
 ```bash
-# Run all tests
-bun test
-
-# Run specific test file
-bun test --filter rename
-
-# Run in watch mode
-bun test --watch
-
-# Type checking
-bun run typecheck
-
-# Linting
-bun run lint
+bun run build                # compile to dist/
+bun run test                 # the whole suite; build first, two test files run dist/index.js
+bun test --timeout 30000 src/operations/__tests__/rename.integration.test.ts   # one file
+bun run check                # typecheck and lint
+bun run test:fresh-install   # pack, install and run the server outside this repository
 ```
 
-### Test Coverage
-
-- Integration tests covering all operations
-- Unit tests for validation, error handling, and edge cases
-- E2E tests for server startup and initialization
-- All tests use real TypeScript compiler (no mocks)
-
-### Requirements
-
-- **Node.js** >= 18.0.0
-- **TypeScript** project with `tsconfig.json`
-- Valid TypeScript/JavaScript files
-- ESM module resolution (`.js` extensions in imports)
-
-Your project does **not** need TypeScript installed — the server ships its own. When
-your project does have one, that copy is used instead so refactors match the language
-version you compile with. Projects on TypeScript 7 fall back to the bundled TypeScript 5,
-because TypeScript 7 no longer ships the `tsserver` this server drives.
+[docs/TESTING.md](docs/TESTING.md) explains the test layout and how to run subsets.
 
 ## Architecture
 
-The server uses TypeScript's native `tsserver` for all refactoring operations:
+One tsserver process serves every call, and calls run one at a time: a call that
+arrives while another is running waits for it to finish. The server starts tsserver at
+launch when there are TypeScript or JavaScript files in its working directory or up to
+two levels below it, and otherwise on the first call. Before each operation, the files
+the server has open in tsserver are re-synced with the disk, so changes made outside
+the server, in an editor or by git, are seen. An operation asks tsserver for edits,
+applies them to the file contents itself and writes the files. Logs go to stderr;
+stdout carries only the MCP protocol.
 
-1. **Server Starts**: Detects TypeScript files and starts `tsserver`
-2. **Indexing**: TypeScript indexes project files (1-5 seconds for most projects)
-3. **Operations**: Each tool sends protocol messages to `tsserver`
-4. **Results**: Changes are returned as structured JSON with full details
-
-**Key Design Decisions:**
-- Direct `tsserver` communication (not VS Code LSP)
-- One `tsserver` instance shared across all operations
-- All logging to stderr (MCP protocol compliance)
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture information.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the details.
 
 ## Documentation
 
-- **[OPERATIONS.md](docs/OPERATIONS.md)** - Complete operations reference with examples
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - MCP server architecture and patterns
-- **[TESTING.md](docs/TESTING.md)** - Testing strategies and patterns
-- **[TESTING-NOTES.md](docs/TESTING-NOTES.md)** - Test workspace setup requirements
-- **[ERROR-HANDLING.md](docs/ERROR-HANDLING.md)** - Error handling patterns
-- **[MCP-TYPESCRIPT-README.md](docs/MCP-TYPESCRIPT-README.md)** - TypeScript SDK reference
+- [OPERATIONS.md](docs/OPERATIONS.md): what each operation does, with examples. Also served as the `operations://catalog` resource.
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md): how a tool call reaches tsserver, and how edits are computed and written.
+- [ERROR-HANDLING.md](docs/ERROR-HANDLING.md): how failures are reported to clients.
+- [TESTING.md](docs/TESTING.md): test layout, conventions and how to run the tests.
+- [DEV_NOTES.md](docs/DEV_NOTES.md): past mistakes and the rules they left behind.
+- [TDD.md](docs/TDD.md): the test-first workflow contributions follow.
+- [MCP-TYPESCRIPT-README.md](docs/MCP-TYPESCRIPT-README.md): a copy of the MCP TypeScript SDK's README.
 
 ## Troubleshooting
 
-### TypeScript Server Not Starting
+### tsserver does not start
 
-If operations fail with "TypeScript server not running":
+Operations fail with a message containing `Could not spawn tsserver at <path>: …` or
+`tsserver at <path> exited with code …`. `<path>` shows which TypeScript the server
+picked: the one that resolves from its working directory, or its bundled copy.
 
-1. Check that you have TypeScript files in your project
-2. Verify `tsconfig.json` exists and is valid
-3. Run `restart_tsserver` tool to force a restart
-4. Check logs in stderr for detailed error messages
+1. If `<path>` is in your project, check that project's TypeScript version: 4.9 and later work.
+2. Set `LOG_LEVEL=debug` in the server's environment to log tsserver's stderr.
+3. Call `restart_tsserver` to start a new tsserver.
 
-### Incomplete References
+### "TypeScript is still indexing the project"
 
-If `find_references` or `rename` misses some usages:
+tsserver had not reported the project as loaded within 5 seconds. Call the operation
+again.
 
-1. Wait for TypeScript to finish indexing (check for "Project loaded" in logs)
-2. Ensure all files are included in `tsconfig.json`
-3. Fix any TypeScript errors that might prevent analysis
-4. Use `restart_tsserver` after making project configuration changes
+### A rename or find_references misses files
 
-### Import Paths Not Updating
+1. A rename's message ends with a warning when indexing had not finished or file
+   discovery timed out. Run the operation again.
+2. tsserver only sees files that belong to a project: make sure the files are covered
+   by a `tsconfig.json`.
+3. Call `restart_tsserver` after changing `tsconfig.json`.
 
-If `move_file` doesn't update some imports:
+### Imports are not updated after a move
 
-1. Ensure imports use `.js` extensions (ESM requirement)
-2. Check that moved file is part of TypeScript project
-3. Verify `tsconfig.json` module resolution settings
-4. Look for dynamic imports that TypeScript can't analyze
+1. tsserver updates `import` and `export` statements in the files it knows about (see
+   above). It cannot follow a computed specifier such as ``import(`./${name}.js`)``.
+2. Other string literals that hold the path, such as `vi.mock('./service.js')`,
+   `jest.mock(...)` or `require(...)`, are matched as text, and only when written as a
+   path relative to the file that ends in `.js`.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. **Write tests first** (TDD approach)
-4. Implement the feature
-5. Ensure all tests pass (`bun test`)
-6. Run linting (`bun run lint`)
-7. Submit a pull request
-
+1. Fork the repository and create a branch.
+2. Write a failing test first ([docs/TDD.md](docs/TDD.md)), then make it pass.
+3. Run `bun run check`, then `bun run build` and `bun run test`.
+4. Open a pull request.
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).
 
 ## Related Projects
 
-- [Model Context Protocol](https://modelcontextprotocol.io) - MCP specification and documentation
-- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) - SDK used by this server
-- [MCP Servers](https://github.com/modelcontextprotocol/servers) - Official MCP server implementations
+- [Model Context Protocol](https://modelcontextprotocol.io): the MCP specification and documentation
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk): the SDK this server uses
+- [MCP Servers](https://github.com/modelcontextprotocol/servers): reference MCP server implementations
