@@ -7,6 +7,12 @@
   "bin": {
     "mcp-refactor-typescript": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "!dist/**/__tests__",
+    "docs/OPERATIONS.md",
+    "CHANGELOG.md"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/Stefan-Nitu/mcp-refactor-typescript.git"
@@ -28,8 +34,8 @@
     "dev": "bun --watch src/index.ts",
     "start": "node dist/index.js",
     "test": "bun test --timeout 30000 src/",
-    "test:unit": "bun test src/**/*.unit.test.ts src/**/*.contract.test.ts",
-    "test:integration": "bun test --timeout 30000 src/**/*.integration.test.ts src/**/*.e2e.test.ts",
+    "test:unit": "bun test .unit.test.ts .contract.test.ts",
+    "test:integration": "bun test --timeout 30000 .integration.test.ts .e2e.test.ts",
     "test:fresh-install": "node scripts/fresh-install-smoke-test.mjs",
     "test:watch": "bun test --watch --concurrency 1 src/",
     "lint": "biome check",

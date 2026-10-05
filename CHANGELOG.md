@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`cleanup_codebase` rewrote build output**: the import sweep skipped only `node_modules` and dot-directories, so it also organized the imports in `dist`. It now skips `dist` too.
 - **Tool calls sent together ran at the same time**: the MCP SDK starts each call as it arrives, and clients do send several at once, so their requests and writes interleaved on the one tsserver and the same files. Calls now run one at a time.
 - **Telemetry logged failed calls as successes**: operations report failure by returning `success: false`, and every returned result was logged as `tool_success`. Such a result is now logged as `tool_error` with `errorType: 'OperationFailed'`.
+- **The npm package shipped the whole repository**: sources, tests and their compiled copies, CI configuration and every doc: 439 files and 2.43 MB unpacked for 2.3.0. It now ships the build without its tests, `docs/OPERATIONS.md`, the README, the changelog and `LICENSE`: 177 files, under 0.5 MB unpacked.
+- **There was no LICENSE file**, though `package.json` and the README declare MIT. It is added.
+- **The CI Node.js compatibility job could not fail**: it started the server in the background, slept, killed it and reported success whatever had happened. It now sends the built server `initialize` and `tools/list` over stdio, and fails unless both are answered with nothing but JSON-RPC on stdout.
+- **`bun run test:unit` and `bun run test:integration` each ran one test file**: the shell that runs package scripts expanded their `src/**/…` globs with `**` as a single directory level, so only a file directly under `src/__tests__/` matched. They now run every unit and contract, or integration and e2e, test file.
 
 ## [2.3.0] - 2026-09-22
 

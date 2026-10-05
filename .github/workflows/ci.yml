@@ -94,10 +94,24 @@ jobs:
     - name: Build
       run: bun run build
 
-    - name: Verify server starts on Node.js ${{ matrix.node-version }}
+    # Speak MCP to the built server: it must answer initialize and tools/list with
+    # nothing but JSON-RPC on stdout, then exit cleanly once stdin closes. Its
+    # stderr, crash traces included, streams straight into this log.
+    - name: Verify server answers MCP on Node.js ${{ matrix.node-version }}
       run: |
-        timeout 10 node dist/index.js &
-        SERVER_PID=$!
-        sleep 3
-        kill $SERVER_PID 2>/dev/null || true
-        echo "Server started and stopped successfully on Node.js ${{ matrix.node-version }}"
+        response=$(printf '%s\n' \
+          '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+          '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+          '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+          | timeout 60 node dist/index.js) && status=0 || status=$?
+        if [ "$status" -ne 0 ] || ! node -e '
+          const replies = require("fs").readFileSync(0, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+          const init = replies.find((reply) => reply.id === 1);
+          const list = replies.find((reply) => reply.id === 2);
+          if (!init?.result?.protocolVersion || !list?.result?.tools?.length) process.exit(1);
+          console.log("Node.js " + process.version + ": protocol " + init.result.protocolVersion + ", tools " + list.result.tools.map((tool) => tool.name).join(", "));
+        ' <<<"$response"; then
+          echo "::error::Server did not answer MCP on Node.js ${{ matrix.node-version }} (exit status $status; 124 = timed out). Its stdout:"
+          printf '%s\n' "$response"
+          exit 1
+        fi
