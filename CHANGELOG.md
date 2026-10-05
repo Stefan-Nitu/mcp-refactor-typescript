@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- **tsserver never saw a change to a file it had open**: tsserver stops reading an open file from disk, and nothing sent a file again, so an edit made afterwards — by an editor, by git, or by the server's own previous operation — was invisible, and edits computed from the old text landed on the new one. A rename after a comment was added above the function wrote `// Utilities forbarmputing values` and reported success. Before each operation, every open file whose modification time or size has changed is now sent again, and one deleted from disk is closed.
+- **Operations timed out on projects using TypeScript older than 5.6**: the server prefers the project's own TypeScript, and tsserver before 5.6 never answers `open` or `close`, so each operation that opened a file waited out the 30-second timeout on its first `open` and failed with `Request open timed out`. Both are now sent without waiting for a reply. Checked against TypeScript 4.9.
+- **tsserver could not start without `node` on `PATH`**: it was spawned as a bare `node`, and desktop MCP clients can start the server through an absolute path to Node with a minimal `PATH`, where every operation failed with `spawn node ENOENT`. tsserver now runs on the Node that runs the server.
+- **Requests to an exited tsserver waited 30 seconds each**: the client kept writing to the dead process, and file discovery retries a request up to 30 times, so a tsserver that died during discovery could stall one call for about 15 minutes. Such requests now fail at once, and an `EPIPE` from a write that reaches tsserver as it dies, which could crash the server, is logged instead.
+- **tsserver's errors reached users as `undefined`**: tsserver gives a failed request's reason in the response's `message`, and the client read it from the body, which a failure does not have. The error now carries the first line of tsserver's message, such as `Error processing request. No Project.`; the full text is logged at debug level.
+
 ## [2.3.0] - 2026-09-22
 
 ### 🔒 Security

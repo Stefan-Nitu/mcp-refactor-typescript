@@ -11,7 +11,15 @@ export class TSServerGuard {
       await this.tsServer.start(process.cwd());
     }
 
-    return await this.checkProjectLoaded(timeout);
+    const notLoaded = await this.checkProjectLoaded(timeout);
+    if (notLoaded) return notLoaded;
+
+    // Here because every operation, and each step of a composite one, comes
+    // through before its first request. tsserver never re-reads a file it has
+    // open, so without this a write since then - an editor's, a checkout's, or
+    // the previous operation's own - went unseen
+    await this.tsServer.syncOpenFiles();
+    return null;
   }
 
   private async checkProjectLoaded(

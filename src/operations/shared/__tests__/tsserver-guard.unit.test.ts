@@ -8,16 +8,20 @@ describe('TSServerGuard', () => {
   const isRunningMock = mock();
   const startMock = mock();
   const isProjectLoadedMock = mock();
+  const syncOpenFilesMock = mock();
 
   beforeEach(() => {
     isRunningMock.mockReset();
     startMock.mockReset();
     isProjectLoadedMock.mockReset();
+    syncOpenFilesMock.mockReset();
+    syncOpenFilesMock.mockResolvedValue(undefined);
 
     mockTsServer = {
       isRunning: isRunningMock,
       start: startMock,
       isProjectLoaded: isProjectLoadedMock,
+      syncOpenFiles: syncOpenFilesMock,
     } as unknown as TypeScriptServer;
 
     guard = new TSServerGuard(mockTsServer);
@@ -124,6 +128,20 @@ describe('TSServerGuard', () => {
       // Assert
       expect(result).toBeNull();
       expect(callCount).toBeGreaterThan(1);
+    });
+
+    it('should bring the files tsserver has open up to date before reporting ready', async () => {
+      // Arrange - tsserver never re-reads an open file, so anything written
+      // since the last operation is only seen if it is sent again
+      isRunningMock.mockReturnValue(true);
+      isProjectLoadedMock.mockReturnValue(true);
+
+      // Act
+      const result = await guard.ensureReady();
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockTsServer.syncOpenFiles).toHaveBeenCalledTimes(1);
     });
   });
 });

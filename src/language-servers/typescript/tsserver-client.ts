@@ -4,7 +4,7 @@
  */
 
 import { type ChildProcess, spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { logger } from '../../utils/logger.js';
 import { MessageParser } from './message-parser.js';
 import { resolveTsserverPath } from './resolve-tsserver-path.js';
@@ -43,8 +43,15 @@ interface TSServerResponse {
   command?: string;
   request_seq?: number;
   success?: boolean;
+  message?: string;
   body?: unknown;
   event?: string;
+}
+
+/** A file on disk as it was when its content was last sent to tsserver */
+interface SentFile {
+  mtimeMs: number;
+  size: number;
 }
 
 /** A crashing tsserver prints a full stack trace; the Error line carries the cause */
@@ -70,6 +77,9 @@ export class TypeScriptServer {
   private projectLoaded = false;
   private running = false;
   private assumeLoaded: ReturnType<typeof setTimeout> | null = null;
+  // tsserver takes an open file's content from the client and stops reading
+  // it from disk, so every later write has to be sent again - see syncOpenFiles
+  private openFiles = new Map<string, SentFile>();
 
   constructor(
     private readonly resolveTsserver: (
@@ -88,13 +98,17 @@ export class TypeScriptServer {
 
     const tsserverPath = this.resolveTsserver(projectPath);
 
-    // Both belong to the process being replaced: a carried-over flag makes the
-    // readiness guard skip its wait, and a half-read frame from the dead server
-    // would consume the start of the new one's output
+    // All belong to the process being replaced: a carried-over flag makes the
+    // readiness guard skip its wait, a half-read frame from the dead server
+    // would consume the start of the new one's output, and the new one has no
+    // files open
     this.projectLoaded = false;
     this.parser = new MessageParser();
+    this.openFiles.clear();
 
-    const child = spawn('node', [tsserverPath], {
+    // Not a bare `node`: desktop MCP clients launch this server by an absolute
+    // path with a minimal PATH, where there may be no `node` to find
+    const child = spawn(process.execPath, [tsserverPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: projectPath,
       env: {
@@ -106,6 +120,14 @@ export class TypeScriptServer {
     // Left undecoded: the parser needs byte offsets to honour Content-Length
     this.process.stdout?.on('data', (data) => this.handleData(data));
 
+    // A write that reaches tsserver after it died but before Node has seen it
+    // exit fails with EPIPE, and Node throws that from stdin when nothing is
+    // listening - taking this whole server down. The exit that follows fails
+    // the request instead
+    this.process.stdin?.on('error', (error) => {
+      logger.debug({ error }, 'TSServer stdin error');
+    });
+
     let stderrOutput = '';
     this.process.stderr?.setEncoding('utf8');
     this.process.stderr?.on('data', (data) => {
@@ -116,8 +138,8 @@ export class TypeScriptServer {
     // A tsserver that dies never answers, so fail its callers now instead of
     // leaving them to wait out the 30s request timeout
     this.process.on('error', (error) => {
-      this.running = false;
-      this.failPendingRequests(
+      this.processGone(
+        child,
         new Error(
           `Could not spawn tsserver at ${tsserverPath}: ${error.message}`,
         ),
@@ -126,9 +148,9 @@ export class TypeScriptServer {
 
     this.process.on('exit', (code) => {
       logger.info({ code }, 'TSServer process exited');
-      this.running = false;
       const cause = summarizeStderr(stderrOutput);
-      this.failPendingRequests(
+      this.processGone(
+        child,
         new Error(
           `tsserver at ${tsserverPath} exited with code ${code}${
             cause ? `: ${cause}` : ''
@@ -197,6 +219,16 @@ export class TypeScriptServer {
     });
   }
 
+  private processGone(child: ChildProcess, reason: Error): void {
+    // A process a restart has already replaced must not take down its successor
+    if (this.process !== child) return;
+    // Cleared because this is what send() checks - `running` cannot stand in,
+    // as start() sets it only once its own configure request is answered
+    this.process = null;
+    this.running = false;
+    this.failPendingRequests(reason);
+  }
+
   private failPendingRequests(reason: Error): void {
     for (const [seq, pending] of this.pendingRequests) {
       this.pendingRequests.delete(seq);
@@ -231,10 +263,17 @@ export class TypeScriptServer {
         if (message.success) {
           pending.resolve(message.body);
         } else {
+          // tsserver gives a failure's reason in the response's own `message`
+          // and sends no body with it. The reason is the first line; the rest
+          // is tsserver's stack trace, which would reach the model as part of
+          // the operation's error
+          logger.debug(
+            { command: message.command, message: message.message },
+            'TSServer request failed',
+          );
           const errorMsg =
-            (message.body as { message?: string })?.message ||
-            String(message.body) ||
-            'Request failed';
+            message.message?.split('\n')[0] ||
+            `tsserver could not complete ${message.command ?? 'a request'}`;
           pending.reject(new Error(errorMsg));
         }
       }
@@ -245,15 +284,9 @@ export class TypeScriptServer {
     command: string,
     args?: Record<string, unknown>,
   ): Promise<T | null> {
-    return new Promise<T | null>((resolve, reject) => {
-      const seq = ++this.seq;
-      const request: TSServerRequest = {
-        seq,
-        type: 'request',
-        command,
-        arguments: args,
-      };
+    const seq = this.send(command, args);
 
+    return new Promise<T | null>((resolve, reject) => {
       // Nothing cleared this once the reply arrived, so every request left a
       // timer alive for its full 30 seconds - a cleanup sweep over a large
       // project accumulates one per request. Unref'd so a request still in
@@ -276,22 +309,81 @@ export class TypeScriptServer {
           reject(error);
         },
       });
-
-      const message = `${JSON.stringify(request)}\n`;
-      this.process?.stdin?.write(message);
     });
   }
 
+  /** Writes a request to tsserver and returns its seq, without waiting for a reply */
+  private send(command: string, args?: Record<string, unknown>): number {
+    // Nothing answers a request written to a tsserver that has exited, so each
+    // one sat out its full 30s timeout - and file discovery retries 30 times
+    if (!this.process?.stdin) {
+      throw new Error(`Cannot send ${command}: tsserver is not running`);
+    }
+
+    const seq = ++this.seq;
+    const request: TSServerRequest = {
+      seq,
+      type: 'request',
+      command,
+      arguments: args,
+    };
+    this.process.stdin.write(`${JSON.stringify(request)}\n`);
+    return seq;
+  }
+
+  // Open and close are sent without awaiting a reply: tsserver before 5.6
+  // never answers either, so every operation in a project pinned to an older
+  // TypeScript failed on the 30s timeout. tsserver handles messages in order,
+  // so later requests still see the file, and the reply 5.6+ does send
+  // matches no pending request and is dropped
   async openFile(filePath: string): Promise<void> {
+    // Taken before the read, so a write landing between the two leaves the
+    // recorded mtime behind the file and the next sync sends it again
+    const { mtimeMs, size } = await stat(filePath);
     const content = await readFile(filePath, 'utf8');
-    await this.sendRequest('open', {
-      file: filePath,
-      fileContent: content,
-    });
+    this.send('open', { file: filePath, fileContent: content });
+    this.openFiles.set(filePath, { mtimeMs, size });
+  }
+
+  /**
+   * Gives tsserver content the disk does not hold - an edit computed but not
+   * yet written, or a preview's, never to be. Recorded as matching no file,
+   * because the stat check cannot notice content that was never written:
+   * the next syncOpenFiles sends the disk content back.
+   */
+  async openFileWithContent(filePath: string, content: string): Promise<void> {
+    this.send('open', { file: filePath, fileContent: content });
+    this.openFiles.set(filePath, { mtimeMs: Number.NaN, size: -1 });
   }
 
   async closeFile(filePath: string): Promise<void> {
-    await this.sendRequest('close', { file: filePath });
+    this.send('close', { file: filePath });
+    this.openFiles.delete(filePath);
+  }
+
+  /**
+   * Sends tsserver the disk content of every open file that changed since it
+   * was sent, and closes those that no longer exist. Without this, an edit by
+   * an editor, a checkout or this server's previous operation stayed
+   * invisible, and edits computed from the old text landed on the new one.
+   * An unchanged file costs one stat.
+   */
+  async syncOpenFiles(): Promise<void> {
+    await Promise.all(
+      Array.from(this.openFiles, async ([filePath, sent]) => {
+        const onDisk = await stat(filePath).catch(() => null);
+        if (!onDisk) {
+          await this.closeFile(filePath);
+        } else if (
+          onDisk.mtimeMs !== sent.mtimeMs ||
+          onDisk.size !== sent.size
+        ) {
+          // One deleted between the stat above and the read is closed instead,
+          // leaving tsserver to read the disk for itself
+          await this.openFile(filePath).catch(() => this.closeFile(filePath));
+        }
+      }),
+    );
   }
 
   async reloadFile(filePath: string): Promise<void> {
