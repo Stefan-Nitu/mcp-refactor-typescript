@@ -89,8 +89,7 @@ export class FindReferencesOperation {
       let message = `Found ${references.refs.length} reference(s) in ${fileGroups.size} file(s):\n`;
 
       for (const [file, refs] of fileGroups) {
-        const fileName = file.split('/').pop() || file;
-        message += `\n${fileName}:\n`;
+        message += `\n${file}:\n`;
         for (const ref of refs) {
           message += `  • Line ${ref.start.line}: ${ref.lineText.trim()}\n`;
         }

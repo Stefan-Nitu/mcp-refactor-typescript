@@ -7,7 +7,7 @@ import {
   expect,
   it,
 } from 'bun:test';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import type { FindReferencesOperation } from '../find-references.js';
@@ -110,7 +110,7 @@ const another = calculateSum(3, 4);`,
     // Assert
     expect(response.success).toBe(true);
     expect(response.message).toContain('Found 1 reference');
-    expect(response.message).toContain('unused.ts');
+    expect(response.message).toContain(`\n${filePath}:\n`);
   });
 
   it('should work with relative file paths', async () => {
@@ -198,9 +198,44 @@ const total = add(3, 4);`,
     // 5. Usage in fileB.ts
     expect(response.success).toBe(true);
     expect(response.message).toContain('Found 5 reference(s) in 3 file(s)');
-    expect(response.message).toContain('utils.ts');
-    expect(response.message).toContain('fileA.ts');
-    expect(response.message).toContain('fileB.ts');
+    expect(response.message).toContain(`\n${utilsPath}:\n`);
+    expect(response.message).toContain(`\n${fileAPath}:\n`);
+    expect(response.message).toContain(`\n${fileBPath}:\n`);
+  });
+
+  it('should tell apart files that share a name', async () => {
+    // Arrange - both consumers are index.ts, so a bare file name would print
+    // two identical headers
+    const configPath = join(testDir, 'src', 'config.ts');
+    const usersPath = join(testDir, 'src', 'users', 'index.ts');
+    const ordersPath = join(testDir, 'src', 'orders', 'index.ts');
+
+    await mkdir(join(testDir, 'src', 'users'), { recursive: true });
+    await mkdir(join(testDir, 'src', 'orders'), { recursive: true });
+    await writeFile(configPath, 'export const LIMIT = 10;\n', 'utf-8');
+    await writeFile(
+      usersPath,
+      `import { LIMIT } from '../config.js';\nexport const maxUsers = LIMIT;\n`,
+      'utf-8',
+    );
+    await writeFile(
+      ordersPath,
+      `import { LIMIT } from '../config.js';\nexport const maxOrders = LIMIT * 2;\n`,
+      'utf-8',
+    );
+
+    // Act
+    const response = await operation!.execute({
+      filePath: configPath,
+      line: 1,
+      text: 'LIMIT',
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(response.message).toContain('Found 5 reference(s) in 3 file(s)');
+    expect(response.message).toContain(`\n${usersPath}:\n`);
+    expect(response.message).toContain(`\n${ordersPath}:\n`);
   });
 
   it('should explain the missing parameter instead of dumping raw Zod output', async () => {

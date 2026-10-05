@@ -499,6 +499,30 @@ export function   oldFunction   (x: number): number {
       // Assert
       expect(response.success).toBe(true);
     });
+
+    it('should rename the identifier named by text, not a longer one that contains it', async () => {
+      // Arrange - `user` first appears on line 2 as the start of `username`
+      const filePath = join(testDir, 'src', 'greet.ts');
+      await writeFile(
+        filePath,
+        'export function greet(user: string) {\n  const username = user.toUpperCase(); return username;\n}\n',
+        'utf-8',
+      );
+
+      // Act
+      const response = await operation!.execute({
+        filePath,
+        line: 2,
+        text: 'user',
+        name: 'person',
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(await readFile(filePath, 'utf-8')).toBe(
+        'export function greet(person: string) {\n  const username = person.toUpperCase(); return username;\n}\n',
+      );
+    });
   });
 
   it('should rename mocked function symbols in test files', async () => {
