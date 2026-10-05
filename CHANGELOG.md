@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **tsserver's errors reached users as `undefined`**: tsserver gives a failed request's reason in the response's `message`, and the client read it from the body, which a failure does not have. The error now carries the first line of tsserver's message, such as `Error processing request. No Project.`; the full text is logged at debug level.
 - **`text` matched inside longer identifiers**: the first occurrence on the line was taken even inside a longer name, so renaming `user` on a line where `username` came first renamed `username`. `text` now matches only where it is not part of a longer identifier, and the message says when that leaves no match.
 - **`find_references` printed bare file names**, so two `index.ts` files looked the same. It now prints each file's absolute path.
+- **`refactor_module` never organized or fixed the module it moved**: it ran `organize_imports` and `fix_all` only on the files the move edited, which need not include the module, and it listed the module's own edits under its old path, which the move had deleted. The module is now organized, fixed and reported at its new location.
 
 ## [2.3.0] - 2026-09-22
 

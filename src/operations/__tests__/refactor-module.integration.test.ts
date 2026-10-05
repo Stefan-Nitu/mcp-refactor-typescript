@@ -216,4 +216,109 @@ console.error(result);`,
     const mainContent = await readFile(mainPath, 'utf-8');
     expect(mainContent).toContain('absHelper');
   });
+
+  it('should organize the moved module and report it at its destination', async () => {
+    // Arrange - the move rewrites both of a.ts's own imports, and `z` is unused
+    const sourcePath = join(testDir, 'src', 'a.ts');
+    const destPath = join(testDir, 'src', 'lib', 'a.ts');
+
+    await writeFile(
+      join(testDir, 'src', 'z.ts'),
+      'export const z = 26;\n',
+      'utf-8',
+    );
+    await writeFile(
+      join(testDir, 'src', 'c.ts'),
+      'export const c = 3;\n',
+      'utf-8',
+    );
+    await writeFile(
+      sourcePath,
+      `import { z } from './z.js';\nimport { c } from './c.js';\n\nexport const a = c + 1;\n`,
+      'utf-8',
+    );
+    await writeFile(
+      join(testDir, 'src', 'b.ts'),
+      `import { a } from './a.js';\n\nexport const b = a;\n`,
+      'utf-8',
+    );
+
+    // Act
+    const response = await operation!.execute({
+      sourcePath,
+      destinationPath: destPath,
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+
+    const movedContent = await readFile(destPath, 'utf-8');
+    expect(movedContent).toContain(`import { c } from '../c.js';`);
+    expect(movedContent).not.toContain('z.js');
+
+    const changedPaths = response.filesChanged.map((c) => c.path);
+    expect(changedPaths).toContain(destPath);
+    expect(changedPaths).not.toContain(sourcePath);
+  });
+
+  it('should organize the moved module when the move edits nothing inside it', async () => {
+    // Arrange - both imports resolve the same from either folder, and nothing
+    // imports the module, so the move itself edits no file at all
+    const sourcePath = join(testDir, 'src', 'features', 'a.ts');
+    const destPath = join(testDir, 'src', 'shared', 'a.ts');
+
+    await mkdir(join(testDir, 'src', 'features'), { recursive: true });
+    await writeFile(
+      join(testDir, 'src', 'z.ts'),
+      'export const z = 26;\n',
+      'utf-8',
+    );
+    await writeFile(
+      join(testDir, 'src', 'c.ts'),
+      'export const c = 3;\n',
+      'utf-8',
+    );
+    await writeFile(
+      sourcePath,
+      `import { z } from '../z.js';\nimport { c } from '../c.js';\n\nexport const a = c + 1;\n`,
+      'utf-8',
+    );
+
+    // Act
+    const response = await operation!.execute({
+      sourcePath,
+      destinationPath: destPath,
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+
+    const movedContent = await readFile(destPath, 'utf-8');
+    expect(movedContent).toContain(`import { c } from '../c.js';`);
+    expect(movedContent).not.toContain('z.js');
+    expect(response.filesChanged.map((c) => c.path)).toContain(destPath);
+  });
+
+  it('should fix errors in the moved module at its destination', async () => {
+    // Arrange - a.ts uses `c` without importing it
+    const sourcePath = join(testDir, 'src', 'a.ts');
+    const destPath = join(testDir, 'src', 'lib', 'a.ts');
+
+    await writeFile(
+      join(testDir, 'src', 'c.ts'),
+      'export const c = 3;\n',
+      'utf-8',
+    );
+    await writeFile(sourcePath, 'export const a = c + 1;\n', 'utf-8');
+
+    // Act
+    const response = await operation!.execute({
+      sourcePath,
+      destinationPath: destPath,
+    });
+
+    // Assert
+    expect(response.success).toBe(true);
+    expect(await readFile(destPath, 'utf-8')).toContain('../c.js');
+  });
 });

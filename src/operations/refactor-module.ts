@@ -2,7 +2,7 @@
  * Refactor module operation - combines move_file + organize_imports + fix_all
  */
 
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { z } from 'zod';
 import type { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { formatValidationError } from '../utils/validation-error.js';
@@ -66,8 +66,19 @@ Next steps: organize imports, fix errors`,
         };
       }
 
-      // Step 2: Organize imports for all affected files
-      const uniqueFiles = [...new Set(allFilesChanged.map((f) => f.path))];
+      // The move writes the module's own import updates before renaming it, so
+      // it reports them under sourcePath, which no longer exists
+      const movedModule = allFilesChanged.find((f) => f.path === sourcePath);
+      if (movedModule) {
+        movedModule.file = basename(destinationPath);
+        movedModule.path = destinationPath;
+      }
+
+      // Step 2: Organize imports for all affected files. The move lists only
+      // the files it edited, which need not include the module it moved
+      const uniqueFiles = [
+        ...new Set([destinationPath, ...allFilesChanged.map((f) => f.path)]),
+      ];
 
       for (const file of uniqueFiles) {
         const organizeResult = await this.organizeImportsOp.execute({
