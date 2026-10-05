@@ -27,6 +27,12 @@ describe('Grouped Tools Schema Validation', () => {
         expect(shape.name.description).toContain('rename');
         expect(shape.destinationPath.description).toContain('move_to_file');
       });
+
+      it('should say each path parameter takes an absolute path', () => {
+        // Act & Assert
+        expect(shape.filePath.description).toMatch(/absolute path/i);
+        expect(shape.destinationPath.description).toMatch(/absolute path/i);
+      });
     });
 
     describe('Common Required Fields', () => {
@@ -56,9 +62,21 @@ describe('Grouped Tools Schema Validation', () => {
 
         // Act & Assert
         expect(() => schema.parse(invalidInput)).toThrow(z.ZodError);
-        expect(() => schema.parse(invalidInput)).toThrow(
-          /File path cannot be empty/,
-        );
+        expect(() => schema.parse(invalidInput)).toThrow(/absolute path/);
+      });
+
+      it('should reject a relative file path', () => {
+        // Arrange
+        const input = {
+          operation: 'rename',
+          filePath: 'src/file.ts',
+          line: 10,
+          text: 'myVariable',
+          name: 'newName',
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).toThrow(/absolute path/);
       });
 
       it('should reject non-positive line numbers', () => {
@@ -325,6 +343,20 @@ describe('Grouped Tools Schema Validation', () => {
         // Act & Assert
         expect(() => schema.parse(input)).not.toThrow();
       });
+
+      it('should reject a relative destinationPath', () => {
+        // Arrange
+        const input = {
+          operation: 'move_to_file',
+          filePath: '/path/to/file.ts',
+          line: 10,
+          text: 'export function myFunc',
+          destinationPath: 'src/dest.ts',
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).toThrow(/absolute path/);
+      });
     });
 
     describe('Invalid Operations', () => {
@@ -400,7 +432,34 @@ describe('Grouped Tools Schema Validation', () => {
 
       // Act & Assert
       expect(() => schema.parse(invalid)).toThrow(z.ZodError);
-      expect(() => schema.parse(invalid)).toThrow(/File path cannot be empty/);
+      expect(() => schema.parse(invalid)).toThrow(/absolute path/);
+    });
+
+    it('should say filePath takes an absolute path', () => {
+      // Act & Assert
+      expect(toolInputShape(schema).filePath.description).toMatch(
+        /absolute path/i,
+      );
+    });
+
+    it('should reject a relative file path, naming the directory it would resolve against', () => {
+      // Arrange - the server's cwd is wherever the client launched it, which
+      // is not necessarily the checkout the client is working in
+      const input = {
+        operation: 'organize_imports',
+        filePath: 'src/file.ts',
+      };
+
+      // Act
+      const result = schema.safeParse(input);
+
+      // Assert
+      expect(result.error?.issues).toEqual([
+        expect.objectContaining({ path: ['filePath'] }),
+      ]);
+      const message = result.error?.issues[0].message;
+      expect(message).toContain('absolute path');
+      expect(message).toContain(`working directory (${process.cwd()})`);
     });
   });
 
@@ -425,6 +484,14 @@ describe('Grouped Tools Schema Validation', () => {
       it('should spell out that rename_file takes a bare filename', () => {
         // Act & Assert
         expect(shape.name.description).toMatch(/filename|not a path/i);
+      });
+
+      it('should say each path parameter takes an absolute path', () => {
+        // Act & Assert
+        expect(shape.sourcePath.description).toMatch(/absolute path/i);
+        expect(shape.destinationPath.description).toMatch(/absolute path/i);
+        expect(shape.files.description).toMatch(/absolute path/i);
+        expect(shape.targetFolder.description).toMatch(/absolute path/i);
       });
     });
 
@@ -468,6 +535,18 @@ describe('Grouped Tools Schema Validation', () => {
           /name is required for rename_file/,
         );
       });
+
+      it('should reject a relative sourcePath', () => {
+        // Arrange
+        const input = {
+          operation: 'rename_file',
+          sourcePath: 'src/old.ts',
+          name: 'new.ts',
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).toThrow(/absolute path/);
+      });
     });
 
     describe('move_file Operation', () => {
@@ -509,6 +588,18 @@ describe('Grouped Tools Schema Validation', () => {
         expect(() => schema.parse(input)).toThrow(
           /destinationPath is required for move_file/,
         );
+      });
+
+      it('should reject a relative destinationPath', () => {
+        // Arrange
+        const input = {
+          operation: 'move_file',
+          sourcePath: '/path/to/file.ts',
+          destinationPath: 'new/path/file.ts',
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).toThrow(/absolute path/);
       });
     });
 
@@ -552,6 +643,38 @@ describe('Grouped Tools Schema Validation', () => {
           /targetFolder is required for batch_move_files/,
         );
       });
+
+      it('should reject a relative path among files, naming the entry', () => {
+        // Arrange
+        const input = {
+          operation: 'batch_move_files',
+          files: ['/path/to/file1.ts', 'path/to/file2.ts'],
+          targetFolder: '/new/folder',
+        };
+
+        // Act
+        const result = schema.safeParse(input);
+
+        // Assert
+        expect(result.error?.issues).toEqual([
+          expect.objectContaining({
+            path: ['files', 1],
+            message: expect.stringContaining('absolute path'),
+          }),
+        ]);
+      });
+
+      it('should reject a relative targetFolder', () => {
+        // Arrange
+        const input = {
+          operation: 'batch_move_files',
+          files: ['/path/to/file1.ts'],
+          targetFolder: 'new/folder',
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).toThrow(/absolute path/);
+      });
     });
   });
 
@@ -571,10 +694,24 @@ describe('Grouped Tools Schema Validation', () => {
         expect(shape.directory.description).toContain('cleanup_codebase');
       });
 
-      it('should warn that deleting unused files needs entrypoints', () => {
+      it('should warn that deleting unused files needs entrypoints and the project root', () => {
         // Act & Assert
         expect(shape.deleteUnusedFiles.description).toContain('entrypoints');
         expect(shape.entrypoints.description).toContain('deleteUnusedFiles');
+        expect(shape.deleteUnusedFiles.description).toMatch(
+          /project root.*tsconfig\.json/,
+        );
+        expect(shape.directory.description).toMatch(
+          /deleteUnusedFiles.*project root.*tsconfig\.json/,
+        );
+      });
+
+      it('should say each path parameter takes an absolute path', () => {
+        // Act & Assert
+        expect(shape.filePath.description).toMatch(/absolute path/i);
+        expect(shape.sourcePath.description).toMatch(/absolute path/i);
+        expect(shape.destinationPath.description).toMatch(/absolute path/i);
+        expect(shape.directory.description).toMatch(/absolute path/i);
       });
     });
 
@@ -636,6 +773,19 @@ describe('Grouped Tools Schema Validation', () => {
           /text is required for find_references/,
         );
       });
+
+      it('should reject a relative filePath', () => {
+        // Arrange
+        const input = {
+          operation: 'find_references',
+          filePath: 'src/file.ts',
+          line: 10,
+          text: 'myFunction',
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).toThrow(/absolute path/);
+      });
     });
 
     describe('refactor_module Operation', () => {
@@ -677,6 +827,30 @@ describe('Grouped Tools Schema Validation', () => {
         expect(() => schema.parse(input)).toThrow(
           /destinationPath is required for refactor_module/,
         );
+      });
+
+      it('should reject a relative sourcePath', () => {
+        // Arrange
+        const input = {
+          operation: 'refactor_module',
+          sourcePath: 'path/to/old.ts',
+          destinationPath: '/path/to/new.ts',
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).toThrow(/absolute path/);
+      });
+
+      it('should reject a relative destinationPath', () => {
+        // Arrange
+        const input = {
+          operation: 'refactor_module',
+          sourcePath: '/path/to/old.ts',
+          destinationPath: 'path/to/new.ts',
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).toThrow(/absolute path/);
       });
     });
 
@@ -732,6 +906,17 @@ describe('Grouped Tools Schema Validation', () => {
           /entrypoints is required when deleteUnusedFiles: true/,
         );
       });
+
+      it('should reject a relative directory', () => {
+        // Arrange
+        const input = {
+          operation: 'cleanup_codebase',
+          directory: 'src',
+        };
+
+        // Act & Assert
+        expect(() => schema.parse(input)).toThrow(/absolute path/);
+      });
     });
 
     describe('restart_tsserver Operation', () => {
@@ -749,7 +934,7 @@ describe('Grouped Tools Schema Validation', () => {
         // Arrange
         const input = {
           operation: 'restart_tsserver',
-          filePath: 'ignored.ts',
+          filePath: '/path/to/ignored.ts',
         };
 
         // Act & Assert

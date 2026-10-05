@@ -63,6 +63,24 @@ export class Telemetry {
     logger.error(event, 'Tool failed');
   }
 
+  /**
+   * For a result with `success: false`, which is how operations report
+   * failure. It has no error to name, and its fixed type keeps it apart from
+   * one that was thrown.
+   */
+  logFailure(tool: string, operation: string | undefined) {
+    const durationMs = this.startTime ? Date.now() - this.startTime : undefined;
+    const event: TelemetryEvent = {
+      event: 'tool_error',
+      tool,
+      operation,
+      timestamp: Date.now(),
+      durationMs,
+      errorType: 'OperationFailed',
+    };
+    logger.error(event, 'Tool failed');
+  }
+
   static sanitizePath(path: string): string {
     try {
       return relative(process.cwd(), path);

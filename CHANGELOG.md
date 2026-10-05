@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **tsr could read a `cleanup_codebase` entrypoint as an option**: the patterns reached tsr as an ordinary argument, so one such as `--write=main\.ts$` switched it to writing, and a preview deleted files. The patterns now follow `--`, and are checked before tsr runs (see Fixed).
 
+### 🔧 Changed
+
+- **Breaking: every path parameter must be absolute**: `filePath`, `sourcePath`, `destinationPath`, each entry of `files`, `targetFolder` and `directory`. A relative path resolved against the server's own working directory, which is wherever the client launched it, so from a git worktree a rename edited the main checkout and reported success. A relative path is now rejected with `isError`, and the message names the parameter and the server's working directory; an empty path gets the same message. `rename_file`'s `name` and the `entrypoints` patterns are not paths and are unchanged.
+
 ### 🐛 Fixed
 
 - **tsserver never saw a change to a file it had open**: tsserver stops reading an open file from disk, and nothing sent a file again, so an edit made afterwards — by an editor, by git, or by the server's own previous operation — was invisible, and edits computed from the old text landed on the new one. A rename after a comment was added above the function wrote `// Utilities forbarmputing values` and reported success. Before each operation, every open file whose modification time or size has changed is now sent again, and one deleted from disk is closed.
@@ -31,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`cleanup_codebase` reported tsr's failures as success**: a real run took any exit code 1 for success, though `tsr --write` exits 0 whenever it succeeds, and a preview took tsr's argument errors, or its crash on an invalid regular expression, for changes to make. Any tsr failure is now reported as a failure.
 - **A `cleanup_codebase` preview with nothing to remove said it would make changes**, and listed tsr's `✔ all good!` as one. It now says nothing was found. tsr also runs with `NO_COLOR`, so its output reaches the message without escape codes when `CI` or `FORCE_COLOR` is set.
 - **`cleanup_codebase` rewrote build output**: the import sweep skipped only `node_modules` and dot-directories, so it also organized the imports in `dist`. It now skips `dist` too.
+- **Tool calls sent together ran at the same time**: the MCP SDK starts each call as it arrives, and clients do send several at once, so their requests and writes interleaved on the one tsserver and the same files. Calls now run one at a time.
+- **Telemetry logged failed calls as successes**: operations report failure by returning `success: false`, and every returned result was logged as `tool_success`. Such a result is now logged as `tool_error` with `errorType: 'OperationFailed'`.
 
 ## [2.3.0] - 2026-09-22
 

@@ -3,6 +3,7 @@
  * v2.0 - Replaces 14 individual tools with 4 grouped tools
  */
 
+import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import type { RefactorResult } from '../language-servers/typescript/tsserver-client.js';
 import { OperationName } from '../operation-name.js';
@@ -25,6 +26,19 @@ interface GroupedTool {
     args: Record<string, unknown>,
     registry: OperationRegistry,
   ) => Promise<RefactorResult>;
+}
+
+// Every operation shares one tsserver and edits files, and fix_all hands
+// tsserver text that is not on disk while it works: a call running alongside
+// computed its edits from that text. The MCP SDK runs calls as they arrive,
+// and clients do issue several at once
+let previousCall: Promise<unknown> = Promise.resolve();
+
+/** Runs `run` once the call before it has finished, however it finished */
+function afterPreviousCall<T>(run: () => Promise<T>): Promise<T> {
+  const call = previousCall.then(run);
+  previousCall = call.catch(() => undefined);
+  return call;
 }
 
 /**
@@ -58,19 +72,35 @@ async function runOperation(
 
     // Raw args, not parsed.data: every operation re-parses with its own schema,
     // so this pass is validation only and must not strip fields from it
-    const result = await operation.execute(args);
+    const result = await afterPreviousCall(() => operation.execute(args));
 
-    telemetry.logSuccess(
-      tool.name,
-      operationName,
-      result.filesChanged?.length || 0,
-    );
+    // Operations report failure by returning it, not by throwing
+    if (result.success) {
+      telemetry.logSuccess(
+        tool.name,
+        operationName,
+        result.filesChanged?.length || 0,
+      );
+    } else {
+      telemetry.logFailure(tool.name, operationName);
+    }
     return result;
   } catch (error) {
     telemetry.logError(tool.name, operationName, error as Error);
     throw error;
   }
 }
+
+/**
+ * Operations resolve a relative path against the server's own working
+ * directory - wherever the MCP client launched it - which need not be the
+ * checkout the client is working in: from a git worktree, a relative path
+ * edited the main checkout and reported success.
+ */
+const absolutePath = z.string().refine(isAbsolute, {
+  error: () =>
+    `Must be an absolute path. A relative path would resolve against the server's own working directory (${process.cwd()}), which may be a different checkout than the one you are working in.`,
+});
 
 // File Operations Tool
 export const fileOperationsTool: GroupedTool = {
@@ -97,12 +127,10 @@ Use when: Renaming/moving TS/JS files. Always use this, not mv/Edit.`,
         OperationName.MOVE_FILE,
         OperationName.BATCH_MOVE_FILES,
       ]),
-      sourcePath: z
-        .string()
-        .min(1)
+      sourcePath: absolutePath
         .optional()
         .describe(
-          'Path of the file to act on. Required for rename_file and move_file.',
+          'Absolute path of the file to act on. Required for rename_file and move_file.',
         ),
       name: z
         .string()
@@ -111,23 +139,21 @@ Use when: Renaming/moving TS/JS files. Always use this, not mv/Edit.`,
         .describe(
           'Required for rename_file: the new bare filename, e.g. "usages.ts" - not a path. To move a file into another directory, use move_file with destinationPath.',
         ),
-      destinationPath: z
-        .string()
-        .min(1)
+      destinationPath: absolutePath
         .optional()
         .describe(
-          'Required for move_file: the full new path of the file, including its filename.',
+          'Required for move_file: the full new absolute path of the file, including its filename.',
         ),
       files: z
-        .array(z.string().min(1))
-        .optional()
-        .describe('Required for batch_move_files: paths of the files to move.'),
-      targetFolder: z
-        .string()
-        .min(1)
+        .array(absolutePath)
         .optional()
         .describe(
-          'Required for batch_move_files: directory the files are moved into.',
+          'Required for batch_move_files: absolute paths of the files to move.',
+        ),
+      targetFolder: absolutePath
+        .optional()
+        .describe(
+          'Required for batch_move_files: absolute path of the directory the files are moved into.',
         ),
       preview: z
         .boolean()
@@ -183,7 +209,7 @@ Use when: After refactoring or before commits. Use proactively.`,
       OperationName.FIX_ALL,
       OperationName.REMOVE_UNUSED,
     ]),
-    filePath: z.string().min(1, 'File path cannot be empty'),
+    filePath: absolutePath.describe('Absolute path of the file to act on.'),
     preview: z.boolean().optional(),
   }),
   async execute(args, registry) {
@@ -222,7 +248,7 @@ Use when: Renaming, extracting, or moving symbols between files. Always use this
         OperationName.MOVE_TO_FILE,
         OperationName.INFER_RETURN_TYPE,
       ]),
-      filePath: z.string().min(1, 'File path cannot be empty'),
+      filePath: absolutePath.describe('Absolute path of the file to act on.'),
       line: z.number().int().positive('Line must be a positive integer'),
       text: z.string().min(1, 'Text cannot be empty'),
       name: z
@@ -231,12 +257,10 @@ Use when: Renaming, extracting, or moving symbols between files. Always use this
         .describe(
           'Required for rename: the new symbol name. Optional for extract_function, extract_constant and extract_variable, which generate a name when omitted.',
         ),
-      destinationPath: z
-        .string()
-        .min(1)
+      destinationPath: absolutePath
         .optional()
         .describe(
-          'Required for move_to_file: the file to move the symbol into. Created if it does not exist; omit to move into a new file named after the symbol.',
+          'Required for move_to_file: absolute path of the file to move the symbol into. Created if it does not exist; omit to move into a new file named after the symbol.',
         ),
       preview: z
         .boolean()
@@ -284,11 +308,11 @@ Use when: Before renaming/refactoring. Use find_references first to see impact.`
         OperationName.CLEANUP_CODEBASE,
         OperationName.RESTART_TSSERVER,
       ]),
-      filePath: z
-        .string()
-        .min(1)
+      filePath: absolutePath
         .optional()
-        .describe('Required for find_references: the file holding the symbol.'),
+        .describe(
+          'Required for find_references: absolute path of the file holding the symbol.',
+        ),
       line: z
         .number()
         .int()
@@ -302,26 +326,26 @@ Use when: Before renaming/refactoring. Use find_references first to see impact.`
         .min(1)
         .optional()
         .describe('Required for find_references: the symbol to look up.'),
-      sourcePath: z
-        .string()
-        .min(1)
+      sourcePath: absolutePath
         .optional()
-        .describe('Required for refactor_module: the module to move.'),
-      destinationPath: z
-        .string()
-        .min(1)
+        .describe(
+          'Required for refactor_module: absolute path of the module to move.',
+        ),
+      destinationPath: absolutePath
         .optional()
-        .describe('Required for refactor_module: the path to move it to.'),
-      directory: z
-        .string()
-        .min(1)
+        .describe(
+          'Required for refactor_module: the absolute path to move it to.',
+        ),
+      directory: absolutePath
         .optional()
-        .describe('Required for cleanup_codebase: the directory to sweep.'),
+        .describe(
+          'Required for cleanup_codebase: absolute path of the directory to sweep. With deleteUnusedFiles, it must be the project root - the directory containing tsconfig.json.',
+        ),
       deleteUnusedFiles: z
         .boolean()
         .optional()
         .describe(
-          'cleanup_codebase only: DELETES files it judges unreachable. Requires entrypoints, which decide what counts as reachable.',
+          'cleanup_codebase only: DELETES files it judges unreachable. Requires entrypoints, which decide what counts as reachable, and directory set to the project root - the directory containing tsconfig.json.',
         ),
       entrypoints: z
         .array(z.string())

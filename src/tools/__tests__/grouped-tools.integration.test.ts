@@ -5,10 +5,14 @@
 
 import type { Mock } from 'bun:test';
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
+import { join } from 'node:path';
+import { OperationName } from '../../operation-name.js';
 import { OperationRegistry } from '../../registry.js';
 import { logger } from '../../utils/logger.js';
 import { groupedTools } from '../grouped-tools.js';
 import { toolInputShape } from '../tool-input-shape.js';
+
+const missingFile = join(__dirname, 'nonexistent.ts');
 
 describe('Grouped Tools Integration', () => {
   let registry: OperationRegistry;
@@ -74,7 +78,7 @@ describe('Grouped Tools Integration', () => {
       const result = await fileTool.execute(
         {
           operation: 'rename_file',
-          sourcePath: 'nonexistent.ts',
+          sourcePath: missingFile,
           name: 'renamed.ts',
         },
         registry,
@@ -101,7 +105,7 @@ describe('Grouped Tools Integration', () => {
       const result = await qualityTool.execute(
         {
           operation: 'organize_imports',
-          filePath: 'nonexistent.ts',
+          filePath: missingFile,
         },
         registry,
       );
@@ -129,7 +133,7 @@ describe('Grouped Tools Integration', () => {
       const result = await refactorTool.execute(
         {
           operation: 'extract_function',
-          filePath: 'nonexistent.ts',
+          filePath: missingFile,
           line: 1,
           text: 'test',
         },
@@ -144,7 +148,7 @@ describe('Grouped Tools Integration', () => {
       const result = await refactorTool.execute(
         {
           operation: 'move_to_file',
-          filePath: 'nonexistent.ts',
+          filePath: missingFile,
           line: 1,
           text: 'test',
         },
@@ -176,7 +180,7 @@ describe('Grouped Tools Integration', () => {
       const result = await workspaceTool.execute(
         {
           operation: 'find_references',
-          filePath: 'nonexistent.ts',
+          filePath: missingFile,
           line: 1,
           text: 'test',
         },
@@ -208,7 +212,7 @@ describe('Grouped Tools Integration', () => {
       const result = await fileTool.execute(
         {
           operation: 'unknown_operation',
-          filePath: 'test.ts',
+          filePath: missingFile,
         },
         registry,
       );
@@ -322,6 +326,96 @@ describe('Grouped Tools Integration', () => {
     });
   });
 
+  describe('Relative Paths', () => {
+    // An operation resolves a relative path against this process's cwd - the
+    // checkout the server was launched in, not necessarily the client's
+    it('should reject a relative filePath before the operation runs', async () => {
+      // Arrange
+      const findReferences = registry.getOperation(
+        OperationName.FIND_REFERENCES,
+      )!;
+      const execute = spyOn(findReferences, 'execute');
+
+      // Act
+      const result = await groupedTools[3].execute(
+        {
+          operation: 'find_references',
+          filePath: 'src/nonexistent.ts',
+          line: 1,
+          text: 'test',
+        },
+        registry,
+      );
+
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('filePath');
+      expect(result.message).toContain('absolute path');
+      expect(result.message).toContain(process.cwd());
+      expect(execute).not.toHaveBeenCalled();
+      execute.mockRestore();
+    });
+
+    it('should reject a relative path among files', async () => {
+      // Arrange - preview, so a regression here still writes nothing
+      const input = {
+        operation: 'batch_move_files',
+        files: [missingFile, 'src/nonexistent.ts'],
+        targetFolder: join(__dirname, 'moved'),
+        preview: true,
+      };
+
+      // Act
+      const result = await groupedTools[0].execute(input, registry);
+
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('files.1');
+      expect(result.message).toContain('absolute path');
+    });
+
+    it("should reject a relative directory rather than sweep the server's own", async () => {
+      // Arrange - `src` exists under this process's cwd; preview, so a
+      // regression here still writes nothing
+      const input = {
+        operation: 'cleanup_codebase',
+        directory: 'src',
+        preview: true,
+      };
+
+      // Act
+      const result = await groupedTools[3].execute(input, registry);
+
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('directory');
+      expect(result.message).toContain('absolute path');
+    });
+
+    it('should pass an absolute path through to the operation', async () => {
+      // Arrange
+      const findReferences = registry.getOperation(
+        OperationName.FIND_REFERENCES,
+      )!;
+      const execute = spyOn(findReferences, 'execute');
+
+      // Act
+      await groupedTools[3].execute(
+        {
+          operation: 'find_references',
+          filePath: missingFile,
+          line: 1,
+          text: 'test',
+        },
+        registry,
+      );
+
+      // Assert
+      expect(execute).toHaveBeenCalled();
+      execute.mockRestore();
+    });
+  });
+
   describe('Telemetry', () => {
     function recordedEvents(spy: Mock<typeof logger.info>): string[] {
       return spy.mock.calls
@@ -337,7 +431,7 @@ describe('Grouped Tools Integration', () => {
       await groupedTools[0].execute(
         {
           operation: 'rename_file',
-          sourcePath: 'test.ts',
+          sourcePath: missingFile,
           name: 'renamed.ts',
         },
         registry,
@@ -360,6 +454,121 @@ describe('Grouped Tools Integration', () => {
         error.mock.calls.map(([event]) => (event as { event?: string })?.event),
       ).toContain('tool_error');
       error.mockRestore();
+    });
+
+    // Operations report failure by returning success: false rather than
+    // throwing, and runOperation logged every returned result as a success
+    it('should record a failure the operation returns as a failure', async () => {
+      // Arrange
+      const info = spyOn(logger, 'info');
+      const error = spyOn(logger, 'error');
+
+      // Act
+      const result = await groupedTools[0].execute(
+        {
+          operation: 'rename_file',
+          sourcePath: missingFile,
+          name: 'renamed.ts',
+        },
+        registry,
+      );
+
+      // Assert
+      const failure = error.mock.calls
+        .map(([event]) => event as { event?: string; errorType?: string })
+        .find((event) => event?.event === 'tool_error');
+      expect(result.success).toBe(false);
+      expect(recordedEvents(info)).not.toContain('tool_success');
+      expect(failure?.errorType).toBe('OperationFailed');
+      info.mockRestore();
+      error.mockRestore();
+    });
+
+    it('should record a success the operation returns as a success', async () => {
+      // Arrange
+      const info = spyOn(logger, 'info');
+
+      // Act
+      const result = await groupedTools[3].execute(
+        { operation: 'restart_tsserver' },
+        registry,
+      );
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(recordedEvents(info)).toContain('tool_success');
+      info.mockRestore();
+    });
+  });
+
+  describe('Concurrent Calls', () => {
+    function findReferencesFor(text: string) {
+      return groupedTools[3].execute(
+        { operation: 'find_references', filePath: missingFile, line: 1, text },
+        registry,
+      );
+    }
+
+    it('should run calls issued together one after the other', async () => {
+      // Arrange - the first reports a failure, which holds the next back too
+      const findReferences = registry.getOperation(
+        OperationName.FIND_REFERENCES,
+      )!;
+      const events: string[] = [];
+      const execute = spyOn(findReferences, 'execute').mockImplementation(
+        async (input) => {
+          events.push(`start ${input.text}`);
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          events.push(`end ${input.text}`);
+          return { success: false, message: 'Not found', filesChanged: [] };
+        },
+      );
+
+      // Act
+      await Promise.all([
+        findReferencesFor('first'),
+        findReferencesFor('second'),
+      ]);
+      execute.mockRestore();
+
+      // Assert
+      expect(events).toEqual([
+        'start first',
+        'end first',
+        'start second',
+        'end second',
+      ]);
+    });
+
+    it('should run the next call once the one before it has thrown', async () => {
+      // Arrange
+      const findReferences = registry.getOperation(
+        OperationName.FIND_REFERENCES,
+      )!;
+      const events: string[] = [];
+      const execute = spyOn(findReferences, 'execute').mockImplementation(
+        async (input) => {
+          events.push(`start ${input.text}`);
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          if (input.text === 'first') {
+            events.push('first threw');
+            throw new Error('tsserver exited');
+          }
+          return { success: true, message: 'Found', filesChanged: [] };
+        },
+      );
+
+      // Act
+      const [first, second] = await Promise.allSettled([
+        findReferencesFor('first'),
+        findReferencesFor('second'),
+      ]);
+      execute.mockRestore();
+
+      // Assert
+      expect(first.status).toBe('rejected');
+      expect(second.status).toBe('fulfilled');
+      expect(events).toEqual(['start first', 'first threw', 'start second']);
     });
   });
 });
