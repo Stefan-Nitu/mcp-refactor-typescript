@@ -1,20 +1,6 @@
 import type { TypeScriptServer } from '../../language-servers/typescript/tsserver-client.js';
 import { logger } from '../../utils/logger.js';
-
-type TypeScriptModule = typeof import('typescript');
-
-let compiler: Promise<TypeScriptModule> | undefined;
-
-/**
- * Megabytes of compiler for one boolean, so it is loaded only once a move needs
- * it. This is deliberately our own copy rather than the project's: it reads only
- * allowImportingTsExtensions, stable since 5.0. Anything version-sensitive would
- * have to resolve the project's TypeScript the way resolve-tsserver-path does.
- */
-function loadCompiler(): Promise<TypeScriptModule> {
-  compiler ??= import('typescript').then((module) => module.default ?? module);
-  return compiler;
-}
+import { loadCompiler } from './typescript-compiler.js';
 
 export class ModuleSpecifierPreference {
   constructor(private tsServer: TypeScriptServer) {}
@@ -70,6 +56,11 @@ export class ModuleSpecifierPreference {
    */
   private async allowsTsExtensions(configPath: string): Promise<boolean> {
     try {
+      // Megabytes of compiler for one boolean, loaded only once a move needs
+      // it. Our own copy rather than the project's is deliberate: it reads
+      // only allowImportingTsExtensions, stable since 5.0. Anything
+      // version-sensitive would have to resolve the project's TypeScript the
+      // way resolve-tsserver-path does
       const ts = await loadCompiler();
       const parsed = ts.getParsedCommandLineOfConfigFile(
         configPath,
