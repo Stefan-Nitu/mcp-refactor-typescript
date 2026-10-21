@@ -54,8 +54,8 @@ try {
     await readFile(require.resolve('typescript/package.json'), 'utf-8'),
   ).version;
   console.log(`Bundled TypeScript: ${tsVersion}`);
-  if (!tsVersion.startsWith('5.')) {
-    fail(`expected a TypeScript 5.x runtime, resolved ${tsVersion}`);
+  if (!tsVersion.startsWith('6.')) {
+    fail(`expected a TypeScript 6.x runtime, resolved ${tsVersion}`);
   }
   if (!existsSync(tsserverPath)) {
     fail(`no tsserver at ${tsserverPath}`);

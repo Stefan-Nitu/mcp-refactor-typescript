@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🔧 Changed
+
+- **The bundled TypeScript is now 6.0**: a project with no TypeScript of its own, or one on TypeScript 7, which ships no tsserver, had its edits computed by TypeScript 5.9. The server now ships 6.0.3, the newest release that still has tsserver.
+
 ## [3.1.0] - 2026-10-05
 
 ### ✨ Added

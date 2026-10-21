@@ -64,9 +64,9 @@ falls back to the bundled copy when a project is on 7.
 ## `tsr` pulls in TypeScript via a peer dependency
 
 `tsr` declares `typescript: >=4.0.0` as a *peer*, so npm auto-installs the newest match —
-that is how `typescript@7.0.2` landed in consumer installs. The direct `typescript: ~5.9.3`
+that is how `typescript@7.0.2` landed in consumer installs. The direct `typescript: ~6.0.3`
 dependency satisfies that peer range and dedupes to one copy; `test:fresh-install` asserts
-the resolved version starts with `5.`.
+the resolved version starts with `6.`.
 
 ## tsserver keeps serving a moved file from its old path
 

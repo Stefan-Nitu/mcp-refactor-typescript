@@ -38,11 +38,11 @@ The server runs on Node.js 18 or later. Developing it needs Bun 1.3.8 or later.
 
 ### Which TypeScript it uses
 
-Your project does not need TypeScript installed: the server ships TypeScript 5.9. When
+Your project does not need TypeScript installed: the server ships TypeScript 6.0. When
 a `typescript` package resolves from the directory the server was launched in, that
 copy is used instead, so edits match the version the project compiles with; TypeScript
 4.9 and later work. TypeScript 7 no longer ships `tsserver`, so a project on 7 gets the
-bundled 5.9.
+bundled 6.0.
 
 The project should have a `tsconfig.json`: tsserver uses it to know which files belong
 to the project.

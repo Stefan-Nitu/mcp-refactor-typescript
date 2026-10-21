@@ -77,7 +77,7 @@ lives in `docs/OPERATIONS.md`, which clients read only when they ask for it (see
 `<projectPath>/package.json`, so it finds the TypeScript installed in or above that
 directory. When none resolves, or the project's TypeScript has no tsserver
 (TypeScript 7), it falls back to the copy this package depends on (`typescript`
-`~5.9.3`). `projectPath` is always the server's working directory, `process.cwd()`. A
+`~6.0.3`). `projectPath` is always the server's working directory, `process.cwd()`. A
 project's own TypeScript works back to at least 4.9.
 
 ### Starting and stopping
